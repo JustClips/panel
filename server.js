@@ -1,89 +1,89 @@
 const WebSocket = require('ws');
 
-const wss = new WebSocket.Server({ port: 8080 });
+// Railway provides the port via an environment variable. Fallback to 3000 for local testing.
+const PORT = process.env.PORT || 3000;
 
-// Use an object to store info about each server, using its unique JobId as the key
+const wss = new WebSocket.Server({ port: PORT });
+
+// This object will hold the live data for each connected server instance.
 const serverRegistry = {};
 
-// This function sends the updated server list to everyone
-function broadcastServerList() {
-    const serverList = Object.values(serverRegistry);
-    const message = JSON.stringify({
-        type: 'serverListUpdate',
-        payload: serverList
-    });
-
-    for (const ws of wss.clients) {
-        if (ws.readyState === WebSocket.OPEN) {
-            ws.send(message);
+/**
+ * Broadcasts a message to all connected clients.
+ * @param {object} messageObject The JavaScript object to send.
+ */
+function broadcast(messageObject) {
+    const messageString = JSON.stringify(messageObject);
+    for (const client of wss.clients) {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(messageString);
         }
     }
+}
+
+// This function specifically broadcasts the updated list of all servers.
+function broadcastServerList() {
+    const serverList = Object.values(serverRegistry);
+    broadcast({ type: 'serverListUpdate', payload: serverList });
     console.log('Broadcasted server list update.');
 }
 
 wss.on('connection', (ws) => {
-    console.log('✅ A client has connected.');
-    let serverJobId = null; // To track which server this connection belongs to
+    let serverJobId = null; // Used to identify which server this connection belongs to.
+
+    console.log('✅ A Roblox server has connected.');
 
     ws.on('message', (message) => {
         try {
             const data = JSON.parse(message);
-            
-            // --- Message Handling ---
+
+            // Handle different message types from Roblox
             switch (data.type) {
-                // When a new server comes online, it registers itself
+                // When a server first comes online
                 case 'register':
                     serverJobId = data.payload.jobId;
                     serverRegistry[serverJobId] = {
                         jobId: serverJobId,
-                        placeId: data.payload.placeId,
+                        gameName: data.payload.gameName,
                         playerCount: data.payload.playerCount,
-                        maxPlayers: data.payload.maxPlayers,
-                        uptime: 0
+                        playersList: data.payload.playersList, // List of usernames
+                        uptime: 0,
                     };
-                    console.log(`Server registered: ${serverJobId}`);
-                    broadcastServerList(); // Send the new list to everyone
+                    console.log(`Server registered: ${serverJobId} (${data.payload.gameName})`);
+                    broadcastServerList(); // Tell all admin panels about the new server
                     break;
 
-                // A server sends periodic updates with its player count
+                // For periodic updates from an existing server
                 case 'update':
                     if (serverJobId && serverRegistry[serverJobId]) {
                         serverRegistry[serverJobId].playerCount = data.payload.playerCount;
+                        serverRegistry[serverJobId].playersList = data.payload.playersList;
                         serverRegistry[serverJobId].uptime = data.payload.uptime;
-                        // Don't broadcast on every single update to avoid spam,
-                        // the main broadcast happens when servers join/leave.
-                        // You could add a timer to broadcast every 5 seconds if needed.
                     }
                     break;
                 
-                // An admin sends a command to be broadcasted
+                // For commands sent by an admin to be broadcasted
                 case 'announcement':
                 case 'kick':
                     console.log(`Broadcasting command: ${data.type}`);
-                    // Re-wrap the command and send it to all servers
-                    const commandMessage = JSON.stringify(data);
-                    for (const client of wss.clients) {
-                        if (client.readyState === WebSocket.OPEN) {
-                            client.send(commandMessage);
-                        }
-                    }
+                    broadcast(data); // Broadcast the entire command object
                     break;
             }
         } catch (error) {
-            console.error('Error processing message:', error);
+            console.error('Failed to process message:', error);
         }
     });
 
     ws.on('close', () => {
-        console.log(`❌ Client disconnected.`);
+        console.log(`❌ A Roblox server has disconnected.`);
         if (serverJobId && serverRegistry[serverJobId]) {
             console.log(`Server unregistered: ${serverJobId}`);
             delete serverRegistry[serverJobId];
-            broadcastServerList(); // A server left, so update everyone
+            broadcastServerList(); // Tell all admin panels that a server has left
         }
     });
 
     ws.on('error', (error) => console.error('WebSocket error:', error));
 });
 
-console.log('🚀 Enhanced WebSocket server is running on ws://localhost:8080');
+console.log(`🚀 WebSocket server is running on port ${PORT}`);
