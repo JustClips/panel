@@ -1,9 +1,18 @@
 const WebSocket = require('ws');
+const http = require('http'); // Import the http module
 
 // Railway provides the port via an environment variable. Fallback to 3000 for local testing.
 const PORT = process.env.PORT || 3000;
 
-const wss = new WebSocket.Server({ port: PORT });
+// Create a simple HTTP server to handle health checks
+const server = http.createServer((req, res) => {
+    // This is the health check endpoint. It responds to any HTTP request with "OK".
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('Server is alive and listening');
+});
+
+// Attach the WebSocket server to the HTTP server
+const wss = new WebSocket.Server({ server });
 
 // This object will hold the live data for each connected server instance.
 const serverRegistry = {};
@@ -31,7 +40,7 @@ function broadcastServerList() {
 wss.on('connection', (ws) => {
     let serverJobId = null; // Used to identify which server this connection belongs to.
 
-    console.log('✅ A Roblox server has connected.');
+    console.log('✅ A client has connected.');
 
     ws.on('message', (message) => {
         try {
@@ -59,6 +68,8 @@ wss.on('connection', (ws) => {
                         serverRegistry[serverJobId].playerCount = data.payload.playerCount;
                         serverRegistry[serverJobId].playersList = data.payload.playersList;
                         serverRegistry[serverJobId].uptime = data.payload.uptime;
+                        // Broadcast the new list after an update
+                        broadcastServerList();
                     }
                     break;
                 
@@ -75,7 +86,7 @@ wss.on('connection', (ws) => {
     });
 
     ws.on('close', () => {
-        console.log(`❌ A Roblox server has disconnected.`);
+        console.log(`❌ A client has disconnected.`);
         if (serverJobId && serverRegistry[serverJobId]) {
             console.log(`Server unregistered: ${serverJobId}`);
             delete serverRegistry[serverJobId];
@@ -86,4 +97,7 @@ wss.on('connection', (ws) => {
     ws.on('error', (error) => console.error('WebSocket error:', error));
 });
 
-console.log(`🚀 WebSocket server is running on port ${PORT}`);
+// Start the HTTP server, which also starts the WebSocket server
+server.listen(PORT, () => {
+    console.log(`🚀 HTTP and WebSocket server is running on port ${PORT}`);
+});
