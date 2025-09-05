@@ -1,0 +1,14 @@
+{
+  "name": "roblox-backend",
+  "version": "1.0.0",
+  "description": "A WebSocket server for Roblox game communication.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "ws": "^8.17.1"
+  }
+}
