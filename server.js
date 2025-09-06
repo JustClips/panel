@@ -1,116 +1,214 @@
 const express = require('express');
-const http = require('http');
-const socketIo = require('socket.io');
-const axios = require('axios');
+const bodyParser = require('body-parser');
+const cors = require('cors');
 const path = require('path');
-
 const app = express();
-const server = http.createServer(app);
-const io = socketIo(server);
 
 // Railway provides the PORT environment variable
-const PORT = process.env.PORT || 3001;
-const ROLBOX_SERVER_URL = 'https://panel-production-23ca.up.railway.app';
+const PORT = process.env.PORT || 3000;
 
-// Serve static files from public directory
+// Middleware
+app.use(cors());
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Serve the main admin panel page
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
+// In-memory storage for connected clients
+let clients = [];
+let clientIdCounter = 1;
 
-// API endpoint to get server status
-app.get('/api/status', async (req, res) => {
-  try {
-    const response = await axios.get(`${ROLBOX_SERVER_URL}/`);
-    res.json(response.data);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch server status' });
-  }
-});
-
-// API endpoint to get connected clients
-app.get('/api/clients', async (req, res) => {
-  try {
-    const response = await axios.get(`${ROLBOX_SERVER_URL}/clients`);
-    res.json(response.data);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch clients' });
-  }
-});
-
-// Handle WebSocket connections
-io.on('connection', (socket) => {
-  console.log('Admin panel connected');
-  
-  // Send initial data
-  sendServerData(socket);
-  
-  // Handle announcement requests
-  socket.on('sendAnnouncement', async (data) => {
-    try {
-      const response = await axios.post(`${ROLBOX_SERVER_URL}/announce`, {
-        message: data.message
-      });
-      socket.emit('announcementSent', response.data);
-    } catch (error) {
-      socket.emit('error', { message: 'Failed to send announcement' });
-    }
-  });
-  
-  // Handle command requests
-  socket.on('sendCommand', async (data) => {
-    try {
-      const response = await axios.post(`${ROLBOX_SERVER_URL}/broadcast`, {
-        command: data.command
-      });
-      socket.emit('commandSent', response.data);
-    } catch (error) {
-      socket.emit('error', { message: 'Failed to send command' });
-    }
-  });
-  
-  // Handle kick requests
-  socket.on('kickPlayer', async (data) => {
-    try {
-      const response = await axios.post(`${ROLBOX_SERVER_URL}/kick`, {
-        clientId: data.clientId
-      });
-      socket.emit('playerKicked', response.data);
-    } catch (error) {
-      socket.emit('error', { message: 'Failed to kick player' });
-    }
-  });
-  
-  // Handle disconnection
-  socket.on('disconnect', () => {
-    console.log('Admin panel disconnected');
-  });
-});
-
-// Function to send server data to clients
-async function sendServerData(socket) {
-  try {
-    const statusResponse = await axios.get(`${ROLBOX_SERVER_URL}/`);
-    const clientsResponse = await axios.get(`${ROLBOX_SERVER_URL}/clients`);
-    
-    socket.emit('serverData', {
-      status: statusResponse.data,
-      clients: clientsResponse.data
-    });
-  } catch (error) {
-    socket.emit('error', { message: 'Failed to fetch server data' });
-  }
+// Utility function to generate unique client IDs
+function generateClientId() {
+  return `client_${clientIdCounter++}`;
 }
 
-// Periodically send updated server data to all clients
-setInterval(() => {
-  io.emit('updateRequest');
-}, 5000);
+// Health check endpoint
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'Rolbox Command Server is running!',
+    clientsConnected: clients.length,
+    endpoints: {
+      connect: 'POST /connect',
+      broadcast: 'POST /broadcast',
+      announce: 'POST /announce',
+      kick: 'POST /kick'
+    }
+  });
+});
+
+// Endpoint for clients to connect
+app.post('/connect', (req, res) => {
+  const clientId = generateClientId();
+  const client = {
+    id: clientId,
+    connectedAt: new Date(),
+    response: res
+  };
+  
+  clients.push(client);
+  
+  console.log(`Client connected: ${clientId}`);
+  
+  // Keep connection alive
+  res.writeHead(200, {
+    'Content-Type': 'application/json',
+    'Connection': 'keep-alive',
+    'Cache-Control': 'no-cache'
+  });
+  
+  // Send initial connection confirmation
+  res.write(JSON.stringify({
+    type: 'connected',
+    clientId: clientId,
+    message: 'Successfully connected to command server'
+  }) + '\n');
+  
+  // Handle client disconnect
+  req.on('close', () => {
+    clients = clients.filter(c => c.id !== clientId);
+    console.log(`Client disconnected: ${clientId}`);
+  });
+  
+  // Handle errors
+  req.on('error', (err) => {
+    console.error(`Client ${clientId} connection error:`, err);
+    clients = clients.filter(c => c.id !== clientId);
+  });
+});
+
+// Endpoint to broadcast commands to all connected clients
+app.post('/broadcast', (req, res) => {
+  const { command } = req.body;
+  
+  if (!command) {
+    return res.status(400).json({ error: 'Missing command in request body' });
+  }
+  
+  console.log(`Broadcasting command to ${clients.length} clients`);
+  
+  let successCount = 0;
+  clients.forEach(client => {
+    try {
+      client.response.write(JSON.stringify({
+        type: 'execute',
+        payload: command
+      }) + '\n');
+      successCount++;
+    } catch (err) {
+      console.error(`Failed to send command to client ${client.id}:`, err);
+    }
+  });
+  
+  res.json({
+    message: `Command broadcasted to ${successCount}/${clients.length} clients`,
+    command: command
+  });
+});
+
+// Endpoint to send announcements to all clients
+app.post('/announce', (req, res) => {
+  const { message } = req.body;
+  
+  if (!message) {
+    return res.status(400).json({ error: 'Missing message in request body' });
+  }
+  
+  console.log(`Sending announcement: ${message}`);
+  
+  let successCount = 0;
+  clients.forEach(client => {
+    try {
+      client.response.write(JSON.stringify({
+        type: 'announce',
+        payload: message
+      }) + '\n');
+      successCount++;
+    } catch (err) {
+      console.error(`Failed to send announcement to client ${client.id}:`, err);
+    }
+  });
+  
+  res.json({
+    message: `Announcement sent to ${successCount}/${clients.length} clients`,
+    announcement: message
+  });
+});
+
+// Endpoint to kick a specific client
+app.post('/kick', (req, res) => {
+  const { clientId } = req.body;
+  
+  if (!clientId) {
+    return res.status(400).json({ error: 'Missing clientId in request body' });
+  }
+  
+  const client = clients.find(c => c.id === clientId);
+  if (!client) {
+    return res.status(404).json({ error: `Client ${clientId} not found` });
+  }
+  
+  try {
+    client.response.write(JSON.stringify({
+      type: 'kick',
+      message: 'You have been kicked from the server'
+    }) + '\n');
+    client.response.end();
+  } catch (err) {
+    console.error(`Error kicking client ${clientId}:`, err);
+  }
+  
+  clients = clients.filter(c => c.id !== clientId);
+  console.log(`Kicked client: ${clientId}`);
+  
+  res.json({ message: `Client ${clientId} has been kicked` });
+});
+
+// Get list of connected clients
+app.get('/clients', (req, res) => {
+  res.json({
+    count: clients.length,
+    clients: clients.map(c => ({
+      id: c.id,
+      connectedAt: c.connectedAt
+    }))
+  });
+});
+
+// Admin panel endpoint
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+});
+
+// Admin API endpoints
+app.get('/api/status', (req, res) => {
+  res.json({
+    message: 'Rolbox Command Server is running!',
+    clientsConnected: clients.length
+  });
+});
+
+app.get('/api/clients', (req, res) => {
+  res.json({
+    count: clients.length,
+    clients: clients.map(c => ({
+      id: c.id,
+      connectedAt: c.connectedAt
+    }))
+  });
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ error: 'Something went wrong!' });
+});
+
+// Handle 404s
+app.use((req, res) => {
+  res.status(404).json({ error: 'Endpoint not found' });
+});
 
 // Start server
-server.listen(PORT, () => {
-  console.log(`Rolbox Admin Panel running on port ${PORT}`);
-  console.log(`Access the panel at http://localhost:${PORT}`);
+app.listen(PORT, () => {
+  console.log(`Rolbox Command Server running on port ${PORT}`);
 });
