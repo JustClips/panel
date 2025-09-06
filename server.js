@@ -1,4 +1,4 @@
-// Rolbox Command Server - With Client Timeout/Heartbeat
+// Rolbox Command Server - With Client Timeout/Heartbeat + Game Info + Avatars
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
@@ -22,9 +22,9 @@ app.get('/', (req, res) => {
     });
 });
 
-// Connect/register endpoint
+// Connect/register endpoint (now accepts playerCount and avatarUrl)
 app.post('/connect', (req, res) => {
-    const { id, username, gameName, serverInfo } = req.body;
+    const { id, username, gameName, serverInfo, playerCount, avatarUrl } = req.body;
     if (!id || !username || !gameName || !serverInfo) {
         return res.status(400).json({
             error: 'Bad Request: Missing required fields (id, username, gameName, serverInfo).'
@@ -38,11 +38,13 @@ app.post('/connect', (req, res) => {
         username,
         gameName,
         serverInfo,
+        playerCount: typeof playerCount === "number" ? playerCount : null,
+        avatarUrl: avatarUrl || null,
         connectedAt: new Date(),
-        lastSeen: Date.now() // <-- track last poll
+        lastSeen: Date.now()
     });
     if (!pendingCommands.has(id)) pendingCommands.set(id, []);
-    console.log(`Client registered: ${username} (ID: ${id}) from ${gameName}`);
+    console.log(`Client registered: ${username} (ID: ${id}) from ${gameName} | Players: ${playerCount || 'n/a'}`);
 
     res.json({
         type: 'connected',
@@ -58,16 +60,15 @@ app.post('/poll', (req, res) => {
     if (!clients.has(id)) {
         return res.status(404).json({ error: `Client ${id} not registered.` });
     }
-    // Update last seen timestamp
     clients.get(id).lastSeen = Date.now();
 
     let commands = pendingCommands.get(id) || [];
-    pendingCommands.set(id, []); // Clear queue after sending
+    pendingCommands.set(id, []);
 
     res.json({ commands });
 });
 
-// Broadcast command
+// Broadcast
 app.post('/broadcast', (req, res) => {
     const { command } = req.body;
     if (!command) {
@@ -139,6 +140,8 @@ app.get('/api/clients', (req, res) => {
         username: c.username,
         gameName: c.gameName,
         serverInfo: c.serverInfo,
+        playerCount: c.playerCount,
+        avatarUrl: c.avatarUrl,
         connectedAt: c.connectedAt,
         lastSeen: c.lastSeen
     }));
@@ -162,7 +165,7 @@ setInterval(() => {
     if (kicked.length > 0) {
         console.log(`[TIMEOUT] Kicked inactive clients: ${kicked.join(', ')}`);
     }
-}, 5000); // Check every 5 seconds
+}, 5000);
 
 // --- Error Handling ---
 app.use((req, res) => {
