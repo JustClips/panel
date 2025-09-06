@@ -1,20 +1,23 @@
+// Rolbox Command Server - Updated for Roblox Executor-Compatible Polling
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
-const path = 'path'; // Node.js path module
 const app = express();
 
-// Railway provides the PORT environment variable
 const PORT = process.env.PORT || 3000;
 
 // --- Middleware ---
-app.use(cors()); // Enable Cross-Origin Resource Sharing
-app.use(bodyParser.json()); // Parse JSON bodies
-app.use(bodyParser.urlencoded({ extended: true })); // Parse URL-encoded bodies
+app.use(cors());
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
-// --- In-memory storage ---
-// We use a Map for more efficient client lookups and deletions
+/*
+    CLIENT TRACKING AND COMMAND QUEUES
+    - clients: holds basic client info
+    - pendingCommands: holds arrays of commands for each client
+*/
 let clients = new Map();
+let pendingCommands = new Map();
 
 // --- API Endpoints ---
 
@@ -27,9 +30,7 @@ app.get('/', (req, res) => {
 });
 
 /**
- * Endpoint for clients to connect.
- * This uses long-polling to keep the connection open for real-time commands.
- *
+ * Endpoint for clients to register.
  * EXPECTED BODY:
  * {
  * "id": "unique_client_id_from_game",
@@ -52,94 +53,100 @@ app.post('/connect', (req, res) => {
         return res.status(409).json({ error: `Conflict: Client with ID ${id} is already connected.` });
     }
 
-    const client = {
+    // Register client
+    clients.set(id, {
         id,
         username,
         gameName,
         serverInfo,
-        connectedAt: new Date(),
-        response: res // Store the response object to send data later
-    };
-
-    clients.set(id, client);
-    console.log(`Client connected: ${username} (ID: ${id}) from ${gameName}`);
-
-    // Set headers for a long-polling connection
-    res.writeHead(200, {
-        'Content-Type': 'application/json',
-        'Connection': 'keep-alive',
-        'Cache-Control': 'no-cache'
+        connectedAt: new Date()
     });
+    // Ensure client has a pending command queue
+    if (!pendingCommands.has(id)) pendingCommands.set(id, []);
 
-    // Send initial connection confirmation
-    res.write(JSON.stringify({
+    console.log(`Client registered: ${username} (ID: ${id}) from ${gameName}`);
+
+    res.json({
         type: 'connected',
         clientId: id,
-        message: 'Successfully connected to command server'
-    }) + '\n');
-
-    // Handle client disconnect (when the game client closes the connection)
-    req.on('close', () => {
-        clients.delete(id);
-        console.log(`Client disconnected: ${username} (ID: ${id})`);
-    });
-
-    req.on('error', (err) => {
-        console.error(`Connection error for client ${id}:`, err);
-        clients.delete(id);
+        message: 'Successfully registered with command server'
     });
 });
 
-// Endpoint to broadcast a command to all connected clients
+/**
+ * Polling endpoint for Roblox clients.
+ * Clients should POST their id to get any queued commands.
+ * Server replies with and clears all pending commands.
+ */
+app.post('/poll', (req, res) => {
+    const { id } = req.body;
+    if (!id) return res.status(400).json({ error: "Missing id" });
+
+    if (!clients.has(id)) {
+        return res.status(404).json({ error: `Client ${id} not registered.` });
+    }
+
+    let commands = pendingCommands.get(id) || [];
+    pendingCommands.set(id, []); // Clear queue after sending
+
+    res.json({ commands });
+});
+
+/**
+ * Broadcast a command to all connected clients.
+ * Example body:
+ *   { "command": { "action": "show_message", "title": "...", "text": "..." } }
+ */
 app.post('/broadcast', (req, res) => {
     const { command } = req.body;
     if (!command) {
         return res.status(400).json({ error: 'Missing "command" in request body' });
     }
 
-    console.log(`Broadcasting command to ${clients.size} clients: ${command}`);
     let successCount = 0;
-    clients.forEach(client => {
-        try {
-            client.response.write(JSON.stringify({ type: 'execute', payload: command }) + '\n');
-            successCount++;
-        } catch (err) {
-            console.error(`Failed to send command to client ${client.id}:`, err);
-        }
+    clients.forEach((client, id) => {
+        if (!pendingCommands.has(id)) pendingCommands.set(id, []);
+        pendingCommands.get(id).push({ type: 'execute', payload: command });
+        successCount++;
     });
 
+    console.log(`Broadcasted command to ${successCount} clients:`, command);
     res.json({
         message: `Command broadcasted to ${successCount}/${clients.size} clients`,
         command
     });
 });
 
-// Endpoint to send an announcement to all clients
+/**
+ * Send an announcement to all clients.
+ * Example body:
+ *   { "message": "Server maintenance soon!" }
+ */
 app.post('/announce', (req, res) => {
     const { message } = req.body;
     if (!message) {
         return res.status(400).json({ error: 'Missing "message" in request body' });
     }
 
-    console.log(`Sending announcement: ${message}`);
     let successCount = 0;
-    clients.forEach(client => {
-        try {
-            client.response.write(JSON.stringify({ type: 'announce', payload: message }) + '\n');
-            successCount++;
-        } catch (err) {
-            console.error(`Failed to send announcement to client ${client.id}:`, err);
-        }
+    clients.forEach((client, id) => {
+        if (!pendingCommands.has(id)) pendingCommands.set(id, []);
+        pendingCommands.get(id).push({ type: 'announce', payload: message });
+        successCount++;
     });
 
+    console.log(`Announcement sent to ${successCount} clients:`, message);
     res.json({
         message: `Announcement sent to ${successCount}/${clients.size} clients`,
         announcement: message
     });
 });
 
-
-// Endpoint to kick a specific client by their ID
+/**
+ * Kick a specific client by their ID.
+ * Example body:
+ *   { "clientId": "executor_123456" }
+ */
 app.post('/kick', (req, res) => {
     const { clientId } = req.body;
     if (!clientId) {
@@ -151,21 +158,16 @@ app.post('/kick', (req, res) => {
         return res.status(404).json({ error: `Client ${clientId} not found.` });
     }
 
-    try {
-        // Send a kick message and then end the connection
-        client.response.write(JSON.stringify({ type: 'kick', message: 'You have been kicked by an admin.' }) + '\n');
-        client.response.end(); // This closes the long-polling connection
-    } catch (err) {
-        console.error(`Error writing kick message to client ${clientId}:`, err);
-        // Ensure client is removed even if write fails
-        if(client.response) client.response.end();
-    }
+    // Queue kick message for client
+    if (!pendingCommands.has(clientId)) pendingCommands.set(clientId, []);
+    pendingCommands.get(clientId).push({ type: 'kick', payload: { message: 'You have been kicked by an admin.' } });
 
-    clients.delete(clientId); // Remove from the map
+    clients.delete(clientId);
+    pendingCommands.delete(clientId);
+
     console.log(`Kicked client: ${client.username} (ID: ${clientId})`);
     res.json({ message: `Client ${client.username} (${clientId}) has been kicked.` });
 });
-
 
 // --- Admin Panel API Endpoints ---
 
@@ -179,7 +181,6 @@ app.get('/api/status', (req, res) => {
 
 // Get a detailed list of all connected clients
 app.get('/api/clients', (req, res) => {
-    // Convert Map values to an array for the JSON response
     const clientList = Array.from(clients.values()).map(c => ({
         id: c.id,
         username: c.username,
@@ -193,7 +194,6 @@ app.get('/api/clients', (req, res) => {
     });
 });
 
-
 // --- Error Handling ---
 app.use((req, res) => {
     res.status(404).json({ error: 'Endpoint not found' });
@@ -203,7 +203,6 @@ app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).json({ error: 'Something went wrong!' });
 });
-
 
 // --- Start Server ---
 app.listen(PORT, () => {
