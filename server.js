@@ -1,11 +1,11 @@
-// Rolbox Command Server - With Client Timeout/Heartbeat + Game Info + Avatars
+// Rolbox Command Server - With Client Timeout/Heartbeat + Game Info + Avatars + Clientside Command Execution
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const app = express();
 
 const PORT = process.env.PORT || 3000;
-const CLIENT_TIMEOUT_MS = 15000; // 15 seconds
+const CLIENT_TIMEOUT_MS = 15000;
 
 app.use(cors());
 app.use(bodyParser.json());
@@ -22,9 +22,9 @@ app.get('/', (req, res) => {
     });
 });
 
-// Connect/register endpoint (now accepts playerCount and avatarUrl)
+// Connect/register endpoint (now accepts playerCount, avatarUrl, and userId)
 app.post('/connect', (req, res) => {
-    const { id, username, gameName, serverInfo, playerCount, avatarUrl } = req.body;
+    const { id, username, gameName, serverInfo, playerCount, avatarUrl, userId } = req.body;
     if (!id || !username || !gameName || !serverInfo) {
         return res.status(400).json({
             error: 'Bad Request: Missing required fields (id, username, gameName, serverInfo).'
@@ -36,6 +36,7 @@ app.post('/connect', (req, res) => {
     clients.set(id, {
         id,
         username,
+        userId: userId || null,
         gameName,
         serverInfo,
         playerCount: typeof playerCount === "number" ? playerCount : null,
@@ -68,16 +69,27 @@ app.post('/poll', (req, res) => {
     res.json({ commands });
 });
 
-// Broadcast
+// Broadcast - Accepts either a Lua string or a command object
 app.post('/broadcast', (req, res) => {
-    const { command } = req.body;
+    let { command } = req.body;
     if (!command) {
         return res.status(400).json({ error: 'Missing "command" in request body' });
+    }
+    let commandObj;
+    if (typeof command === 'string') {
+        // If a raw string, treat as code to execute
+        commandObj = { type: 'execute', payload: command };
+    } else if (typeof command === 'object' && command.action) {
+        // If an object, treat as a structured payload
+        commandObj = { type: 'execute', payload: command };
+    } else {
+        // Fallback, send as announce
+        commandObj = { type: 'announce', payload: String(command) };
     }
     let successCount = 0;
     clients.forEach((client, id) => {
         if (!pendingCommands.has(id)) pendingCommands.set(id, []);
-        pendingCommands.get(id).push({ type: 'execute', payload: command });
+        pendingCommands.get(id).push(commandObj);
         successCount++;
     });
     console.log(`Broadcasted command to ${successCount} clients:`, command);
@@ -126,8 +138,30 @@ app.post('/kick', (req, res) => {
     res.json({ message: `Client ${client.username} (${clientId}) has been kicked.` });
 });
 
-// --- Admin Panel API Endpoints ---
+// Per-client command execution
+app.post('/exec', (req, res) => {
+    const { clientId, command } = req.body;
+    if (!clientId || !command) {
+        return res.status(400).json({ error: 'Missing clientId or command in request body.' });
+    }
+    if (!clients.has(clientId)) {
+        return res.status(404).json({ error: `Client ${clientId} not found.` });
+    }
+    let cmdObj;
+    if (typeof command === 'string') {
+        cmdObj = { type: 'execute', payload: command };
+    } else if (typeof command === 'object' && command.action) {
+        cmdObj = { type: 'execute', payload: command };
+    } else {
+        cmdObj = { type: 'announce', payload: String(command) };
+    }
+    if (!pendingCommands.has(clientId)) pendingCommands.set(clientId, []);
+    pendingCommands.get(clientId).push(cmdObj);
+    console.log(`Executed command for ${clientId}:`, command);
+    res.json({ message: `Command sent to ${clientId}`, command });
+});
 
+// --- Admin Panel API Endpoints ---
 app.get('/api/status', (req, res) => {
     res.json({
         message: 'Rolbox Command Server is running!',
@@ -138,6 +172,7 @@ app.get('/api/clients', (req, res) => {
     const clientList = Array.from(clients.values()).map(c => ({
         id: c.id,
         username: c.username,
+        userId: c.userId || null,
         gameName: c.gameName,
         serverInfo: c.serverInfo,
         playerCount: c.playerCount,
