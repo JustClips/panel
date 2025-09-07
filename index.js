@@ -30,23 +30,31 @@ const dbConfig = process.env.DATABASE_URL
     };
 const dbPool = mysql.createPool(dbConfig);
 
-// --- MODIFIED: Database Initialization ---
+// --- MODIFIED: Database Initialization with Table Fix ---
 async function initializeDatabase() {
     try {
         const connection = await dbPool.getConnection();
         console.log('Successfully connected to MySQL database.');
 
-        // This command creates the table ONLY if it doesn't already exist.
-        // This makes your data persistent across restarts.
+        // Step 1: Create the table with a base schema if it doesn't exist.
         await connection.query(`
             CREATE TABLE IF NOT EXISTS connections (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 client_id VARCHAR(255) NOT NULL,
                 username VARCHAR(255) NOT NULL,
-                player_count INT DEFAULT 0,
                 connected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         `);
+
+        // Step 2: Check for and add the player_count column if it's missing.
+        // This automatically updates older tables to the new schema.
+        const [columns] = await connection.query("SHOW COLUMNS FROM `connections` LIKE 'player_count';");
+        if (columns.length === 0) {
+            console.log('Updating table: Adding `player_count` column...');
+            await connection.query('ALTER TABLE `connections` ADD COLUMN `player_count` INT DEFAULT 0;');
+            console.log('Table updated successfully.');
+        }
+
         console.log('Database tables are ready.');
         connection.release();
     } catch (error) {
@@ -67,7 +75,8 @@ app.post('/connect', async (req, res) => {
         return res.status(400).json({ error: 'Bad Request: Missing required fields.' });
     }
     if (clients.has(id)) {
-        return res.status(409).json({ error: `Conflict: Client with ID ${id} is already connected.` });
+        clients.get(id).lastSeen = Date.now();
+        return res.status(200).json({ type: 'reconnected', clientId: id, message: 'Heartbeat updated.' });
     }
 
     const clientData = {
@@ -83,7 +92,7 @@ app.post('/connect', async (req, res) => {
     // This INSERT command saves the connection data to your MySQL database.
     try {
         await dbPool.query(
-            'INSERT INTO connections (client_id, username, player_count) VALUES (?, ?, ?)', 
+            'INSERT INTO connections (client_id, username, player_count) VALUES (?, ?, ?)',
             [id, username, clientData.playerCount]
         );
         console.log(`[DB] Logged connection for ${username} with ${clientData.playerCount} players.`);
