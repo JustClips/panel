@@ -1,9 +1,9 @@
-// Rolbox Command Server - PARANOID EDITION V2.1 (Deployment Fix)
+// Rolbox Command Server - PARANOID EDITION V2.2 (Session Table Fix)
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const mysql = require('mysql2/promise');
-const { hash, verify } = require('argon2-browser'); // <<< DEPLOYMENT FIX >>> Using JS-native argon2
+const { hash, verify } = require('argon2-browser');
 const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
@@ -18,6 +18,7 @@ const knex = require('knex');
 const csrf = require('csurf');
 const { nanoid } = require('nanoid');
 require('dotenv').config();
+
 
 // --- CRITICAL STARTUP CHECKS ---
 if (!process.env.JWT_SECRET || !process.env.SESSION_SECRET) {
@@ -44,7 +45,9 @@ app.use(checkIpBan);
 app.disable('x-powered-by');
 app.use(helmet({ contentSecurityPolicy: { directives: { defaultSrc: ["'self'"], scriptSrc: ["'self'", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com"], styleSrc: ["'self'", "https://fonts.googleapis.com", "https://cdnjs.cloudflare.com", "'unsafe-inline'"], fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com"], imgSrc: ["'self'", "data:"], connectSrc: ["'self'"], objectSrc: ["'none'"], frameAncestors: ["'none'"], } }, hsts: { maxAge: 31536000, includeSubDomains: true, preload: true } }));
 const allowedOrigins = [ 'https://w1ckllon.com', process.env.RAILWAY_STATIC_URL ].filter(Boolean);
-if (process.env.NODE_ENV !== 'production') { allowedOrigins.push('http://localhost:5500', 'http://127.0.0.1:5500'); }
+if (process.env.NODE_ENV !== 'production') {
+    allowedOrigins.push('http://localhost:5500', 'http://127.0.0.1:5500');
+}
 app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(bodyParser.json({ limit: '1mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '1mb' }));
@@ -52,10 +55,27 @@ app.use(express.static('public'));
 
 // --- SESSION MANAGEMENT & CSRF PROTECTION ---
 const dbKnex = knex({ client: 'mysql2', connection: { host: process.env.DB_HOST, user: process.env.DB_USER, password: process.env.DB_PASSWORD, database: process.env.DB_DATABASE }});
-const sessionStore = new KnexSessionStore({ knex: dbKnex, tablename: 'sessions' });
-app.use(session({ secret: process.env.SESSION_SECRET, resave: false, saveUninitialized: false, store: sessionStore, cookie: { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', maxAge: 8 * 60 * 60 * 1000 } }));
+const sessionStore = new KnexSessionStore({ 
+    knex: dbKnex, 
+    tablename: 'sessions',
+    createtable: true, // <<< SESSION FIX >>> Ensure the table is created by the library if it doesn't exist
+    clearInterval: 1000 * 60 * 60 // Clean up expired sessions every hour
+});
+app.use(session({
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    store: sessionStore,
+    cookie: {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 8 * 60 * 60 * 1000
+    }
+}));
 const csrfProtection = csrf();
 app.use((req, res, next) => { if (['/connect', '/poll'].includes(req.path)) { return next(); } csrfProtection(req, res, next); });
+
 
 // --- FILE UPLOAD (HARDENED) ---
 const uploadDir = path.join(__dirname, 'uploads');
@@ -67,6 +87,7 @@ const upload = multer({ storage: storage, limits: { fileSize: 2 * 1024 * 1024 },
 let clients = new Map();
 let pendingCommands = new Map();
 const dbPool = mysql.createPool({ host: process.env.DB_HOST, user: process.env.DB_USER, password: process.env.DB_PASSWORD, database: process.env.DB_DATABASE, waitForConnections: true, connectionLimit: 10, queueLimit: 0 });
+
 async function initializeDatabase() {
     try {
         const connection = await dbPool.getConnection();
@@ -80,13 +101,18 @@ async function initializeDatabase() {
         await connection.query(`CREATE TABLE IF NOT EXISTS key_redemptions (id INT AUTO_INCREMENT PRIMARY KEY, redeemed_by_admin VARCHAR(255) NOT NULL, discord_user_id VARCHAR(255) NOT NULL, generated_key VARCHAR(255) NOT NULL, screenshot_filename VARCHAR(255), redeemed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
         await connection.query(`CREATE TABLE IF NOT EXISTS tickets (id INT AUTO_INCREMENT PRIMARY KEY, user_id INT NOT NULL, status ENUM('awaiting', 'processing', 'completed') DEFAULT 'awaiting', license_key VARCHAR(255), payment_method VARCHAR(50), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, FOREIGN KEY (user_id) REFERENCES adminusers(id));`);
         await connection.query(`CREATE TABLE IF NOT EXISTS ticket_messages (id INT AUTO_INCREMENT PRIMARY KEY, ticket_id INT NOT NULL, sender ENUM('user', 'seller') NOT NULL, message TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE);`);
-        await connection.query(`CREATE TABLE IF NOT EXISTS sessions (sid VARCHAR(255) NOT NULL PRIMARY KEY, sess JSON NOT NULL, expired DATETIME NOT NULL);`);
+        // <<< SESSION FIX >>> REMOVED the line that created the 'sessions' table here.
+        
         const allUsers = [ { username: 'Vandelz', password: 'Vandelzseller1', role: 'seller' }, { username: 'zuse35', password: 'zuse35seller1', role: 'seller' }, { username: 'Duzin', password: 'Duzinseller1', role: 'seller' }, { username: 'swiftkey', password: 'swiftkeyseller1', role: 'seller' }, { username: 'vupxy', password: 'vupxydev', role: 'admin' }, { username: 'megamind', password: 'megaminddev', role: 'admin' }];
         for (const user of allUsers) { const [existingUser] = await dbPool.query("SELECT * FROM adminusers WHERE username = ?", [user.username]); if (existingUser.length === 0) { console.log(`Creating user: ${user.username}...`); const hashedPassword = await hash(user.password); await dbPool.query("INSERT INTO adminusers (username, password_hash, role) VALUES (?, ?, ?)", [user.username, hashedPassword, user.role]); } else if (existingUser[0].role !== user.role) { console.log(`Updating role for user: ${user.username}`); await dbPool.query("UPDATE adminusers SET role = ? WHERE username = ?", [user.role, user.username]); } }
         connection.release();
         console.log("Database initialization complete.");
-    } catch (error) { console.error("!!! DATABASE INITIALIZATION FAILED !!!", error); process.exit(1); }
+    } catch (error) {
+        console.error("!!! DATABASE INITIALIZATION FAILED !!!", error);
+        process.exit(1);
+    }
 }
+
 
 // --- AUTH MIDDLEWARE ---
 const verifyToken = async (req, res, next) => { const authHeader = req.headers['authorization']; const token = authHeader && authHeader.split(' ')[1]; if (!token) return res.status(401).json({ message: 'Unauthorized: No token provided' }); try { const decoded = jwt.verify(token, process.env.JWT_SECRET); const [sessions] = await dbPool.query("SELECT * FROM sessions WHERE sid = ?", [decoded.sessionId]); if (sessions.length === 0) { return res.status(401).json({ message: 'Session has been revoked. Please log in again.' }); } req.user = decoded; next(); } catch (err) { return res.status(403).json({ message: 'Forbidden: Invalid or expired token' }); } };
@@ -112,7 +138,7 @@ app.post('/register', authLimiter, body('username').isLength({ min: 3, max: 20 }
             const { username, password } = req.body;
             const [existingUsers] = await dbPool.query("SELECT id FROM adminusers WHERE username = ?", [username]);
             if (existingUsers.length > 0) return res.status(409).json({ message: 'Username already taken.' });
-            const hashedPassword = await hash(password); // <<< DEPLOYMENT FIX >>> Using JS-native argon2
+            const hashedPassword = await hash(password);
             await dbPool.query("INSERT INTO adminusers (username, password_hash, role) VALUES (?, ?, 'buyer')", [username, hashedPassword]);
             res.status(201).json({ success: true, message: 'User created successfully.' });
         } catch (error) { next(error); }
@@ -123,7 +149,7 @@ app.post('/login', authLimiter, async (req, res, next) => {
         const { username, password } = req.body;
         if (!username || !password) return res.status(400).json({ message: 'Invalid request.' });
         const [rows] = await dbPool.query("SELECT * FROM adminusers WHERE username = ?", [username]);
-        if (rows.length === 0 || !(await verify(rows[0].password_hash, password))) { // <<< DEPLOYMENT FIX >>>
+        if (rows.length === 0 || !(await verify(rows[0].password_hash, password))) {
             addStrike(req.ip);
             return res.status(401).json({ message: 'Invalid credentials' });
         }
