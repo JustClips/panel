@@ -12,13 +12,13 @@ const PORT = process.env.PORT || 3000;
 const CLIENT_TIMEOUT_MS = 15000; // 15 seconds
 const SNAPSHOT_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
-// --- CORS CONFIGURATION (THE FIX IS HERE) ---
-// This tells the server to only accept requests from your front-end domain.
+// --- CORS CONFIGURATION ---
+// Allow requests from your frontend domain
 const corsOptions = {
-  origin: 'https://w1ckllon.com'
+  origin: ['https://w1ckllon.com', 'http://w1ckllon.com'], // Your frontend domain
+  credentials: true
 };
 app.use(cors(corsOptions));
-
 
 app.use(bodyParser.json({ limit: '5mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '5mb' }));
