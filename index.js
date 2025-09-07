@@ -134,6 +134,7 @@ async function initializeDatabase() {
             user_id INT NOT NULL,
             status ENUM('awaiting', 'processing', 'completed') DEFAULT 'awaiting',
             license_key VARCHAR(255),
+            payment_method VARCHAR(50),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES adminusers(id)
@@ -255,14 +256,20 @@ app.get('/api/tickets', verifyToken, async (req, res) => {
 });
 
 app.post('/api/tickets', verifyToken, async (req, res) => {
+    const { paymentMethod } = req.body;
+    
+    if (!paymentMethod) {
+        return res.status(400).json({ message: 'Payment method is required' });
+    }
+    
     try {
         // Generate license key
         const licenseKey = generateLicenseKey();
         
         // Create ticket
         const [result] = await dbPool.query(
-            "INSERT INTO tickets (user_id, license_key) VALUES (?, ?)",
-            [req.user.id, licenseKey]
+            "INSERT INTO tickets (user_id, license_key, payment_method) VALUES (?, ?, ?)",
+            [req.user.id, licenseKey, paymentMethod]
         );
         
         const ticketId = result.insertId;
@@ -270,7 +277,7 @@ app.post('/api/tickets', verifyToken, async (req, res) => {
         // Create initial message
         await dbPool.query(
             "INSERT INTO ticket_messages (ticket_id, sender, message) VALUES (?, ?, ?)",
-            [ticketId, 'seller', 'Welcome! I can help you purchase Eps1llon Hub Premium for $10. Which payment method would you like to use? (e.g., PayPal, Crypto, CashApp)']
+            [ticketId, 'seller', `Welcome! I can help you purchase Eps1llon Hub Premium for $10 using ${paymentMethod}. Please send $10.00 and reply with 'payment sent' once completed.`]
         );
         
         // Fetch the created ticket
@@ -325,82 +332,20 @@ app.post('/api/tickets/:id/messages', verifyToken, async (req, res) => {
         );
         
         // Update ticket status if needed
-        let statusUpdate = '';
         if (message.toLowerCase().includes('payment sent') && ticket.status === 'processing') {
-            statusUpdate = ", status = 'completed'";
-        }
-        
-        if (statusUpdate) {
             await dbPool.query(
-                `UPDATE tickets SET status = 'completed'${statusUpdate} WHERE id = ?`,
+                "UPDATE tickets SET status = 'completed' WHERE id = ?",
                 [id]
             );
-        }
-        
-        // Simulate seller response
-        setTimeout(async () => {
-            let responseText = "I'm sorry, I can only assist with payment methods. Please specify which you'd like to use.";
             
-            const keywords = {
-                'google pay': { 
-                    paymentMethod: 'Google Pay', 
-                    status: 'processing', 
-                    text: "Great! Please send $10.00 to eps1llon.hub@gmail.com and reply with 'payment sent' once completed." 
-                },
-                'paypal': { 
-                    paymentMethod: 'PayPal', 
-                    status: 'processing', 
-                    text: "Great! Please send $10.00 to payments@eps1llonhub.com and reply with 'payment sent' once completed." 
-                },
-                'cashapp': { 
-                    paymentMethod: 'CashApp', 
-                    status: 'processing', 
-                    text: "Great! Please send $10.00 to $eps1llonhub and reply with 'payment sent' once completed." 
-                },
-                'crypto': { 
-                    paymentMethod: 'Crypto', 
-                    status: 'processing', 
-                    text: "Great! Send 0.0005 BTC to bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq and reply with 'payment sent' once completed." 
-                },
-            };
-
-            const lowerCaseText = message.toLowerCase();
-            if (lowerCaseText.includes('payment sent') && ticket.status === 'processing') {
-                responseText = "Thank you. Please wait a moment while we verify your transaction...";
-                
-                // Add final confirmation message after delay
-                setTimeout(async () => {
-                    await dbPool.query(
-                        "INSERT INTO ticket_messages (ticket_id, sender, message) VALUES (?, ?, ?)",
-                        [id, 'seller', "Payment confirmed! Your license is now active."]
-                    );
-                    
-                    await dbPool.query(
-                        "UPDATE tickets SET status = 'completed' WHERE id = ?",
-                        [id]
-                    );
-                }, 2500);
-            } else {
-                for (const key in keywords) {
-                    if (lowerCaseText.includes(key)) {
-                        const response = keywords[key];
-                        responseText = response.text;
-                        
-                        await dbPool.query(
-                            "UPDATE tickets SET status = ? WHERE id = ?",
-                            [response.status, id]
-                        );
-                        break;
-                    }
-                }
-            }
-
-            // Add seller response
-            await dbPool.query(
-                "INSERT INTO ticket_messages (ticket_id, sender, message) VALUES (?, ?, ?)",
-                [id, 'seller', responseText]
-            );
-        }, 1000 + Math.random() * 1500);
+            // Add confirmation message after delay
+            setTimeout(async () => {
+                await dbPool.query(
+                    "INSERT INTO ticket_messages (ticket_id, sender, message) VALUES (?, ?, ?)",
+                    [id, 'seller', "Payment confirmed! Your license is now active."]
+                );
+            }, 2500);
+        }
         
         // Fetch updated ticket
         const [updatedTickets] = await dbPool.query(
