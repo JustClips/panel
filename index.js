@@ -3,7 +3,6 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const mysql = require('mysql2/promise');
-const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
@@ -19,12 +18,18 @@ app.use(cors());
 app.use(bodyParser.json({ limit: '5mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '5mb' }));
 
-// --- JWT SECRET ---
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_key_for_testing'; // Fallback for testing
-
 // In-memory stores for active connections
 let clients = new Map();
 let pendingCommands = new Map();
+
+// --- Session Storage ---
+// In-memory session storage (in production, use Redis or database)
+const sessions = new Map();
+
+// Generate session ID
+function generateSessionId() {
+    return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+}
 
 // --- MySQL Database Setup ---
 const dbConfig = process.env.DATABASE_URL ?
@@ -94,31 +99,36 @@ async function initializeDatabase() {
     }
 }
 
-// --- NEW: AUTHENTICATION MIDDLEWARE ---
-// This function runs before protected routes to verify the token
-const authenticateToken = (req, res, next) => {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1]; // Format: "Bearer TOKEN"
-
-    if (token == null) return res.sendStatus(401); // Unauthorized - No token provided
-
-    jwt.verify(token, JWT_SECRET, (err, user) => {
-        if (err) return res.sendStatus(403); // Forbidden - Token is invalid
-        req.user = user;
-        next(); // Token is valid, proceed
-    });
+// --- AUTHENTICATION MIDDLEWARE ---
+// This function runs before protected routes to verify the session
+const authenticateSession = (req, res, next) => {
+    const sessionId = req.headers['x-session-id'];
+    
+    if (!sessionId || !sessions.has(sessionId)) {
+        return res.status(401).json({ success: false, message: 'Unauthorized: Invalid session' });
+    }
+    
+    const session = sessions.get(sessionId);
+    // Check if session expired (8 hours)
+    if (Date.now() > session.expiresAt) {
+        sessions.delete(sessionId);
+        return res.status(401).json({ success: false, message: 'Session expired' });
+    }
+    
+    req.user = session.user;
+    next(); // Session is valid, proceed
 };
 
 // --- API Endpoints ---
 
-// --- PUBLIC ENDPOINTS (No token required) ---
+// --- PUBLIC ENDPOINTS (No session required) ---
 
 // Health check
 app.get('/', (req, res) => {
     res.json({ message: 'Aperture Command Server is running!', clientsConnected: clients.size });
 });
 
-// NEW: Login endpoint (now uses database)
+// NEW: Login endpoint (now uses database and sessions)
 app.post('/login', async (req, res) => {
     const { username, password } = req.body;
     
@@ -140,10 +150,13 @@ app.post('/login', async (req, res) => {
         console.log('Password match:', isMatch);
         
         if (isMatch) {
-            const payload = { name: username, id: user.id };
-            const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '8h' });
+            // Create session
+            const sessionId = generateSessionId();
+            const expiresAt = Date.now() + (8 * 60 * 60 * 1000); // 8 hours
+            sessions.set(sessionId, { user: { id: user.id, name: user.username }, expiresAt });
+            
             console.log('Login successful for:', username);
-            res.json({ success: true, token: token });
+            res.json({ success: true, sessionId: sessionId, username: user.username });
         } else {
             console.log('Invalid password for user:', username);
             res.status(401).json({ success: false, message: 'Invalid credentials' });
@@ -151,6 +164,17 @@ app.post('/login', async (req, res) => {
     } catch (error) {
         console.error('Login error:', error);
         res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+});
+
+// Logout endpoint
+app.post('/logout', (req, res) => {
+    const sessionId = req.headers['x-session-id'];
+    if (sessionId && sessions.has(sessionId)) {
+        sessions.delete(sessionId);
+        res.json({ success: true, message: 'Logged out successfully' });
+    } else {
+        res.status(400).json({ success: false, message: 'Invalid session' });
     }
 });
 
@@ -182,28 +206,28 @@ app.post('/poll', (req, res) => { /* ... unchanged ... */
     const{id}=req.body;if(!id||!clients.has(id)){return res.status(404).json({error:`Client ${id} not registered.`})}
 clients.get(id).lastSeen=Date.now();const commands=pendingCommands.get(id)||[];pendingCommands.set(id,[]);res.json({commands})});
 
-// --- PROTECTED ADMIN ENDPOINTS (Token required) ---
+// --- PROTECTED ADMIN ENDPOINTS (Session required) ---
 
-app.post('/broadcast', authenticateToken, async (req, res) => { /* ... unchanged, but now protected ... */ 
+app.post('/broadcast', authenticateSession, async (req, res) => { /* ... unchanged, but now protected ... */ 
     const{command}=req.body;if(!command)return res.status(400).json({error:'Missing "command"'});const commandType=typeof command==="string"?"lua_script":"json_action";const commandContent=typeof command==="string"?command:JSON.stringify(command);const commandObj={type:"execute",payload:command};let successCount=0;clients.forEach((c,id)=>{if(pendingCommands.has(id)){pendingCommands.get(id).push(commandObj);successCount++}});try{await dbPool.query("INSERT INTO commands (command_type, content) VALUES (?, ?)",[commandType,commandContent]);console.log("[DB] Logged command execution.")}catch(error){console.error("[DB] Failed to log command:",error.message)}
 console.log(`Broadcasted command to ${successCount} clients.`);res.json({message:`Command broadcasted to ${successCount}/${clients.size} clients.`})});
 
-app.post('/announce', authenticateToken, (req, res) => { /* ... unchanged, but now protected ... */ 
+app.post('/announce', authenticateSession, (req, res) => { /* ... unchanged, but now protected ... */ 
     const{message}=req.body;if(!message)return res.status(400).json({error:'Missing "message"'});const commandObj={type:"announce",payload:message};let successCount=0;clients.forEach((c,id)=>{if(pendingCommands.has(id)){pendingCommands.get(id).push(commandObj);successCount++}});console.log(`Announced to ${successCount} clients.`);res.json({message:`Announcement sent to ${successCount}/${clients.size} clients.`})});
 
-app.post('/kick', authenticateToken, (req, res) => { /* ... unchanged, but now protected ... */ 
+app.post('/kick', authenticateSession, (req, res) => { /* ... unchanged, but now protected ... */ 
     const{clientId}=req.body;if(!clientId)return res.status(400).json({error:'Missing "clientId".'});const client=clients.get(clientId);if(!client)return res.status(404).json({error:"Client not found."});if(pendingCommands.has(clientId)){pendingCommands.get(clientId).push({type:"kick",payload:{message:"Kicked by admin."}})}
 setTimeout(()=>{clients.delete(clientId);pendingCommands.delete(clientId);console.log(`Client removed: ${client.username} (ID: ${clientId})`)},5000);console.log(`Sent kick command to: ${client.username}`);res.json({message:`Client ${client.username} kicked.`})});
 
-app.get('/api/clients', authenticateToken, (req, res) => { /* ... unchanged, but now protected ... */ 
+app.get('/api/clients', authenticateSession, (req, res) => { /* ... unchanged, but now protected ... */ 
     res.json({ count: clients.size, clients: Array.from(clients.values()) });
 });
 
-app.get('/api/executions', authenticateToken, async (req, res) => { /* ... unchanged, but now protected ... */ 
+app.get('/api/executions', authenticateSession, async (req, res) => { /* ... unchanged, but now protected ... */ 
     try{const[rows]=await dbPool.query(`SELECT DATE(connected_at) AS date, COUNT(id) AS count FROM connections WHERE connected_at >= CURDATE() - INTERVAL 30 DAY GROUP BY DATE(connected_at) ORDER BY date ASC;`);const resultsMap=new Map(rows.map(r=>[new Date(r.date).toISOString().slice(0,10),r.count]));const finalData=Array.from({length:30},(_,i)=>{const date=new Date();date.setDate(date.getDate()-(29-i));const dateString=date.toISOString().slice(0,10);return{date:dateString,count:resultsMap.get(dateString)||0}});res.json(finalData)}catch(error){console.error("Error fetching execution stats:",error.message);res.status(500).json({error:"Failed to retrieve execution statistics."})}});
 
 // MODIFIED: This now gets 30 days of data to support the monthly filter on the front-end
-app.get('/api/player-stats', authenticateToken, async (req, res) => {
+app.get('/api/player-stats', authenticateSession, async (req, res) => {
     try {
         const [rows] = await dbPool.query(`
             SELECT DATE(created_at) AS date, MAX(player_count) AS count 
@@ -234,7 +258,7 @@ setInterval(async () => { /* ... unchanged ... */
     const playerCount=clients.size;if(playerCount>0){try{await dbPool.query("INSERT INTO player_snapshots (player_count) VALUES (?)",[playerCount]);console.log(`[DB] Logged player snapshot: ${playerCount} players.`)}catch(error){console.error("[DB] Failed to log player snapshot:",error.message)}}},SNAPSHOT_INTERVAL_MS);
 
 // --- ADMIN ENDPOINT TO ADD USERS ---
-app.post('/admin/add-user', authenticateToken, async (req, res) => {
+app.post('/admin/add-user', authenticateSession, async (req, res) => {
     const { username, password } = req.body;
     
     if (!username || !password) {
@@ -258,6 +282,17 @@ app.post('/admin/add-user', authenticateToken, async (req, res) => {
         }
     }
 });
+
+// --- CLEANUP EXPIRED SESSIONS ---
+setInterval(() => {
+    const now = Date.now();
+    sessions.forEach((session, sessionId) => {
+        if (now > session.expiresAt) {
+            sessions.delete(sessionId);
+            console.log(`Cleaned up expired session: ${sessionId}`);
+        }
+    });
+}, 60000); // Check every minute
 
 // --- Start Server ---
 async function startServer() {
