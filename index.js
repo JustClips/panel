@@ -19,7 +19,6 @@ const SNAPSHOT_INTERVAL_MS = 5 * 60 * 1000;
 app.use(helmet()); // Set security-related HTTP headers
 
 // Configure CORS
-// FIXED: Added your frontend URL to the list of allowed origins
 const allowedOrigins = [
     'https://w1ckllon.com', // Your admin panel's domain
     'http://localhost:5500',
@@ -27,13 +26,11 @@ const allowedOrigins = [
 ];
 app.use(cors({
     origin: function(origin, callback) {
-        // Allow requests with no origin (like mobile apps or curl requests)
-        if (!origin) return callback(null, true);
-        if (allowedOrigins.indexOf(origin) === -1) {
-            const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-            return callback(new Error(msg), false);
+        if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
         }
-        return callback(null, true);
     }
 }));
 
@@ -162,8 +159,6 @@ app.post('/login', loginLimiter, async (req, res) => {
 });
 
 app.post('/logout', (req, res) => {
-    // This endpoint can remain for clients that want to explicitly log out,
-    // but with JWT, the client can also just delete the token.
     res.json({ success: true, message: 'Logged out successfully' });
 });
 
@@ -259,7 +254,8 @@ app.post('/admin/add-user', verifyToken, async (req, res) => {
 
 // --- UTILITY INTERVALS ---
 setInterval(() => {
-    const now = Date.Just replace your current `index.js` content with this code and redeploy on Railway. This should resolve the CORS error immediately.now();
+    // FIXED: Corrected the syntax error from the previous version
+    const now = Date.now();
     clients.forEach((client, id) => {
         if (now - client.lastSeen > CLIENT_TIMEOUT_MS) {
             clients.delete(id);
