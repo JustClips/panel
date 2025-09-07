@@ -44,7 +44,6 @@ const uploadDir = 'uploads';
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir);
 }
-// UPDATED: Serve uploaded images statically
 app.use('/uploads', express.static('uploads'));
 
 const storage = multer.diskStorage({
@@ -102,6 +101,26 @@ async function initializeDatabase() {
             const hashedMegamind = await bcrypt.hash('megaminddev', 10);
             await connection.query("INSERT INTO adminusers (username, password_hash) VALUES (?, ?), (?, ?)", ['vupxy', hashedVupxy, 'megamind', hashedMegamind]);
         }
+
+        // --- NEW: Section to create/ensure seller users exist ---
+        const sellerUsers = [
+            { username: 'Vandelz', password: 'Vandelzseller1' },
+            { username: 'zuse35', password: 'zuse35seller1' },
+            { username: 'Duzin', password: 'Duzinseller1' },
+            { username: 'swiftkey', password: 'swiftkeyseller1' }
+        ];
+
+        for (const user of sellerUsers) {
+            const [existingUser] = await connection.query("SELECT COUNT(*) as count FROM adminusers WHERE username = ?", [user.username]);
+            if (existingUser[0].count === 0) {
+                console.log(`Creating seller user: ${user.username}...`);
+                const hashedPassword = await bcrypt.hash(user.password, 10);
+                await connection.query("INSERT INTO adminusers (username, password_hash) VALUES (?, ?)", [user.username, hashedPassword]);
+                console.log(`User ${user.username} created.`);
+            }
+        }
+        // --- End of new section ---
+
         connection.release();
         console.log("Database initialization complete.");
     } catch (error) {
@@ -261,7 +280,6 @@ app.post('/api/seller/redeem', verifyToken, upload.single('screenshot'), async (
             res.status(400).json({ success: false, error: `Luarmor API Error: ${data.message || 'Unknown error.'}` });
         }
     } catch (error) {
-        // UPDATED: Robust error handling for file deletion
         if (req.file) fs.unlinkSync(req.file.path);
         console.error("Luarmor API request failed:", error.response ? error.response.data : error.message);
         res.status(500).json({ error: 'An internal error occurred while communicating with the key service.' });
@@ -325,7 +343,6 @@ app.get('/api/seller/keys-sold', verifyToken, async (req, res) => {
     }
 });
 
-// NEW: Endpoint to fetch the sales log data
 app.get('/api/seller/sales-log', verifyToken, async (req, res) => {
     try {
         const [rows] = await dbPool.query("SELECT * FROM key_redemptions ORDER BY redeemed_at DESC");
