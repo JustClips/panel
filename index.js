@@ -199,13 +199,39 @@ const verifyToken = (req, res, next) => {
 };
 
 // --- AUTHENTICATION ENDPOINTS ---
-const loginLimiter = rateLimit({ 
+const authLimiter = rateLimit({ 
     windowMs: 15 * 60 * 1000, 
     max: 10, 
-    message: 'Too many login attempts.' 
+    message: 'Too many requests from this IP, please try again after 15 minutes' 
 });
 
-app.post('/login', loginLimiter, async (req, res) => {
+// ✅ ADDED: New /register endpoint
+app.post('/register', authLimiter, async (req, res) => {
+    const { username, password } = req.body;
+    if (!username || !password) {
+        return res.status(400).json({ message: 'Username and password are required.' });
+    }
+
+    try {
+        // Check if user already exists
+        const [existingUsers] = await dbPool.query("SELECT id FROM adminusers WHERE username = ?", [username]);
+        if (existingUsers.length > 0) {
+            return res.status(409).json({ message: 'Username already taken.' });
+        }
+
+        // Hash password and create user
+        const hashedPassword = await bcrypt.hash(password, 10);
+        await dbPool.query("INSERT INTO adminusers (username, password_hash) VALUES (?, ?)", [username, hashedPassword]);
+
+        res.status(201).json({ success: true, message: 'User created successfully.' });
+    } catch (error) {
+        console.error('Registration error:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
+
+app.post('/login', authLimiter, async (req, res) => {
     const { username, password } = req.body;
     if (!username || !password || !process.env.JWT_SECRET) 
         return res.status(400).json({ message: 'Invalid request or server config error.' });
@@ -228,7 +254,6 @@ app.post('/login', loginLimiter, async (req, res) => {
 });
 
 // --- TICKET ENDPOINTS ---
-// FIX: Changed from /api/tickets to /tickets to match frontend
 app.get('/tickets', verifyToken, async (req, res) => {
     try {
         const [tickets] = await dbPool.query(
@@ -256,7 +281,6 @@ app.get('/tickets', verifyToken, async (req, res) => {
     }
 });
 
-// FIX: Changed from /api/tickets to /tickets to match frontend
 app.post('/tickets', verifyToken, async (req, res) => {
     const { paymentMethod } = req.body;
     
@@ -270,7 +294,7 @@ app.post('/tickets', verifyToken, async (req, res) => {
         
         // Create ticket
         const [result] = await dbPool.query(
-            "INSERT INTO tickets (user_id, license_key, payment_method) VALUES (?, ?, ?)",
+            "INSERT INTO tickets (user_id, license_key, payment_method, status) VALUES (?, ?, ?, 'awaiting')",
             [req.user.id, licenseKey, paymentMethod]
         );
         
@@ -317,14 +341,13 @@ app.post('/tickets', verifyToken, async (req, res) => {
         const ticket = tickets[0];
         ticket.messages = messages;
         
-        res.json(ticket);
+        res.status(201).json(ticket);
     } catch (error) {
         console.error('Error creating ticket:', error);
         res.status(500).json({ message: 'Failed to create ticket' });
     }
 });
 
-// FIX: Changed from /api/tickets/:id/messages to /tickets/:id/messages to match frontend
 app.post('/tickets/:id/messages', verifyToken, async (req, res) => {
     const { id } = req.params;
     const { message } = req.body;
@@ -341,7 +364,7 @@ app.post('/tickets/:id/messages', verifyToken, async (req, res) => {
         );
         
         if (tickets.length === 0) {
-            return res.status(404).json({ message: 'Ticket not found' });
+            return res.status(404).json({ message: 'Ticket not found or you do not have permission to view it.' });
         }
         
         const ticket = tickets[0];
@@ -352,23 +375,31 @@ app.post('/tickets/:id/messages', verifyToken, async (req, res) => {
             [id, 'user', message]
         );
         
-        // Update ticket status if needed
-        if (message.toLowerCase().includes('payment sent') && ticket.status === 'processing') {
-            await dbPool.query(
-                "UPDATE tickets SET status = 'completed' WHERE id = ?",
+        // If the user says "payment sent" and the ticket is awaiting, move to processing
+        if (message.toLowerCase().includes('payment sent') && ticket.status === 'awaiting') {
+             await dbPool.query(
+                "UPDATE tickets SET status = 'processing' WHERE id = ?",
                 [id]
             );
-            
-            // Add confirmation message after delay
+
+            // Simulate a seller checking the payment and confirming
             setTimeout(async () => {
-                await dbPool.query(
-                    "INSERT INTO ticket_messages (ticket_id, sender, message) VALUES (?, ?, ?)",
-                    [id, 'seller', "Payment confirmed! Your license is now active."]
-                );
-            }, 2500);
+                try {
+                    await dbPool.query(
+                        "UPDATE tickets SET status = 'completed' WHERE id = ?",
+                        [id]
+                    );
+                    await dbPool.query(
+                        "INSERT INTO ticket_messages (ticket_id, sender, message) VALUES (?, ?, ?)",
+                        [id, 'seller', "Payment confirmed! Your license is now active."]
+                    );
+                } catch(err) {
+                    console.error("Error in delayed ticket update:", err);
+                }
+            }, 5000); // 5-second delay to simulate manual confirmation
         }
         
-        // Fetch updated ticket
+        // Fetch updated ticket to return to the client
         const [updatedTickets] = await dbPool.query(
             `SELECT t.*, u.username as seller_name 
              FROM tickets t 
@@ -391,6 +422,7 @@ app.post('/tickets/:id/messages', verifyToken, async (req, res) => {
         res.status(500).json({ message: 'Failed to add message' });
     }
 });
+
 
 // --- GAME CLIENT ENDPOINTS ---
 app.post('/connect', async (req, res) => {
