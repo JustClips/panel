@@ -228,7 +228,8 @@ app.post('/login', loginLimiter, async (req, res) => {
 });
 
 // --- TICKET ENDPOINTS ---
-app.get('/api/tickets', verifyToken, async (req, res) => {
+// FIX: Changed from /api/tickets to /tickets to match frontend
+app.get('/tickets', verifyToken, async (req, res) => {
     try {
         const [tickets] = await dbPool.query(
             `SELECT t.*, u.username as seller_name 
@@ -255,7 +256,8 @@ app.get('/api/tickets', verifyToken, async (req, res) => {
     }
 });
 
-app.post('/api/tickets', verifyToken, async (req, res) => {
+// FIX: Changed from /api/tickets to /tickets to match frontend
+app.post('/tickets', verifyToken, async (req, res) => {
     const { paymentMethod } = req.body;
     
     if (!paymentMethod) {
@@ -322,7 +324,8 @@ app.post('/api/tickets', verifyToken, async (req, res) => {
     }
 });
 
-app.post('/api/tickets/:id/messages', verifyToken, async (req, res) => {
+// FIX: Changed from /api/tickets/:id/messages to /tickets/:id/messages to match frontend
+app.post('/tickets/:id/messages', verifyToken, async (req, res) => {
     const { id } = req.params;
     const { message } = req.body;
     
