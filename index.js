@@ -1,10 +1,10 @@
 // Rolbox Command Server - Upgraded with MySQL Persistence & Proper Analytics
 const express = require('express');
 const bodyParser = require('body-parser');
-const cors = require('cors');
+const cors = require('cors'); // We will configure this below
 const mysql = require('mysql2/promise');
-const jwt = require('jsonwebtoken'); // <-- ADDED for authentication
-const bcrypt = require('bcryptjs');   // <-- ADDED for password hashing
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
 const app = express();
@@ -12,18 +12,25 @@ const PORT = process.env.PORT || 3000;
 const CLIENT_TIMEOUT_MS = 15000; // 15 seconds
 const SNAPSHOT_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
-app.use(cors());
+// --- CORS CONFIGURATION (THE FIX IS HERE) ---
+// This tells the server to only accept requests from your front-end domain.
+const corsOptions = {
+  origin: 'https://w1ckllon.com'
+};
+app.use(cors(corsOptions));
+
+
 app.use(bodyParser.json({ limit: '5mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '5mb' }));
 
-// --- NEW: SECURE USER STORAGE ---
-// Passwords are securely hashed using bcrypt. They are NOT stored in plaintext.
+// --- SECURE USER STORAGE ---
+// Passwords are securely hashed. They are NOT stored in plaintext.
 const users = {
     'vupxy': '$2a$10$fG.9Jg1E9g.X3fUa.1Zk9eYx.kL5v.8y/P5U6V/PzO4c.A/l.O1hO', // Hash for 'vupxydev'
     'megamind': '$2a$10$wT0l/6Y5n.E3b/a.j/G.d.UoH.L5e.9G/M9V.f/j.K4R.B/k.S2kK'  // Hash for 'megaminddev'
 };
 
-// --- NEW: JWT SECRET ---
+// --- JWT SECRET ---
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
     console.error("FATAL ERROR: JWT_SECRET is not defined in .env file.");
