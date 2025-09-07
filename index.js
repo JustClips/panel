@@ -274,10 +274,28 @@ app.post('/api/tickets', verifyToken, async (req, res) => {
         
         const ticketId = result.insertId;
         
-        // Create initial message
+        // Create initial message based on payment method
+        let message = `Welcome! I can help you purchase Eps1llon Hub Premium for $10 using ${paymentMethod}. `;
+        switch(paymentMethod) {
+            case 'PayPal':
+                message += 'Please send $10.00 to payments@eps1llonhub.com and reply with "payment sent" once completed.';
+                break;
+            case 'CashApp':
+                message += 'Please send $10.00 to $eps1llonhub and reply with "payment sent" once completed.';
+                break;
+            case 'Crypto':
+                message += 'Please send 0.0005 BTC to bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq and reply with "payment sent" once completed.';
+                break;
+            case 'Google Pay':
+                message += 'Please send $10.00 to eps1llon.hub@gmail.com and reply with "payment sent" once completed.';
+                break;
+            default:
+                message += 'Please send $10.00 and reply with "payment sent" once completed.';
+        }
+        
         await dbPool.query(
             "INSERT INTO ticket_messages (ticket_id, sender, message) VALUES (?, ?, ?)",
-            [ticketId, 'seller', `Welcome! I can help you purchase Eps1llon Hub Premium for $10 using ${paymentMethod}. Please send $10.00 and reply with 'payment sent' once completed.`]
+            [ticketId, 'seller', message]
         );
         
         // Fetch the created ticket
