@@ -1,4 +1,4 @@
-// Rolbox Command Server - Upgraded with MySQL Persistence & Proper Analytics
+// Rolbox Command Server - Upgraded with MySQL, File Uploads & Luarmor Integration
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
@@ -7,18 +7,20 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
+const multer = require('multer');
+const axios = require('axios');
+const path = require('path');
+const fs = require('fs');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const CLIENT_TIMEOUT_MS = 15000;
-const SNAPSHOT_INTERVAL_MS = 5 * 60 * 1000;
+const SNAPSHOT_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
-// --- SECURITY MIDDLEWARE ---
+// --- SECURITY & CORE MIDDLEWARE ---
+app.use(helmet());
 
-app.use(helmet()); // Set security-related HTTP headers
-
-// Configure CORS
 const allowedOrigins = [
     'https://w1ckllon.com', // Your admin panel's domain
     'http://localhost:5500',
@@ -34,53 +36,71 @@ app.use(cors({
     }
 }));
 
-// --- STANDARD MIDDLEWARE ---
-app.use(bodyParser.json({ limit: '5mb' }));
-app.use(bodyParser.urlencoded({ extended: true, limit: '5mb' }));
+app.use(bodyParser.json({ limit: '10mb' }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
 
-// In-memory stores
+// --- FILE UPLOAD SETUP (Multer) ---
+const uploadDir = 'uploads';
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir);
+}
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, uploadDir);
+    },
+    filename: (req, file, cb) => {
+        // Create a unique filename to prevent overwrites
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+    }
+});
+const upload = multer({
+    storage: storage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB limit
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype === "image/png") {
+            cb(null, true);
+        } else {
+            cb(new Error("Only .png files are allowed!"), false);
+        }
+    }
+});
+
+// In-memory stores for connected game clients
 let clients = new Map();
 let pendingCommands = new Map();
 
 // --- MYSQL DATABASE SETUP ---
-const dbConfig = process.env.DATABASE_URL ?
-    { uri: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } } :
-    {
-        host: process.env.DB_HOST,
-        user: process.env.DB_USER,
-        password: process.env.DB_PASSWORD,
-        database: process.env.DB_DATABASE,
-        waitForConnections: true,
-        connectionLimit: 10,
-        queueLimit: 0
-    };
-const dbPool = mysql.createPool(dbConfig);
+const dbPool = mysql.createPool({
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_DATABASE,
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0
+});
 
 // --- DATABASE INITIALIZATION ---
 async function initializeDatabase() {
     try {
         const connection = await dbPool.getConnection();
         console.log("Successfully connected to MySQL database.");
-        
+
         await connection.query(`CREATE TABLE IF NOT EXISTS connections (id INT AUTO_INCREMENT PRIMARY KEY, client_id VARCHAR(255) NOT NULL, username VARCHAR(255) NOT NULL, user_id BIGINT, game_name VARCHAR(255), server_info VARCHAR(255), player_count INT, connected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
         await connection.query(`CREATE TABLE IF NOT EXISTS commands (id INT AUTO_INCREMENT PRIMARY KEY, command_type VARCHAR(50) NOT NULL, content TEXT, executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
         await connection.query(`CREATE TABLE IF NOT EXISTS player_snapshots (id INT AUTO_INCREMENT PRIMARY KEY, player_count INT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
         await connection.query(`CREATE TABLE IF NOT EXISTS adminusers (id INT AUTO_INCREMENT PRIMARY KEY, username VARCHAR(255) UNIQUE NOT NULL, password_hash VARCHAR(255) NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
-        
-        const [cols] = await connection.query("SHOW COLUMNS FROM `connections`");
-        const colNames = cols.map(c => c.Field);
-        if (!colNames.includes("player_count")) { await connection.query("ALTER TABLE `connections` ADD COLUMN `player_count` INT DEFAULT 0;"); }
-        if (!colNames.includes("game_name")) { await connection.query("ALTER TABLE `connections` ADD COLUMN `game_name` VARCHAR(255);"); }
-        if (!colNames.includes("server_info")) { await connection.query("ALTER TABLE `connections` ADD COLUMN `server_info` VARCHAR(255);"); }
-        if (!colNames.includes("user_id")) { await connection.query("ALTER TABLE `connections` ADD COLUMN `user_id` BIGINT;"); }
+        // NEW: Table for tracking key sales/redemptions
+        await connection.query(`CREATE TABLE IF NOT EXISTS key_redemptions (id INT AUTO_INCREMENT PRIMARY KEY, redeemed_by_admin VARCHAR(255) NOT NULL, discord_user_id VARCHAR(255) NOT NULL, generated_key VARCHAR(255) NOT NULL, screenshot_filename VARCHAR(255), redeemed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
 
+        // Create default admin users if none exist
         const [adminUsers] = await connection.query("SELECT COUNT(*) as count FROM adminusers");
         if (adminUsers[0].count === 0) {
             console.log("Creating default admin users...");
             const hashedVupxy = await bcrypt.hash('vupxydev', 10);
             const hashedMegamind = await bcrypt.hash('megaminddev', 10);
             await connection.query("INSERT INTO adminusers (username, password_hash) VALUES (?, ?), (?, ?)", ['vupxy', hashedVupxy, 'megamind', hashedMegamind]);
-            console.log("Default admin users created: vupxy, megamind");
         }
         connection.release();
         console.log("Database initialization complete.");
@@ -94,96 +114,67 @@ async function initializeDatabase() {
 const verifyToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
-
-    if (!token) {
-        return res.status(401).json({ success: false, message: 'Unauthorized: No token provided' });
-    }
+    if (!token) return res.status(401).json({ message: 'Unauthorized: No token provided' });
 
     jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-        if (err) {
-            return res.status(403).json({ success: false, message: 'Forbidden: Invalid token' });
-        }
+        if (err) return res.status(403).json({ message: 'Forbidden: Invalid token' });
         req.user = user;
         next();
     });
 };
 
-// --- API ENDPOINTS ---
-
-const loginLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, 
-    max: 10,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { success: false, message: 'Too many login attempts. Please try again in 15 minutes.' }
-});
-
-app.get('/', (req, res) => {
-    res.json({ message: 'Aperture Command Server is running!', clientsConnected: clients.size });
-});
+// --- AUTHENTICATION ENDPOINTS ---
+const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: 'Too many login attempts.' });
 
 app.post('/login', loginLimiter, async (req, res) => {
     const { username, password } = req.body;
-    if (!username || !password) {
-        return res.status(400).json({ success: false, message: 'Username and password are required.' });
-    }
-    if (!process.env.JWT_SECRET) {
-        console.error("FATAL ERROR: JWT_SECRET is not defined in environment variables.");
-        return res.status(500).json({ success: false, message: 'Server configuration error.'});
-    }
+    if (!username || !password || !process.env.JWT_SECRET) return res.status(400).json({ message: 'Invalid request or server config error.' });
 
     try {
-        const connection = await dbPool.getConnection();
-        const [rows] = await connection.query("SELECT * FROM adminusers WHERE username = ?", [username]);
-        connection.release();
+        const [rows] = await dbPool.query("SELECT * FROM adminusers WHERE username = ?", [username]);
+        if (rows.length === 0) return res.status(401).json({ message: 'Invalid credentials' });
 
-        if (rows.length === 0) {
-            return res.status(401).json({ success: false, message: 'Invalid credentials' });
-        }
         const user = rows[0];
         const isMatch = await bcrypt.compare(password, user.password_hash);
+        if (!isMatch) return res.status(401).json({ message: 'Invalid credentials' });
 
-        if (isMatch) {
-            const payload = { id: user.id, username: user.username };
-            const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '8h' });
-
-            console.log('Login successful for admin:', username);
-            res.json({ success: true, token: token, username: user.username });
-        } else {
-            res.status(401).json({ success: false, message: 'Invalid credentials' });
-        }
+        const payload = { id: user.id, username: user.username };
+        const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '8h' });
+        res.json({ success: true, token, username: user.username });
     } catch (error) {
         console.error('Login error:', error);
-        res.status(500).json({ success: false, message: 'Internal server error' });
+        res.status(500).json({ message: 'Internal server error' });
     }
 });
 
-app.post('/logout', (req, res) => {
-    res.json({ success: true, message: 'Logged out successfully' });
-});
 
 // --- GAME CLIENT ENDPOINTS ---
 app.post('/connect', async (req, res) => {
-    const { id, username, gameName, serverInfo, playerCount, avatarUrl, userId } = req.body;
-    if (!id || !username || !gameName || !serverInfo) { return res.status(400).json({ error: "Bad Request: Missing required fields." }) }
-    if (clients.has(id)) { clients.get(id).lastSeen = Date.now(); return res.status(200).json({ type: "reconnected", clientId: id, message: "Heartbeat updated." }) }
-    const clientData = { id, username, userId: userId || null, gameName, serverInfo, playerCount: typeof playerCount === "number" ? playerCount : null, avatarUrl: avatarUrl || null, connectedAt: new Date(), lastSeen: Date.now() };
-    clients.set(id, clientData);
+    const { id, username, gameName, serverInfo, playerCount, userId } = req.body;
+    if (!id || !username) return res.status(400).json({ error: "Missing required fields." });
+    
+    clients.set(id, { id, username, gameName, serverInfo, playerCount, userId, connectedAt: new Date(), lastSeen: Date.now() });
     if (!pendingCommands.has(id)) pendingCommands.set(id, []);
+
     console.log(`[CONNECT] Client registered: ${username} (ID: ${id})`);
     try {
-        await dbPool.query("INSERT INTO connections (client_id, username, user_id, game_name, server_info, player_count) VALUES (?, ?, ?, ?, ?, ?)", [id, username, clientData.userId, gameName, serverInfo, clientData.playerCount]);
+        await dbPool.query("INSERT INTO connections (client_id, username, user_id, game_name, server_info, player_count) VALUES (?, ?, ?, ?, ?, ?)", [id, username, userId, gameName, serverInfo, playerCount]);
     } catch (error) {
-        console.error(`[DB] Failed to log connection for ${username}:`, error.message)
+        console.error(`[DB] Failed to log connection for ${username}:`, error.message);
     }
-    res.json({ type: "connected", clientId: id, message: "Successfully registered." })
+    res.json({ message: "Successfully registered." });
 });
 
 app.post('/poll', (req, res) => {
-    const { id } = req.body; if (!id || !clients.has(id)) { return res.status(404).json({ error: `Client ${id} not registered.` }) }
-    clients.get(id).lastSeen = Date.now(); const commands = pendingCommands.get(id) || [];
-    pendingCommands.set(id, []); res.json({ commands })
+    const { id } = req.body;
+    if (!id || !clients.has(id)) return res.status(404).json({ error: `Client not registered.` });
+    
+    clients.get(id).lastSeen = Date.now();
+    const commands = pendingCommands.get(id) || [];
+    pendingCommands.set(id, []);
+    res.json({ commands });
 });
+
 
 // --- PROTECTED ADMIN ENDPOINTS ---
 app.get('/api/clients', verifyToken, (req, res) => {
@@ -191,70 +182,155 @@ app.get('/api/clients', verifyToken, (req, res) => {
 });
 
 app.post('/broadcast', verifyToken, async (req, res) => {
-    const { command } = req.body; if (!command) return res.status(400).json({ error: 'Missing "command"' });
-    const commandType = typeof command === "string" ? "lua_script" : "json_action";
-    const commandContent = typeof command === "string" ? command : JSON.stringify(command);
-    const commandObj = { type: "execute", payload: command }; let successCount = 0;
-    clients.forEach((c, id) => { if (pendingCommands.has(id)) { pendingCommands.get(id).push(commandObj); successCount++ } });
-    try { await dbPool.query("INSERT INTO commands (command_type, content) VALUES (?, ?)", [commandType, commandContent]); } catch (error) { console.error("[DB] Failed to log command:", error.message) }
-    res.json({ message: `Command broadcasted to ${successCount}/${clients.size} clients.` })
+    const { command } = req.body;
+    if (!command) return res.status(400).json({ error: 'Missing "command"' });
+    
+    const commandObj = { type: "execute", payload: command };
+    let successCount = 0;
+    clients.forEach((c, id) => {
+        pendingCommands.get(id)?.push(commandObj);
+        successCount++;
+    });
+
+    try {
+        const commandType = typeof command === "string" ? "lua_script" : "json_action";
+        await dbPool.query("INSERT INTO commands (command_type, content) VALUES (?, ?)", [commandType, JSON.stringify(command)]);
+    } catch (error) { console.error("[DB] Failed to log broadcast command:", error.message); }
+    
+    res.json({ message: `Command broadcasted to ${successCount}/${clients.size} clients.` });
 });
 
-app.post('/announce', verifyToken, (req, res) => {
-    const { message } = req.body; if (!message) return res.status(400).json({ error: 'Missing "message"' });
-    const commandObj = { type: "announce", payload: message }; let successCount = 0;
-    clients.forEach((c, id) => { if (pendingCommands.has(id)) { pendingCommands.get(id).push(commandObj); successCount++ } });
-    res.json({ message: `Announcement sent to ${successCount}/${clients.size} clients.` })
+// NEW: Endpoint for sending commands to specific clients
+app.post('/api/command/targeted', verifyToken, (req, res) => {
+    const { clientIds, command } = req.body;
+    if (!Array.isArray(clientIds) || !command) return res.status(400).json({ error: 'Missing "clientIds" array or "command".' });
+    
+    const commandObj = { type: "execute", payload: command };
+    let successCount = 0;
+    clientIds.forEach(id => {
+        if (clients.has(id) && pendingCommands.has(id)) {
+            pendingCommands.get(id).push(commandObj);
+            successCount++;
+        }
+    });
+
+    res.json({ message: `Command sent to ${successCount}/${clientIds.length} selected clients.` });
 });
+
 
 app.post('/kick', verifyToken, (req, res) => {
-    const { clientId } = req.body; if (!clientId) return res.status(400).json({ error: 'Missing "clientId".' });
-    const client = clients.get(clientId); if (!client) return res.status(404).json({ error: "Client not found." });
-    if (pendingCommands.has(clientId)) { pendingCommands.get(clientId).push({ type: "kick", payload: { message: "Kicked by admin." } }) }
-    setTimeout(() => { clients.delete(clientId); pendingCommands.delete(clientId); }, 5000);
-    res.json({ message: `Client ${client.username} kicked.` })
+    const { clientId } = req.body;
+    const client = clients.get(clientId);
+    if (!client) return res.status(404).json({ error: "Client not found." });
+    
+    pendingCommands.get(clientId)?.push({ type: "kick" });
+    setTimeout(() => {
+        clients.delete(clientId);
+        pendingCommands.delete(clientId);
+    }, 5000);
+    
+    res.json({ message: `Client ${client.username} kicked.` });
 });
+
+// NEW: Seller Panel endpoint for redeeming a key
+app.post('/api/seller/redeem', verifyToken, upload.single('screenshot'), async (req, res) => {
+    const { discordUsername: discordUserId } = req.body; // Assuming the input is the User ID
+    const adminUsername = req.user.username;
+    
+    if (!discordUserId) return res.status(400).json({ error: 'Discord User ID is required.' });
+    if (!req.file) return res.status(400).json({ error: 'Screenshot file is required.' });
+    if (!process.env.LUARMOR_API_KEY || !process.env.LUARMOR_PROJECT_ID) {
+        return res.status(500).json({ error: "Luarmor API is not configured on the server." });
+    }
+
+    const url = `https://api.luarmor.net/v3/projects/${process.env.LUARMOR_PROJECT_ID}/users`;
+    const headers = { "Authorization": process.env.LUARMOR_API_KEY, "Content-Type": "application/json" };
+    const payload = { "discord_id": discordUserId, "note": `Redeemed by ${adminUsername} on ${new Date().toLocaleDateString()}` };
+
+    try {
+        const luarmorResponse = await axios.post(url, payload, { headers });
+        const data = luarmorResponse.data;
+
+        if (data.success && data.user_key) {
+            const newKey = data.user_key;
+            // Log the successful redemption to our database
+            await dbPool.query(
+                "INSERT INTO key_redemptions (redeemed_by_admin, discord_user_id, generated_key, screenshot_filename) VALUES (?, ?, ?, ?)",
+                [adminUsername, discordUserId, newKey, req.file.filename]
+            );
+            res.json({ success: true, message: `Key successfully generated and linked to ${discordUserId}.`, generatedKey: newKey });
+        } else {
+            // If Luarmor fails, delete the uploaded file to save space
+            fs.unlinkSync(req.file.path);
+            res.status(400).json({ success: false, error: `Luarmor API Error: ${data.message || 'Unknown error.'}` });
+        }
+    } catch (error) {
+        fs.unlinkSync(req.file.path);
+        console.error("Luarmor API request failed:", error.response ? error.response.data : error.message);
+        res.status(500).json({ error: 'An internal error occurred while communicating with the key service.' });
+    }
+});
+
+
+// --- ANALYTICS ENDPOINTS (Upgraded with period handling) ---
+async function getAggregatedData(tableName, dateColumn, valueColumn, period, aggregationFn = 'COUNT') {
+    let interval, groupByFormat;
+    switch (period) {
+        case 'daily':
+            interval = '24 HOUR';
+            groupByFormat = '%Y-%m-%d %H:00:00';
+            break;
+        case 'weekly':
+            interval = '7 DAY';
+            groupByFormat = '%Y-%m-%d';
+            break;
+        case 'monthly':
+        default:
+            interval = '30 DAY';
+            groupByFormat = '%Y-%m-%d';
+            break;
+    }
+
+    const query = `
+        SELECT DATE_FORMAT(${dateColumn}, ?) AS date, ${aggregationFn}(${valueColumn}) AS count
+        FROM ${tableName}
+        WHERE ${dateColumn} >= NOW() - INTERVAL ${interval}
+        GROUP BY date ORDER BY date ASC;
+    `;
+    const [rows] = await dbPool.query(query, [groupByFormat]);
+    return rows;
+}
 
 app.get('/api/executions', verifyToken, async (req, res) => {
     try {
-        const [rows] = await dbPool.query(`SELECT DATE(connected_at) AS date, COUNT(id) AS count FROM connections WHERE connected_at >= CURDATE() - INTERVAL 30 DAY GROUP BY DATE(connected_at) ORDER BY date ASC;`);
-        const resultsMap = new Map(rows.map(r => [new Date(r.date).toISOString().slice(0, 10), r.count]));
-        const finalData = Array.from({ length: 30 }, (_, i) => { const date = new Date(); date.setDate(date.getDate() - (29 - i)); const dateString = date.toISOString().slice(0, 10); return { date: dateString, count: resultsMap.get(dateString) || 0 }; });
-        res.json(finalData);
-    } catch (error) { res.status(500).json({ error: "Failed to retrieve execution statistics." }) }
+        const data = await getAggregatedData('connections', 'connected_at', 'id', req.query.period, 'COUNT');
+        res.json(data);
+    } catch (error) {
+        res.status(500).json({ error: "Failed to retrieve connection statistics." });
+    }
 });
 
 app.get('/api/player-stats', verifyToken, async (req, res) => {
     try {
-        const [rows] = await dbPool.query(`SELECT DATE(created_at) AS date, MAX(player_count) AS count FROM player_snapshots WHERE created_at >= CURDATE() - INTERVAL 30 DAY GROUP BY DATE(created_at) ORDER BY date ASC;`);
-        const resultsMap = new Map(rows.map(r => [new Date(r.date).toISOString().slice(0, 10), r.count]));
-        const finalData = Array.from({ length: 30 }, (_, i) => { const date = new Date(); date.setDate(date.getDate() - (29 - i)); const dateString = date.toISOString().slice(0, 10); return { date: dateString, count: parseInt(resultsMap.get(dateString) || 0, 10) }; });
-        res.json(finalData);
-    } catch (error) { res.status(500).json({ error: 'Failed to retrieve weekly player statistics.' }); }
+        const data = await getAggregatedData('player_snapshots', 'created_at', 'player_count', req.query.period, 'MAX');
+        res.json(data);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to retrieve player statistics.' });
+    }
 });
 
-app.post('/admin/add-user', verifyToken, async (req, res) => {
-    const { username, password } = req.body;
-    if (!username || !password) {
-        return res.status(400).json({ success: false, message: 'Username and password required' });
-    }
+// NEW: Endpoint to power the "Keys Sold" graph
+app.get('/api/seller/keys-sold', verifyToken, async (req, res) => {
     try {
-        const hashedPassword = await bcrypt.hash(password, 10);
-        await dbPool.query("INSERT INTO adminusers (username, password_hash) VALUES (?, ?)", [username, hashedPassword]);
-        res.json({ success: true, message: 'User added successfully' });
+        const data = await getAggregatedData('key_redemptions', 'redeemed_at', 'id', req.query.period, 'COUNT');
+        res.json(data);
     } catch (error) {
-        if (error.code === 'ER_DUP_ENTRY') {
-            res.status(400).json({ success: false, message: 'Username already exists' });
-        } else {
-            console.error('Error adding user:', error);
-            res.status(500).json({ success: false, message: 'Internal server error' });
-        }
+        res.status(500).json({ error: 'Failed to retrieve key redemption statistics.' });
     }
 });
 
 // --- UTILITY INTERVALS ---
 setInterval(() => {
-    // FIXED: Corrected the syntax error from the previous version
     const now = Date.now();
     clients.forEach((client, id) => {
         if (now - client.lastSeen > CLIENT_TIMEOUT_MS) {
@@ -266,9 +342,12 @@ setInterval(() => {
 }, 5000);
 
 setInterval(async () => {
-    const playerCount = clients.size;
-    if (playerCount > 0) {
-        try { await dbPool.query("INSERT INTO player_snapshots (player_count) VALUES (?)", [playerCount]); } catch (error) { console.error("[DB] Failed to log player snapshot:", error.message) }
+    if (clients.size > 0) {
+        try {
+            await dbPool.query("INSERT INTO player_snapshots (player_count) VALUES (?)", [clients.size]);
+        } catch (error) {
+            console.error("[DB] Failed to log player snapshot:", error.message);
+        }
     }
 }, SNAPSHOT_INTERVAL_MS);
 
@@ -279,4 +358,3 @@ async function startServer() {
 }
 
 startServer();
-
