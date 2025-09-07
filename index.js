@@ -88,11 +88,45 @@ async function initializeDatabase() {
         const connection = await dbPool.getConnection();
         console.log("Successfully connected to MySQL database.");
 
-        await connection.query(`CREATE TABLE IF NOT EXISTS connections (id INT AUTO_INCREMENT PRIMARY KEY, client_id VARCHAR(255) NOT NULL, username VARCHAR(255) NOT NULL, user_id BIGINT, game_name VARCHAR(255), server_info VARCHAR(255), player_count INT, connected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
-        await connection.query(`CREATE TABLE IF NOT EXISTS commands (id INT AUTO_INCREMENT PRIMARY KEY, command_type VARCHAR(50) NOT NULL, content TEXT, executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
-        await connection.query(`CREATE TABLE IF NOT EXISTS player_snapshots (id INT AUTO_INCREMENT PRIMARY KEY, player_count INT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
-        await connection.query(`CREATE TABLE IF NOT EXISTS adminusers (id INT AUTO_INCREMENT PRIMARY KEY, username VARCHAR(255) UNIQUE NOT NULL, password_hash VARCHAR(255) NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
-        await connection.query(`CREATE TABLE IF NOT EXISTS key_redemptions (id INT AUTO_INCREMENT PRIMARY KEY, redeemed_by_admin VARCHAR(255) NOT NULL, discord_user_id VARCHAR(255) NOT NULL, generated_key VARCHAR(255) NOT NULL, screenshot_filename VARCHAR(255), redeemed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
+        await connection.query(`CREATE TABLE IF NOT EXISTS connections (
+            id INT AUTO_INCREMENT PRIMARY KEY, 
+            client_id VARCHAR(255) NOT NULL, 
+            username VARCHAR(255) NOT NULL, 
+            user_id BIGINT, 
+            game_name VARCHAR(255), 
+            server_info VARCHAR(255), 
+            player_count INT, 
+            connected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );`);
+        
+        await connection.query(`CREATE TABLE IF NOT EXISTS commands (
+            id INT AUTO_INCREMENT PRIMARY KEY, 
+            command_type VARCHAR(50) NOT NULL, 
+            content TEXT, 
+            executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );`);
+        
+        await connection.query(`CREATE TABLE IF NOT EXISTS player_snapshots (
+            id INT AUTO_INCREMENT PRIMARY KEY, 
+            player_count INT NOT NULL, 
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );`);
+        
+        await connection.query(`CREATE TABLE IF NOT EXISTS adminusers (
+            id INT AUTO_INCREMENT PRIMARY KEY, 
+            username VARCHAR(255) UNIQUE NOT NULL, 
+            password_hash VARCHAR(255) NOT NULL, 
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );`);
+        
+        await connection.query(`CREATE TABLE IF NOT EXISTS key_redemptions (
+            id INT AUTO_INCREMENT PRIMARY KEY, 
+            redeemed_by_admin VARCHAR(255) NOT NULL, 
+            discord_user_id VARCHAR(255) NOT NULL, 
+            generated_key VARCHAR(255) NOT NULL, 
+            screenshot_filename VARCHAR(255), 
+            redeemed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );`);
 
         const [adminUsers] = await connection.query("SELECT COUNT(*) as count FROM adminusers");
         if (adminUsers[0].count === 0) {
@@ -143,11 +177,16 @@ const verifyToken = (req, res, next) => {
 };
 
 // --- AUTHENTICATION ENDPOINTS ---
-const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: 'Too many login attempts.' });
+const loginLimiter = rateLimit({ 
+    windowMs: 15 * 60 * 1000, 
+    max: 10, 
+    message: 'Too many login attempts.' 
+});
 
 app.post('/login', loginLimiter, async (req, res) => {
     const { username, password } = req.body;
-    if (!username || !password || !process.env.JWT_SECRET) return res.status(400).json({ message: 'Invalid request or server config error.' });
+    if (!username || !password || !process.env.JWT_SECRET) 
+        return res.status(400).json({ message: 'Invalid request or server config error.' });
 
     try {
         const [rows] = await dbPool.query("SELECT * FROM adminusers WHERE username = ?", [username]);
@@ -166,18 +205,30 @@ app.post('/login', loginLimiter, async (req, res) => {
     }
 });
 
-
 // --- GAME CLIENT ENDPOINTS ---
 app.post('/connect', async (req, res) => {
     const { id, username, gameName, serverInfo, playerCount, userId } = req.body;
     if (!id || !username) return res.status(400).json({ error: "Missing required fields." });
     
-    clients.set(id, { id, username, gameName, serverInfo, playerCount, userId, connectedAt: new Date(), lastSeen: Date.now() });
+    clients.set(id, { 
+        id, 
+        username, 
+        gameName, 
+        serverInfo, 
+        playerCount, 
+        userId, 
+        connectedAt: new Date(), 
+        lastSeen: Date.now() 
+    });
+    
     if (!pendingCommands.has(id)) pendingCommands.set(id, []);
 
     console.log(`[CONNECT] Client registered: ${username} (ID: ${id})`);
     try {
-        await dbPool.query("INSERT INTO connections (client_id, username, user_id, game_name, server_info, player_count) VALUES (?, ?, ?, ?, ?, ?)", [id, username, userId, gameName, serverInfo, playerCount]);
+        await dbPool.query(
+            "INSERT INTO connections (client_id, username, user_id, game_name, server_info, player_count) VALUES (?, ?, ?, ?, ?, ?)", 
+            [id, username, userId, gameName, serverInfo, playerCount]
+        );
     } catch (error) {
         console.error(`[DB] Failed to log connection for ${username}:`, error.message);
     }
@@ -186,14 +237,13 @@ app.post('/connect', async (req, res) => {
 
 app.post('/poll', (req, res) => {
     const { id } = req.body;
-    if (!id || !clients.has(id)) return res.status(404).json({ error: `Client not registered.` });
+    if (!id || !clients.has(id)) return res.status(404).json({ error: "Client not registered." });
     
     clients.get(id).lastSeen = Date.now();
     const commands = pendingCommands.get(id) || [];
     pendingCommands.set(id, []);
     res.json({ commands });
 });
-
 
 // --- PROTECTED ADMIN ENDPOINTS ---
 app.get('/api/clients', verifyToken, (req, res) => {
@@ -214,14 +264,17 @@ app.post('/broadcast', verifyToken, async (req, res) => {
     try {
         const commandType = typeof command === "string" ? "lua_script" : "json_action";
         await dbPool.query("INSERT INTO commands (command_type, content) VALUES (?, ?)", [commandType, JSON.stringify(command)]);
-    } catch (error) { console.error("[DB] Failed to log broadcast command:", error.message); }
+    } catch (error) { 
+        console.error("[DB] Failed to log broadcast command:", error.message); 
+    }
     
     res.json({ message: `Command broadcasted to ${successCount}/${clients.size} clients.` });
 });
 
 app.post('/api/command/targeted', verifyToken, (req, res) => {
     const { clientIds, command } = req.body;
-    if (!Array.isArray(clientIds) || !command) return res.status(400).json({ error: 'Missing "clientIds" array or "command".' });
+    if (!Array.isArray(clientIds) || !command) 
+        return res.status(400).json({ error: 'Missing "clientIds" array or "command".' });
     
     const commandObj = { type: "execute", payload: command };
     let successCount = 0;
@@ -234,7 +287,6 @@ app.post('/api/command/targeted', verifyToken, (req, res) => {
 
     res.json({ message: `Command sent to ${successCount}/${clientIds.length} selected clients.` });
 });
-
 
 app.post('/kick', verifyToken, (req, res) => {
     const { clientId } = req.body;
@@ -261,8 +313,14 @@ app.post('/api/seller/redeem', verifyToken, upload.single('screenshot'), async (
     }
 
     const url = `https://api.luarmor.net/v3/projects/${process.env.LUARMOR_PROJECT_ID}/users`;
-    const headers = { "Authorization": process.env.LUARMOR_API_KEY, "Content-Type": "application/json" };
-    const payload = { "discord_id": discordUserId, "note": `Redeemed by ${adminUsername} on ${new Date().toLocaleDateString()}` };
+    const headers = { 
+        "Authorization": process.env.LUARMOR_API_KEY, 
+        "Content-Type": "application/json" 
+    };
+    const payload = { 
+        "discord_id": discordUserId, 
+        "note": `Redeemed by ${adminUsername} on ${new Date().toLocaleDateString()}` 
+    };
 
     try {
         const luarmorResponse = await axios.post(url, payload, { headers });
@@ -274,10 +332,17 @@ app.post('/api/seller/redeem', verifyToken, upload.single('screenshot'), async (
                 "INSERT INTO key_redemptions (redeemed_by_admin, discord_user_id, generated_key, screenshot_filename) VALUES (?, ?, ?, ?)",
                 [adminUsername, discordUserId, newKey, req.file.filename]
             );
-            res.json({ success: true, message: `Key successfully generated and linked to ${discordUserId}.`, generatedKey: newKey });
+            res.json({ 
+                success: true, 
+                message: `Key successfully generated and linked to ${discordUserId}.`, 
+                generatedKey: newKey 
+            });
         } else {
             if (req.file) fs.unlinkSync(req.file.path);
-            res.status(400).json({ success: false, error: `Luarmor API Error: ${data.message || 'Unknown error.'}` });
+            res.status(400).json({ 
+                success: false, 
+                error: `Luarmor API Error: ${data.message || 'Unknown error.'}` 
+            });
         }
     } catch (error) {
         if (req.file) fs.unlinkSync(req.file.path);
@@ -285,7 +350,6 @@ app.post('/api/seller/redeem', verifyToken, upload.single('screenshot'), async (
         res.status(500).json({ error: 'An internal error occurred while communicating with the key service.' });
     }
 });
-
 
 // --- ANALYTICS & LOGS ENDPOINTS ---
 async function getAggregatedData(tableName, dateColumn, valueColumn, period, aggregationFn = 'COUNT') {
@@ -352,7 +416,6 @@ app.get('/api/seller/sales-log', verifyToken, async (req, res) => {
         res.status(500).json({ error: 'Failed to retrieve sales log.' });
     }
 });
-
 
 // --- UTILITY INTERVALS ---
 setInterval(() => {
