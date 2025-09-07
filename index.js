@@ -1,9 +1,9 @@
-// Rolbox Command Server - Upgraded with MySQL Persistence
+// Rolbox Command Server - Upgraded with MySQL Persistence & Weekly Stats
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
-const mysql = require('mysql2/promise'); // Using the promise-based version of mysql2
-require('dotenv').config(); // For loading environment variables from .env file
+const mysql = require('mysql2/promise');
+require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -17,50 +17,50 @@ let clients = new Map();
 let pendingCommands = new Map();
 
 // --- MySQL Database Setup ---
-const dbPool = mysql.createPool({
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_DATABASE,
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0
-});
+const dbConfig = process.env.DATABASE_URL
+    ? { uri: process.env.DATABASE_URL }
+    : {
+        host: process.env.DB_HOST,
+        user: process.env.DB_USER,
+        password: process.env.DB_PASSWORD,
+        database: process.env.DB_DATABASE,
+        waitForConnections: true,
+        connectionLimit: 10,
+        queueLimit: 0
+    };
+const dbPool = mysql.createPool(dbConfig);
 
-// Function to initialize the database and create tables if they don't exist
+// --- MODIFIED: Database Initialization ---
 async function initializeDatabase() {
     try {
         const connection = await dbPool.getConnection();
         console.log('Successfully connected to MySQL database.');
 
-        // Create the connections table for the graph statistics
+        // This command creates the table ONLY if it doesn't already exist.
+        // This makes your data persistent across restarts.
         await connection.query(`
             CREATE TABLE IF NOT EXISTS connections (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 client_id VARCHAR(255) NOT NULL,
                 username VARCHAR(255) NOT NULL,
+                player_count INT DEFAULT 0,
                 connected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         `);
         console.log('Database tables are ready.');
         connection.release();
     } catch (error) {
-        console.error('!!! DATABASE CONNECTION FAILED !!!');
-        console.error('Error initializing database:', error.message);
-        console.error('Please ensure your .env file is correct and the database is running.');
-        process.exit(1); // Exit the application if DB connection fails
+        console.error('!!! DATABASE CONNECTION FAILED !!!', error.message);
+        process.exit(1);
     }
 }
 
 // --- Health check endpoint ---
 app.get('/', (req, res) => {
-    res.json({
-        message: 'Aperture Command Server is running!',
-        clientsConnected: clients.size,
-    });
+    res.json({ message: 'Aperture Command Server is running!', clientsConnected: clients.size });
 });
 
-// --- MODIFIED: Connect endpoint now logs to the database ---
+// --- Connect endpoint now logs to the database permanently ---
 app.post('/connect', async (req, res) => {
     const { id, username, gameName, serverInfo, playerCount, avatarUrl, userId } = req.body;
     if (!id || !username || !gameName || !serverInfo) {
@@ -70,20 +70,23 @@ app.post('/connect', async (req, res) => {
         return res.status(409).json({ error: `Conflict: Client with ID ${id} is already connected.` });
     }
 
-    // Add to in-memory store
-    clients.set(id, {
+    const clientData = {
         id, username, userId: userId || null, gameName, serverInfo,
         playerCount: typeof playerCount === "number" ? playerCount : null,
         avatarUrl: avatarUrl || null,
         connectedAt: new Date(), lastSeen: Date.now()
-    });
+    };
+    clients.set(id, clientData);
     if (!pendingCommands.has(id)) pendingCommands.set(id, []);
     console.log(`Client registered: ${username} (ID: ${id}) from ${gameName}`);
 
-    // NEW: Log the connection event to the MySQL database
+    // This INSERT command saves the connection data to your MySQL database.
     try {
-        await dbPool.query('INSERT INTO connections (client_id, username) VALUES (?, ?)', [id, username]);
-        console.log(`[DB] Logged connection for ${username}.`);
+        await dbPool.query(
+            'INSERT INTO connections (client_id, username, player_count) VALUES (?, ?, ?)', 
+            [id, username, clientData.playerCount]
+        );
+        console.log(`[DB] Logged connection for ${username} with ${clientData.playerCount} players.`);
     } catch (error) {
         console.error(`[DB] Failed to log connection for ${username}:`, error.message);
     }
@@ -91,7 +94,7 @@ app.post('/connect', async (req, res) => {
     res.json({ type: 'connected', clientId: id, message: 'Successfully registered.' });
 });
 
-// --- Poll endpoint (heartbeat) ---
+// --- Poll endpoint ---
 app.post('/poll', (req, res) => {
     const { id } = req.body;
     if (!id || !clients.has(id)) {
@@ -110,99 +113,80 @@ app.post('/broadcast', (req, res) => {
     if (!command) return res.status(400).json({ error: 'Missing "command"' });
     const commandObj = { type: 'execute', payload: command };
     let successCount = 0;
-    clients.forEach((client, id) => {
-        if (!pendingCommands.has(id)) pendingCommands.set(id, []);
-        pendingCommands.get(id).push(commandObj);
-        successCount++;
-    });
-    console.log(`Broadcasted command to ${successCount} clients.`);
+    clients.forEach((c, id) => { if(pendingCommands.has(id)) {pendingCommands.get(id).push(commandObj); successCount++;} });
+    console.log(`Broadcasted to ${successCount} clients.`);
     res.json({ message: `Command broadcasted to ${successCount}/${clients.size} clients` });
 });
-
 app.post('/announce', (req, res) => {
     const { message } = req.body;
     if (!message) return res.status(400).json({ error: 'Missing "message"' });
     const commandObj = { type: 'announce', payload: message };
     let successCount = 0;
-    clients.forEach((client, id) => {
-        if (!pendingCommands.has(id)) pendingCommands.set(id, []);
-        pendingCommands.get(id).push(commandObj);
-        successCount++;
-    });
-    console.log(`Announcement sent to ${successCount} clients.`);
+    clients.forEach((c, id) => { if(pendingCommands.has(id)) {pendingCommands.get(id).push(commandObj); successCount++;} });
+    console.log(`Announced to ${successCount} clients.`);
     res.json({ message: `Announcement sent to ${successCount}/${clients.size} clients` });
 });
-
 app.post('/kick', (req, res) => {
     const { clientId } = req.body;
     if (!clientId) return res.status(400).json({ error: 'Missing "clientId"' });
     const client = clients.get(clientId);
     if (!client) return res.status(404).json({ error: `Client not found.` });
-    
-    if (!pendingCommands.has(clientId)) pendingCommands.set(clientId, []);
-    pendingCommands.get(clientId).push({ type: 'kick', payload: { message: 'Kicked by admin.' } });
-    
-    // Defer deletion to allow the client to poll for the kick command
-    setTimeout(() => {
-        clients.delete(clientId);
-        pendingCommands.delete(clientId);
-    }, 5000);
-
-    console.log(`Kicked client: ${client.username} (ID: ${clientId})`);
+    if(pendingCommands.has(clientId)) pendingCommands.get(clientId).push({ type: 'kick', payload: { message: 'Kicked by admin.' } });
+    setTimeout(() => { clients.delete(clientId); pendingCommands.delete(clientId); }, 5000);
+    console.log(`Kicked client: ${client.username}`);
     res.json({ message: `Client ${client.username} kicked.` });
 });
 
 
 // --- Admin Panel API Endpoints ---
 app.get('/api/clients', (req, res) => {
-    const clientList = Array.from(clients.values());
-    res.json({ count: clientList.length, clients: clientList });
+    res.json({ count: clients.size, clients: Array.from(clients.values()) });
 });
 
-// --- NEW: API Endpoint for Graph Data ---
 app.get('/api/executions', async (req, res) => {
     try {
-        // This SQL query counts connections for each of the past 30 days.
         const [rows] = await dbPool.query(`
-            SELECT 
-                DATE(connected_at) AS date,
-                COUNT(id) AS count
-            FROM 
-                connections
-            WHERE 
-                connected_at >= CURDATE() - INTERVAL 30 DAY
-            GROUP BY 
-                DATE(connected_at)
-            ORDER BY 
-                date ASC;
+            SELECT DATE(connected_at) AS date, COUNT(id) AS count FROM connections
+            WHERE connected_at >= CURDATE() - INTERVAL 30 DAY
+            GROUP BY DATE(connected_at) ORDER BY date ASC;
         `);
-
-        // Create a map of dates to counts for easy lookup
-        const resultsMap = new Map(rows.map(row => [new Date(row.date).toISOString().split('T')[0], row.count]));
-        
-        // Ensure all of the last 30 days are present, even if count is 0
-        const finalData = [];
-        for (let i = 29; i >= 0; i--) {
+        const resultsMap = new Map(rows.map(r => [new Date(r.date).toISOString().slice(0, 10), r.count]));
+        const finalData = Array.from({ length: 30 }, (_, i) => {
             const date = new Date();
-            date.setDate(date.getDate() - i);
-            const dateString = date.toISOString().split('T')[0];
-            
-            finalData.push({
-                date: dateString,
-                count: resultsMap.get(dateString) || 0
-            });
-        }
-
+            date.setDate(date.getDate() - (29 - i));
+            const dateString = date.toISOString().slice(0, 10);
+            return { date: dateString, count: resultsMap.get(dateString) || 0 };
+        });
         res.json(finalData);
-
     } catch (error) {
-        console.error('[DB] Error fetching execution stats:', error.message);
         res.status(500).json({ error: 'Failed to retrieve execution statistics.' });
     }
 });
 
+app.get('/api/players-weekly', async (req, res) => {
+    try {
+        const [rows] = await dbPool.query(`
+            SELECT DATE(connected_at) AS date, MAX(player_count) as max_players
+            FROM connections
+            WHERE connected_at >= CURDATE() - INTERVAL 7 DAY
+            GROUP BY DATE(connected_at)
+            ORDER BY date ASC;
+        `);
+        const resultsMap = new Map(rows.map(r => [new Date(r.date).toISOString().slice(0, 10), r.max_players]));
+        const finalData = Array.from({ length: 7 }, (_, i) => {
+            const date = new Date();
+            date.setDate(date.getDate() - (6 - i));
+            const dateString = date.toISOString().slice(0, 10);
+            return { date: dateString, count: parseInt(resultsMap.get(dateString) || 0, 10) };
+        });
+        res.json(finalData);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to retrieve weekly player statistics.' });
+    }
+});
 
-// --- Timeout Checker ---
+
+// --- Timeout Checker & Server Start ---
 setInterval(() => {
     const now = Date.now();
     clients.forEach((client, id) => {
@@ -214,14 +198,9 @@ setInterval(() => {
     });
 }, 5000);
 
-
-// --- Start Server ---
 async function startServer() {
     await initializeDatabase();
-    app.listen(PORT, () => {
-        console.log(`Aperture Command Server running at http://localhost:${PORT}`);
-    });
+    app.listen(PORT, () => console.log(`Aperture Command Server running on port ${PORT}`));
 }
-
 startServer();
 
