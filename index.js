@@ -128,6 +128,27 @@ async function initializeDatabase() {
             redeemed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );`);
 
+        // Create tickets table
+        await connection.query(`CREATE TABLE IF NOT EXISTS tickets (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            status ENUM('awaiting', 'processing', 'completed') DEFAULT 'awaiting',
+            license_key VARCHAR(255),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES adminusers(id)
+        );`);
+
+        // Create ticket_messages table
+        await connection.query(`CREATE TABLE IF NOT EXISTS ticket_messages (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            ticket_id INT NOT NULL,
+            sender ENUM('user', 'seller') NOT NULL,
+            message TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE
+        );`);
+
         const [adminUsers] = await connection.query("SELECT COUNT(*) as count FROM adminusers");
         if (adminUsers[0].count === 0) {
             console.log("Creating default admin users...");
@@ -202,6 +223,206 @@ app.post('/login', loginLimiter, async (req, res) => {
     } catch (error) {
         console.error('Login error:', error);
         res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
+// --- TICKET ENDPOINTS ---
+app.get('/api/tickets', verifyToken, async (req, res) => {
+    try {
+        const [tickets] = await dbPool.query(
+            `SELECT t.*, u.username as seller_name 
+             FROM tickets t 
+             JOIN adminusers u ON t.user_id = u.id 
+             WHERE t.user_id = ? 
+             ORDER BY t.created_at DESC`,
+            [req.user.id]
+        );
+        
+        // Add messages to each ticket
+        for (let ticket of tickets) {
+            const [messages] = await dbPool.query(
+                "SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC",
+                [ticket.id]
+            );
+            ticket.messages = messages;
+        }
+        
+        res.json(tickets);
+    } catch (error) {
+        console.error('Error fetching tickets:', error);
+        res.status(500).json({ message: 'Failed to fetch tickets' });
+    }
+});
+
+app.post('/api/tickets', verifyToken, async (req, res) => {
+    try {
+        // Generate license key
+        const licenseKey = generateLicenseKey();
+        
+        // Create ticket
+        const [result] = await dbPool.query(
+            "INSERT INTO tickets (user_id, license_key) VALUES (?, ?)",
+            [req.user.id, licenseKey]
+        );
+        
+        const ticketId = result.insertId;
+        
+        // Create initial message
+        await dbPool.query(
+            "INSERT INTO ticket_messages (ticket_id, sender, message) VALUES (?, ?, ?)",
+            [ticketId, 'seller', 'Welcome! I can help you purchase Eps1llon Hub Premium for $10. Which payment method would you like to use? (e.g., PayPal, Crypto, CashApp)']
+        );
+        
+        // Fetch the created ticket
+        const [tickets] = await dbPool.query(
+            `SELECT t.*, u.username as seller_name 
+             FROM tickets t 
+             JOIN adminusers u ON t.user_id = u.id 
+             WHERE t.id = ?`,
+            [ticketId]
+        );
+        
+        const [messages] = await dbPool.query(
+            "SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC",
+            [ticketId]
+        );
+        
+        const ticket = tickets[0];
+        ticket.messages = messages;
+        
+        res.json(ticket);
+    } catch (error) {
+        console.error('Error creating ticket:', error);
+        res.status(500).json({ message: 'Failed to create ticket' });
+    }
+});
+
+app.post('/api/tickets/:id/messages', verifyToken, async (req, res) => {
+    const { id } = req.params;
+    const { message } = req.body;
+    
+    if (!message) {
+        return res.status(400).json({ message: 'Message is required' });
+    }
+    
+    try {
+        // Verify ticket belongs to user
+        const [tickets] = await dbPool.query(
+            "SELECT * FROM tickets WHERE id = ? AND user_id = ?",
+            [id, req.user.id]
+        );
+        
+        if (tickets.length === 0) {
+            return res.status(404).json({ message: 'Ticket not found' });
+        }
+        
+        const ticket = tickets[0];
+        
+        // Add user message
+        await dbPool.query(
+            "INSERT INTO ticket_messages (ticket_id, sender, message) VALUES (?, ?, ?)",
+            [id, 'user', message]
+        );
+        
+        // Update ticket status if needed
+        let statusUpdate = '';
+        if (message.toLowerCase().includes('payment sent') && ticket.status === 'processing') {
+            statusUpdate = ", status = 'completed'";
+        }
+        
+        if (statusUpdate) {
+            await dbPool.query(
+                `UPDATE tickets SET status = 'completed'${statusUpdate} WHERE id = ?`,
+                [id]
+            );
+        }
+        
+        // Simulate seller response
+        setTimeout(async () => {
+            let responseText = "I'm sorry, I can only assist with payment methods. Please specify which you'd like to use.";
+            
+            const keywords = {
+                'google pay': { 
+                    paymentMethod: 'Google Pay', 
+                    status: 'processing', 
+                    text: "Great! Please send $10.00 to eps1llon.hub@gmail.com and reply with 'payment sent' once completed." 
+                },
+                'paypal': { 
+                    paymentMethod: 'PayPal', 
+                    status: 'processing', 
+                    text: "Great! Please send $10.00 to payments@eps1llonhub.com and reply with 'payment sent' once completed." 
+                },
+                'cashapp': { 
+                    paymentMethod: 'CashApp', 
+                    status: 'processing', 
+                    text: "Great! Please send $10.00 to $eps1llonhub and reply with 'payment sent' once completed." 
+                },
+                'crypto': { 
+                    paymentMethod: 'Crypto', 
+                    status: 'processing', 
+                    text: "Great! Send 0.0005 BTC to bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq and reply with 'payment sent' once completed." 
+                },
+            };
+
+            const lowerCaseText = message.toLowerCase();
+            if (lowerCaseText.includes('payment sent') && ticket.status === 'processing') {
+                responseText = "Thank you. Please wait a moment while we verify your transaction...";
+                
+                // Add final confirmation message after delay
+                setTimeout(async () => {
+                    await dbPool.query(
+                        "INSERT INTO ticket_messages (ticket_id, sender, message) VALUES (?, ?, ?)",
+                        [id, 'seller', "Payment confirmed! Your license is now active."]
+                    );
+                    
+                    await dbPool.query(
+                        "UPDATE tickets SET status = 'completed' WHERE id = ?",
+                        [id]
+                    );
+                }, 2500);
+            } else {
+                for (const key in keywords) {
+                    if (lowerCaseText.includes(key)) {
+                        const response = keywords[key];
+                        responseText = response.text;
+                        
+                        await dbPool.query(
+                            "UPDATE tickets SET status = ? WHERE id = ?",
+                            [response.status, id]
+                        );
+                        break;
+                    }
+                }
+            }
+
+            // Add seller response
+            await dbPool.query(
+                "INSERT INTO ticket_messages (ticket_id, sender, message) VALUES (?, ?, ?)",
+                [id, 'seller', responseText]
+            );
+        }, 1000 + Math.random() * 1500);
+        
+        // Fetch updated ticket
+        const [updatedTickets] = await dbPool.query(
+            `SELECT t.*, u.username as seller_name 
+             FROM tickets t 
+             JOIN adminusers u ON t.user_id = u.id 
+             WHERE t.id = ?`,
+            [id]
+        );
+        
+        const [messages] = await dbPool.query(
+            "SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC",
+            [id]
+        );
+        
+        const updatedTicket = updatedTickets[0];
+        updatedTicket.messages = messages;
+        
+        res.json(updatedTicket);
+    } catch (error) {
+        console.error('Error adding message:', error);
+        res.status(500).json({ message: 'Failed to add message' });
     }
 });
 
@@ -416,6 +637,19 @@ app.get('/api/seller/sales-log', verifyToken, async (req, res) => {
         res.status(500).json({ error: 'Failed to retrieve sales log.' });
     }
 });
+
+// --- UTILITY FUNCTIONS ---
+function generateLicenseKey() {
+    let key = 'EPS1LLON-';
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    for (let i = 0; i < 4; i++) {
+        for (let j = 0; j < 4; j++) {
+            key += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        if (i < 3) key += '-';
+    }
+    return key;
+}
 
 // --- UTILITY INTERVALS ---
 setInterval(() => {
