@@ -260,6 +260,29 @@ app.post('/tickets/:id/messages', verifyToken, async (req, res) => {
     }
 });
 
+// **NEW**: Endpoint for SELLERS to close a ticket.
+app.post('/api/tickets/:id/close', verifyToken, async (req, res) => {
+    const { id } = req.params;
+    try {
+        const [tickets] = await dbPool.query("SELECT * FROM tickets WHERE id = ?", [id]);
+        if (tickets.length === 0) {
+            return res.status(404).json({ message: 'Ticket not found.' });
+        }
+        await dbPool.query("UPDATE tickets SET status = 'completed', updated_at = CURRENT_TIMESTAMP WHERE id = ?", [id]);
+        
+        // Respond with the updated ticket
+        const [updatedTickets] = await dbPool.query(`SELECT t.*, u.username as buyer_name FROM tickets t JOIN adminusers u ON t.user_id = u.id WHERE t.id = ?`, [id]);
+        const [messages] = await dbPool.query("SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC", [id]);
+        const updatedTicket = updatedTickets[0];
+        updatedTicket.messages = messages;
+
+        res.json(updatedTicket);
+    } catch (error) {
+        console.error('Error closing ticket:', error);
+        res.status(500).json({ message: 'Failed to close ticket' });
+    }
+});
+
 
 // --- GAME CLIENT ENDPOINTS ---
 app.post('/connect', async (req, res) => {
