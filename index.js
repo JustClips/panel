@@ -88,93 +88,23 @@ async function initializeDatabase() {
         const connection = await dbPool.getConnection();
         console.log("Successfully connected to MySQL database.");
 
-        await connection.query(`CREATE TABLE IF NOT EXISTS connections (
-            id INT AUTO_INCREMENT PRIMARY KEY, 
-            client_id VARCHAR(255) NOT NULL, 
-            username VARCHAR(255) NOT NULL, 
-            user_id BIGINT, 
-            game_name VARCHAR(255), 
-            server_info VARCHAR(255), 
-            player_count INT, 
-            connected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );`);
-        
-        await connection.query(`CREATE TABLE IF NOT EXISTS commands (
-            id INT AUTO_INCREMENT PRIMARY KEY, 
-            command_type VARCHAR(50) NOT NULL, 
-            content TEXT, 
-            executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );`);
-        
-        await connection.query(`CREATE TABLE IF NOT EXISTS player_snapshots (
-            id INT AUTO_INCREMENT PRIMARY KEY, 
-            player_count INT NOT NULL, 
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );`);
-        
-        await connection.query(`CREATE TABLE IF NOT EXISTS adminusers (
-            id INT AUTO_INCREMENT PRIMARY KEY, 
-            username VARCHAR(255) UNIQUE NOT NULL, 
-            password_hash VARCHAR(255) NOT NULL, 
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );`);
-        
-        await connection.query(`CREATE TABLE IF NOT EXISTS key_redemptions (
-            id INT AUTO_INCREMENT PRIMARY KEY, 
-            redeemed_by_admin VARCHAR(255) NOT NULL, 
-            discord_user_id VARCHAR(255) NOT NULL, 
-            generated_key VARCHAR(255) NOT NULL, 
-            screenshot_filename VARCHAR(255), 
-            redeemed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );`);
-
-        // Create tickets table
-        await connection.query(`CREATE TABLE IF NOT EXISTS tickets (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            user_id INT NOT NULL,
-            status ENUM('awaiting', 'processing', 'completed') DEFAULT 'awaiting',
-            license_key VARCHAR(255),
-            payment_method VARCHAR(50),
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES adminusers(id)
-        );`);
-
-        // Create ticket_messages table
-        await connection.query(`CREATE TABLE IF NOT EXISTS ticket_messages (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            ticket_id INT NOT NULL,
-            sender ENUM('user', 'seller') NOT NULL,
-            message TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE
-        );`);
+        await connection.query(`CREATE TABLE IF NOT EXISTS connections (id INT AUTO_INCREMENT PRIMARY KEY, client_id VARCHAR(255) NOT NULL, username VARCHAR(255) NOT NULL, user_id BIGINT, game_name VARCHAR(255), server_info VARCHAR(255), player_count INT, connected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
+        await connection.query(`CREATE TABLE IF NOT EXISTS commands (id INT AUTO_INCREMENT PRIMARY KEY, command_type VARCHAR(50) NOT NULL, content TEXT, executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
+        await connection.query(`CREATE TABLE IF NOT EXISTS player_snapshots (id INT AUTO_INCREMENT PRIMARY KEY, player_count INT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
+        await connection.query(`CREATE TABLE IF NOT EXISTS adminusers (id INT AUTO_INCREMENT PRIMARY KEY, username VARCHAR(255) UNIQUE NOT NULL, password_hash VARCHAR(255) NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
+        await connection.query(`CREATE TABLE IF NOT EXISTS key_redemptions (id INT AUTO_INCREMENT PRIMARY KEY, redeemed_by_admin VARCHAR(255) NOT NULL, discord_user_id VARCHAR(255) NOT NULL, generated_key VARCHAR(255) NOT NULL, screenshot_filename VARCHAR(255), redeemed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
+        await connection.query(`CREATE TABLE IF NOT EXISTS tickets (id INT AUTO_INCREMENT PRIMARY KEY, user_id INT NOT NULL, status ENUM('awaiting', 'processing', 'completed') DEFAULT 'awaiting', license_key VARCHAR(255), payment_method VARCHAR(50), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, FOREIGN KEY (user_id) REFERENCES adminusers(id));`);
+        await connection.query(`CREATE TABLE IF NOT EXISTS ticket_messages (id INT AUTO_INCREMENT PRIMARY KEY, ticket_id INT NOT NULL, sender ENUM('user', 'seller') NOT NULL, message TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE);`);
 
         const [adminUsers] = await connection.query("SELECT COUNT(*) as count FROM adminusers");
         if (adminUsers[0].count === 0) {
-            console.log("Creating default admin users...");
+            console.log("Creating default admin/buyer users...");
             const hashedVupxy = await bcrypt.hash('vupxydev', 10);
             const hashedMegamind = await bcrypt.hash('megaminddev', 10);
             await connection.query("INSERT INTO adminusers (username, password_hash) VALUES (?, ?), (?, ?)", ['vupxy', hashedVupxy, 'megamind', hashedMegamind]);
         }
-
-        const sellerUsers = [
-            { username: 'Vandelz', password: 'Vandelzseller1' },
-            { username: 'zuse35', password: 'zuse35seller1' },
-            { username: 'Duzin', password: 'Duzinseller1' },
-            { username: 'swiftkey', password: 'swiftkeyseller1' }
-        ];
-
-        for (const user of sellerUsers) {
-            const [existingUser] = await connection.query("SELECT COUNT(*) as count FROM adminusers WHERE username = ?", [user.username]);
-            if (existingUser[0].count === 0) {
-                console.log(`Creating seller user: ${user.username}...`);
-                const hashedPassword = await bcrypt.hash(user.password, 10);
-                await connection.query("INSERT INTO adminusers (username, password_hash) VALUES (?, ?)", [user.username, hashedPassword]);
-                console.log(`User ${user.username} created.`);
-            }
-        }
-
+        const sellerUsers = [ { username: 'Vandelz', password: 'Vandelzseller1' }, { username: 'zuse35', password: 'zuse35seller1' }, { username: 'Duzin', password: 'Duzinseller1' }, { username: 'swiftkey', password: 'swiftkeyseller1' }];
+        for (const user of sellerUsers) { const [existingUser] = await connection.query("SELECT COUNT(*) as count FROM adminusers WHERE username = ?", [user.username]); if (existingUser[0].count === 0) { console.log(`Creating seller user: ${user.username}...`); const hashedPassword = await bcrypt.hash(user.password, 10); await connection.query("INSERT INTO adminusers (username, password_hash) VALUES (?, ?)", [user.username, hashedPassword]); console.log(`User ${user.username} created.`); } }
         connection.release();
         console.log("Database initialization complete.");
     } catch (error) {
@@ -197,27 +127,15 @@ const verifyToken = (req, res, next) => {
 };
 
 // --- AUTHENTICATION ENDPOINTS ---
-const authLimiter = rateLimit({ 
-    windowMs: 15 * 60 * 1000, 
-    max: 10, 
-    message: 'Too many requests from this IP, please try again after 15 minutes' 
-});
-
+const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, message: 'Too many requests from this IP, please try again after 15 minutes' });
 app.post('/register', authLimiter, async (req, res) => {
     const { username, password } = req.body;
-    if (!username || !password) {
-        return res.status(400).json({ message: 'Username and password are required.' });
-    }
-
+    if (!username || !password) { return res.status(400).json({ message: 'Username and password are required.' }); }
     try {
         const [existingUsers] = await dbPool.query("SELECT id FROM adminusers WHERE username = ?", [username]);
-        if (existingUsers.length > 0) {
-            return res.status(409).json({ message: 'Username already taken.' });
-        }
-
+        if (existingUsers.length > 0) { return res.status(409).json({ message: 'Username already taken.' }); }
         const hashedPassword = await bcrypt.hash(password, 10);
         await dbPool.query("INSERT INTO adminusers (username, password_hash) VALUES (?, ?)", [username, hashedPassword]);
-
         res.status(201).json({ success: true, message: 'User created successfully.' });
     } catch (error) {
         console.error('Registration error:', error);
@@ -225,20 +143,15 @@ app.post('/register', authLimiter, async (req, res) => {
     }
 });
 
-
 app.post('/login', authLimiter, async (req, res) => {
     const { username, password } = req.body;
-    if (!username || !password || !process.env.JWT_SECRET) 
-        return res.status(400).json({ message: 'Invalid request or server config error.' });
-
+    if (!username || !password || !process.env.JWT_SECRET) return res.status(400).json({ message: 'Invalid request or server config error.' });
     try {
         const [rows] = await dbPool.query("SELECT * FROM adminusers WHERE username = ?", [username]);
         if (rows.length === 0) return res.status(401).json({ message: 'Invalid credentials' });
-
         const user = rows[0];
         const isMatch = await bcrypt.compare(password, user.password_hash);
         if (!isMatch) return res.status(401).json({ message: 'Invalid credentials' });
-
         const payload = { id: user.id, username: user.username };
         const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '8h' });
         res.json({ success: true, token, username: user.username });
@@ -250,8 +163,31 @@ app.post('/login', authLimiter, async (req, res) => {
 
 // --- TICKET ENDPOINTS ---
 
-// FIXED: This now gets ALL tickets for the seller panel to see.
-app.get('/tickets', verifyToken, async (req, res) => {
+// **NEW**: Endpoint for BUYERS to get ONLY THEIR tickets
+app.get('/tickets/my', verifyToken, async (req, res) => {
+    try {
+        const [tickets] = await dbPool.query(
+            `SELECT t.*, u.username as buyer_name 
+             FROM tickets t 
+             JOIN adminusers u ON t.user_id = u.id 
+             WHERE t.user_id = ? 
+             ORDER BY t.updated_at DESC`,
+            [req.user.id] // Filter by the logged-in user's ID
+        );
+        for (let ticket of tickets) {
+            const [messages] = await dbPool.query("SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC", [ticket.id]);
+            ticket.messages = messages;
+        }
+        res.json(tickets);
+    } catch (error) {
+        console.error('Error fetching user tickets:', error);
+        res.status(500).json({ message: 'Failed to fetch tickets' });
+    }
+});
+
+
+// **RENAMED**: Endpoint for SELLERS to get ALL tickets
+app.get('/tickets/all', verifyToken, async (req, res) => {
     try {
         const [tickets] = await dbPool.query(
             `SELECT t.*, u.username as buyer_name 
@@ -259,67 +195,31 @@ app.get('/tickets', verifyToken, async (req, res) => {
              JOIN adminusers u ON t.user_id = u.id 
              ORDER BY t.updated_at DESC`
         );
-        
-        // Add messages to each ticket
         for (let ticket of tickets) {
-            const [messages] = await dbPool.query(
-                "SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC",
-                [ticket.id]
-            );
+            const [messages] = await dbPool.query("SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC", [ticket.id]);
             ticket.messages = messages;
         }
-        
         res.json(tickets);
     } catch (error) {
-        console.error('Error fetching tickets:', error);
-        res.status(500).json({ message: 'Failed to fetch tickets' });
+        console.error('Error fetching all tickets:', error);
+        res.status(500).json({ message: 'Failed to fetch all tickets' });
     }
 });
 
-// This endpoint is for BUYERS to create a ticket (e.g., from a different app/website). It's correct as is.
+// Endpoint for BUYERS to create a ticket.
 app.post('/tickets', verifyToken, async (req, res) => {
     const { paymentMethod } = req.body;
-    
-    if (!paymentMethod) {
-        return res.status(400).json({ message: 'Payment method is required' });
-    }
-    
+    if (!paymentMethod) { return res.status(400).json({ message: 'Payment method is required' }); }
     try {
         const licenseKey = "PENDING-" + Date.now();
-        
-        // Create ticket
-        const [result] = await dbPool.query(
-            "INSERT INTO tickets (user_id, license_key, payment_method, status) VALUES (?, ?, ?, 'awaiting')",
-            [req.user.id, licenseKey, paymentMethod]
-        );
-        
+        const [result] = await dbPool.query("INSERT INTO tickets (user_id, license_key, payment_method, status) VALUES (?, ?, ?, 'awaiting')", [req.user.id, licenseKey, paymentMethod]);
         const ticketId = result.insertId;
-        
-        // Create initial message
         let message = `Welcome! A seller will be with you shortly to help you purchase with ${paymentMethod}.`;
-        
-        await dbPool.query(
-            "INSERT INTO ticket_messages (ticket_id, sender, message) VALUES (?, ?, ?)",
-            [ticketId, 'seller', message] // The first message is automated, from the 'seller'
-        );
-        
-        // Fetch the created ticket to return
-        const [tickets] = await dbPool.query(
-            `SELECT t.*, u.username as buyer_name 
-             FROM tickets t 
-             JOIN adminusers u ON t.user_id = u.id 
-             WHERE t.id = ?`,
-            [ticketId]
-        );
-        
-        const [messages] = await dbPool.query(
-            "SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC",
-            [ticketId]
-        );
-        
+        await dbPool.query("INSERT INTO ticket_messages (ticket_id, sender, message) VALUES (?, ?, ?)", [ticketId, 'seller', message]);
+        const [tickets] = await dbPool.query(`SELECT t.*, u.username as buyer_name FROM tickets t JOIN adminusers u ON t.user_id = u.id WHERE t.id = ?`, [ticketId]);
+        const [messages] = await dbPool.query("SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC", [ticketId]);
         const ticket = tickets[0];
         ticket.messages = messages;
-        
         res.status(201).json(ticket);
     } catch (error) {
         console.error('Error creating ticket:', error);
@@ -327,56 +227,32 @@ app.post('/tickets', verifyToken, async (req, res) => {
     }
 });
 
-// FIXED: This now allows a logged-in SELLER to reply to ANY ticket.
+// Endpoint for sending messages.
 app.post('/tickets/:id/messages', verifyToken, async (req, res) => {
     const { id } = req.params;
     const { message } = req.body;
-    
-    if (!message) {
-        return res.status(400).json({ message: 'Message is required' });
-    }
-    
+    if (!message) { return res.status(400).json({ message: 'Message is required' }); }
+
     try {
-        // FIXED: Removed the check that required the seller to be the ticket owner.
-        // Now we just check if the ticket exists.
-        const [tickets] = await dbPool.query(
-            "SELECT * FROM tickets WHERE id = ?",
-            [id]
-        );
+        const [tickets] = await dbPool.query("SELECT * FROM tickets WHERE id = ?", [id]);
+        if (tickets.length === 0) { return res.status(404).json({ message: 'Ticket not found.' }); }
         
-        if (tickets.length === 0) {
-            return res.status(404).json({ message: 'Ticket not found.' });
+        const ticket = tickets[0];
+        // Correctly identify if the sender is the buyer (user) or a seller
+        const senderType = (ticket.user_id === req.user.id) ? 'user' : 'seller';
+
+        await dbPool.query("INSERT INTO ticket_messages (ticket_id, sender, message) VALUES (?, ?, ?)", [id, senderType, message]);
+        
+        if (ticket.status === 'awaiting') {
+             await dbPool.query("UPDATE tickets SET status = 'processing', updated_at = CURRENT_TIMESTAMP WHERE id = ?", [id]);
+        } else {
+             await dbPool.query("UPDATE tickets SET updated_at = CURRENT_TIMESTAMP WHERE id = ?", [id]);
         }
         
-        // FIXED: Message sender is now correctly set to 'seller' for replies from the panel.
-        await dbPool.query(
-            "INSERT INTO ticket_messages (ticket_id, sender, message) VALUES (?, ?, ?)",
-            [id, 'seller', message]
-        );
-        
-        // Bumps the ticket to the top of the list and marks it as being handled.
-        await dbPool.query(
-            "UPDATE tickets SET status = 'processing', updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-            [id]
-        );
-        
-        // Fetch updated ticket to return to the client
-        const [updatedTickets] = await dbPool.query(
-            `SELECT t.*, u.username as buyer_name 
-             FROM tickets t 
-             JOIN adminusers u ON t.user_id = u.id 
-             WHERE t.id = ?`,
-            [id]
-        );
-        
-        const [messages] = await dbPool.query(
-            "SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC",
-            [id]
-        );
-        
+        const [updatedTickets] = await dbPool.query(`SELECT t.*, u.username as buyer_name FROM tickets t JOIN adminusers u ON t.user_id = u.id WHERE t.id = ?`, [id]);
+        const [messages] = await dbPool.query("SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC", [id]);
         const updatedTicket = updatedTickets[0];
         updatedTicket.messages = messages;
-        
         res.json(updatedTicket);
     } catch (error) {
         console.error('Error adding message:', error);
