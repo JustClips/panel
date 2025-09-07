@@ -267,7 +267,7 @@ app.get('/tickets/my', verifyToken, apiLimiter, async (req, res, next) => {
             ticket.messages = messages;
         }
         res.json(tickets);
-    } catch(e) { next(e) }
+    } catch(error) { next(error) }
 });
 
 app.get('/tickets/all', verifyToken, verifyRole('seller', 'admin'), apiLimiter, async (req, res, next) => {
@@ -278,7 +278,7 @@ app.get('/tickets/all', verifyToken, verifyRole('seller', 'admin'), apiLimiter, 
             ticket.messages = messages;
         }
         res.json(tickets);
-    } catch(e) { next(e) }
+    } catch(error) { next(error) }
 });
 
 app.post('/tickets', verifyToken, body('paymentMethod').isLength({ min: 2, max: 50 }).trim().escape(),
@@ -316,9 +316,12 @@ app.post('/tickets/:id/messages', verifyToken, apiLimiter, body('message').isLen
             const [tickets] = await dbPool.query("SELECT * FROM tickets WHERE id = ?", [id]);
             if (tickets.length === 0) return res.status(404).json({ message: 'Ticket not found.' });
             const ticket = tickets[0];
-            const senderType = (ticket.user_id === req.user.id) ? 'user' : 'seller';
+            if (req.user.role === 'buyer' && ticket.user_id !== req.user.id) {
+                return res.status(403).json({ message: 'Forbidden: You do not own this ticket.'});
+            }
+            const senderType = ['seller', 'admin'].includes(req.user.role) ? 'seller' : 'user';
             await dbPool.query("INSERT INTO ticket_messages (ticket_id, sender, message) VALUES (?, ?, ?)", [id, senderType, message]);
-            if (ticket.status === 'awaiting') {
+            if (ticket.status === 'awaiting' && senderType === 'seller') {
                 await dbPool.query("UPDATE tickets SET status = 'processing', updated_at = CURRENT_TIMESTAMP WHERE id = ?", [id]);
             } else {
                 await dbPool.query("UPDATE tickets SET updated_at = CURRENT_TIMESTAMP WHERE id = ?", [id]);
@@ -328,7 +331,7 @@ app.post('/tickets/:id/messages', verifyToken, apiLimiter, body('message').isLen
             const updatedTicket = updatedTickets[0];
             updatedTicket.messages = messages;
             res.json(updatedTicket);
-        } catch(e) { next(e) }
+        } catch(error) { next(error) }
     });
 
 app.post('/api/tickets/:id/close', verifyToken, verifyRole('seller', 'admin'), actionLimiter, async (req, res, next) => { 
@@ -342,7 +345,7 @@ app.post('/api/tickets/:id/close', verifyToken, verifyRole('seller', 'admin'), a
         const updatedTicket = updatedTickets[0];
         updatedTicket.messages = messages;
         res.json(updatedTicket);
-    } catch(e) { next(e) }
+    } catch(error) { next(error) }
 });
 
 app.delete('/api/tickets/:id', verifyToken, verifyRole('seller', 'admin'), actionLimiter, async (req, res, next) => { 
@@ -352,7 +355,7 @@ app.delete('/api/tickets/:id', verifyToken, verifyRole('seller', 'admin'), actio
         if (tickets.length === 0) return res.status(404).json({ message: 'Ticket not found.' });
         await dbPool.query("DELETE FROM tickets WHERE id = ?", [id]);
         res.json({ success: true, message: `Ticket #${id} has been permanently deleted.` });
-    } catch(e) { next(e) }
+    } catch(error) { next(error) }
 });
 
 
@@ -372,7 +375,7 @@ app.post('/broadcast', verifyToken, verifyRole('admin'), actionLimiter, async (r
         const commandType = typeof command === "string" ? "lua_script" : "json_action";
         await dbPool.query("INSERT INTO commands (command_type, content, executed_by) VALUES (?, ?, ?)", [commandType, JSON.stringify(command), req.user.username]);
         res.json({ message: `Command broadcasted to ${successCount}/${clients.size} clients.` });
-    } catch(e) { next(e) }
+    } catch(error) { next(error) }
 });
 
 app.post('/kick', verifyToken, verifyRole('admin'), actionLimiter, (req, res) => {
@@ -403,13 +406,14 @@ app.get('/uploads/:filename', verifyToken, verifyRole('seller', 'admin'), async 
 app.post('/api/seller/redeem', verifyToken, verifyRole('seller', 'admin'), actionLimiter, upload.single('screenshot'),
     body('discordUsername').isNumeric().isLength({ min: 17, max: 20 }),
     async (req, res, next) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) { addStrike(req.ip); return res.status(400).json({ errors: errors.array() }); }
+        if (!req.file) { return res.status(400).json({ error: 'Screenshot file is required.' }); }
+        
+        const filename = `${nanoid(16)}.png`;
+        const filePath = path.join(uploadDir, filename);
+
         try {
-            const errors = validationResult(req);
-            if (!errors.isEmpty()) { addStrike(req.ip); return res.status(400).json({ errors: errors.array() }); }
-            if (!req.file) { return res.status(400).json({ error: 'Screenshot file is required.' }); }
-            
-            const filename = `${nanoid(16)}.png`;
-            const filePath = path.join(uploadDir, filename);
             await fs.promises.writeFile(filePath, req.file.buffer);
 
             const { discordUsername: discordUserId } = req.body;
@@ -430,17 +434,17 @@ app.post('/api/seller/redeem', verifyToken, verifyRole('seller', 'admin'), actio
                 res.status(400).json({ success: false, error: `Luarmor API Error: ${data.message || 'Unknown error.'}` });
             }
         } catch (error) { 
-            if (req.file && fs.existsSync(path.join(uploadDir, `${nanoid(16)}.png`))) {
-                await fs.promises.unlink(path.join(uploadDir, `${nanoid(16)}.png`));
+            if (fs.existsSync(filePath)) {
+                await fs.promises.unlink(filePath);
             }
             next(error);
         }
     });
 
-app.get('/api/executions', verifyToken, verifyRole('seller', 'admin'), apiLimiter, async (req, res, next) => { try { /* ... same logic ... */ } catch(e) { next(e) } });
-app.get('/api/player-stats', verifyToken, verifyRole('seller', 'admin'), apiLimiter, async (req, res, next) => { try { /* ... same logic ... */ } catch(e) { next(e) } });
-app.get('/api/seller/keys-sold', verifyToken, verifyRole('seller', 'admin'), apiLimiter, async (req, res, next) => { try { /* ... same logic ... */ } catch(e) { next(e) } });
-app.get('/api/seller/sales-log', verifyToken, verifyRole('seller', 'admin'), apiLimiter, async (req, res, next) => { try { /* ... same logic ... */ } catch(e) { next(e) } });
+app.get('/api/executions', verifyToken, verifyRole('seller', 'admin'), apiLimiter, async (req, res, next) => { try { const data = await getAggregatedData('connections', 'connected_at', 'id', req.query.period, 'COUNT'); res.json(data); } catch(e) { next(e) } });
+app.get('/api/player-stats', verifyToken, verifyRole('seller', 'admin'), apiLimiter, async (req, res, next) => { try { const data = await getAggregatedData('player_snapshots', 'created_at', 'player_count', req.query.period, 'MAX'); res.json(data); } catch(e) { next(e) } });
+app.get('/api/seller/keys-sold', verifyToken, verifyRole('seller', 'admin'), apiLimiter, async (req, res, next) => { try { const data = await getAggregatedData('key_redemptions', 'redeemed_at', 'id', req.query.period, 'COUNT'); res.json(data); } catch(e) { next(e) } });
+app.get('/api/seller/sales-log', verifyToken, verifyRole('seller', 'admin'), apiLimiter, async (req, res, next) => { try { const [rows] = await dbPool.query("SELECT * FROM key_redemptions ORDER BY redeemed_at DESC"); res.json(rows); } catch(e) { next(e) } });
 
 
 // --- GAME CLIENT ENDPOINTS ---
@@ -467,9 +471,34 @@ app.post('/poll', globalIpLimiter, (req, res) => {
 
 
 // --- UTILITY FUNCTIONS & INTERVALS ---
-async function getAggregatedData(tableName, dateColumn, valueColumn, period, aggregationFn = 'COUNT') { /* ... Unchanged ... */ }
-setInterval(() => { /* ... client timeout logic ... */ }, 5000);
-setInterval(async () => { /* ... snapshot logic ... */ }, SNAPSHOT_INTERVAL_MS);
+async function getAggregatedData(tableName, dateColumn, valueColumn, period, aggregationFn = 'COUNT') {
+    let interval, groupByFormat;
+    switch (period) {
+        case 'daily': interval = '24 HOUR'; groupByFormat = '%Y-%m-%d %H:00:00'; break;
+        case 'weekly': interval = '7 DAY'; groupByFormat = '%Y-%m-%d'; break;
+        default: interval = '30 DAY'; groupByFormat = '%Y-%m-%d'; break;
+    }
+    const query = `SELECT DATE_FORMAT(${dateColumn}, ?) AS date, ${aggregationFn}(${valueColumn}) AS count FROM ${tableName} WHERE ${dateColumn} >= NOW() - INTERVAL ${interval} GROUP BY date ORDER BY date ASC;`;
+    const [rows] = await dbPool.query(query, [groupByFormat]);
+    return rows;
+}
+setInterval(() => {
+    const now = Date.now();
+    clients.forEach((client, id) => {
+        if (now - client.lastSeen > CLIENT_TIMEOUT_MS) {
+            clients.delete(id);
+            pendingCommands.delete(id);
+            console.log(`[TIMEOUT] Kicked inactive client: ${client.username} (ID: ${id})`);
+        }
+    });
+}, 5000);
+setInterval(async () => {
+    if (clients.size > 0) {
+        try {
+            await dbPool.query("INSERT INTO player_snapshots (player_count) VALUES (?)", [clients.size]);
+        } catch (error) { console.error("[DB] Failed to log player snapshot:", error.message); }
+    }
+}, SNAPSHOT_INTERVAL_MS);
 setInterval(() => {
     const now = Date.now();
     for (const [ip, expiry] of ipBanList.entries()) {
