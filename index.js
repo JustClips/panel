@@ -4,24 +4,54 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
+const cookieParser = require('cookie-parser'); // NEW: For handling cookies
+const rateLimit = require('express-rate-limit'); // NEW: For brute-force protection
+const helmet = require('helmet'); // NEW: For security headers
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const CLIENT_TIMEOUT_MS = 15000; // 15 seconds
-const SNAPSHOT_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+const CLIENT_TIMEOUT_MS = 15000;
+const SNAPSHOT_INTERVAL_MS = 5 * 60 * 1000;
 
-// --- MIDDLEWARE & CONFIG ---
-app.use(cors());
+// --- SECURITY MIDDLEWARE ---
+
+// NEW: Set security-related HTTP headers
+app.use(helmet());
+
+// NEW: Configure CORS to be more restrictive
+// This allows your frontend to connect, but blocks other random websites.
+const allowedOrigins = [
+    'https://your-frontend-url.up.railway.app', // IMPORTANT: Replace with your actual admin panel URL
+    'http://localhost:5500', // Example for local testing with Live Server
+    'http://127.0.0.1:5500'  // Example for local testing
+];
+
+app.use(cors({
+    origin: function(origin, callback) {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.indexOf(origin) === -1) {
+            const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+            return callback(new Error(msg), false);
+        }
+        return callback(null, true);
+    },
+    credentials: true // NEW: Allow cookies to be sent from the frontend
+}));
+
+
+// --- STANDARD MIDDLEWARE ---
 app.use(bodyParser.json({ limit: '5mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '5mb' }));
+app.use(cookieParser()); // NEW: Use cookie parser middleware
 
 // In-memory stores
 let clients = new Map();
 let pendingCommands = new Map();
 
 function generateSessionId() {
-    return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    return require('crypto').randomBytes(32).toString('hex'); // More secure random ID
 }
 
 // --- MYSQL DATABASE SETUP ---
@@ -43,55 +73,26 @@ async function initializeDatabase() {
     try {
         const connection = await dbPool.getConnection();
         console.log("Successfully connected to MySQL database.");
-
-        // Standard tables (connections, commands, snapshots)
+        // (Database table creation logic remains the same...)
         await connection.query(`CREATE TABLE IF NOT EXISTS connections (id INT AUTO_INCREMENT PRIMARY KEY, client_id VARCHAR(255) NOT NULL, username VARCHAR(255) NOT NULL, user_id BIGINT, game_name VARCHAR(255), server_info VARCHAR(255), player_count INT, connected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
         await connection.query(`CREATE TABLE IF NOT EXISTS commands (id INT AUTO_INCREMENT PRIMARY KEY, command_type VARCHAR(50) NOT NULL, content TEXT, executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
         await connection.query(`CREATE TABLE IF NOT EXISTS player_snapshots (id INT AUTO_INCREMENT PRIMARY KEY, player_count INT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
-
-        // --- ADMIN-SPECIFIC TABLES ---
-
-        // CHANGED: Create the new 'adminusers' table for admin panel logins
-        await connection.query(`CREATE TABLE IF NOT EXISTS adminusers (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            username VARCHAR(255) UNIQUE NOT NULL,
-            password_hash VARCHAR(255) NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );`);
-        console.log("`adminusers` table is OK.");
-
-        // CHANGED: Session table now links to 'adminusers'
-        // NOTE: If the old sessions table exists, this won't automatically update the foreign key. 
-        // A redeploy on Railway might require you to manually drop the 'sessions' table once for this to take effect.
-        await connection.query(`CREATE TABLE IF NOT EXISTS sessions (
-            session_id VARCHAR(255) PRIMARY KEY,
-            user_id INT NOT NULL,
-            username VARCHAR(255) NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            expires_at TIMESTAMP NOT NULL,
-            FOREIGN KEY (user_id) REFERENCES adminusers(id) ON DELETE CASCADE
-        );`);
-        console.log("`sessions` table is OK and linked to `adminusers`.");
-
-        // Check and add columns to connections table if they don't exist
+        await connection.query(`CREATE TABLE IF NOT EXISTS adminusers (id INT AUTO_INCREMENT PRIMARY KEY, username VARCHAR(255) UNIQUE NOT NULL, password_hash VARCHAR(255) NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
+        await connection.query(`CREATE TABLE IF NOT EXISTS sessions (session_id VARCHAR(255) PRIMARY KEY, user_id INT NOT NULL, username VARCHAR(255) NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, expires_at TIMESTAMP NOT NULL, FOREIGN KEY (user_id) REFERENCES adminusers(id) ON DELETE CASCADE);`);
         const [cols] = await connection.query("SHOW COLUMNS FROM `connections`");
         const colNames = cols.map(c => c.Field);
         if (!colNames.includes("player_count")) { await connection.query("ALTER TABLE `connections` ADD COLUMN `player_count` INT DEFAULT 0;"); }
         if (!colNames.includes("game_name")) { await connection.query("ALTER TABLE `connections` ADD COLUMN `game_name` VARCHAR(255);"); }
         if (!colNames.includes("server_info")) { await connection.query("ALTER TABLE `connections` ADD COLUMN `server_info` VARCHAR(255);"); }
         if (!colNames.includes("user_id")) { await connection.query("ALTER TABLE `connections` ADD COLUMN `user_id` BIGINT;"); }
-
-        // CHANGED: Create default admin users in the 'adminusers' table
         const [adminUsers] = await connection.query("SELECT COUNT(*) as count FROM adminusers");
         if (adminUsers[0].count === 0) {
             console.log("Creating default admin users...");
             const hashedVupxy = await bcrypt.hash('vupxydev', 10);
             const hashedMegamind = await bcrypt.hash('megaminddev', 10);
-            await connection.query("INSERT INTO adminusers (username, password_hash) VALUES (?, ?), (?, ?)",
-                ['vupxy', hashedVupxy, 'megamind', hashedMegamind]);
+            await connection.query("INSERT INTO adminusers (username, password_hash) VALUES (?, ?), (?, ?)", ['vupxy', hashedVupxy, 'megamind', hashedMegamind]);
             console.log("Default admin users created: vupxy, megamind");
         }
-
         connection.release();
         console.log("Database initialization complete.");
     } catch (error) {
@@ -100,26 +101,24 @@ async function initializeDatabase() {
     }
 }
 
-// --- AUTHENTICATION MIDDLEWARE ---
+// --- AUTHENTICATION MIDDLEWARE (CHANGED) ---
 const authenticateSession = async (req, res, next) => {
-    const sessionId = req.headers['x-session-id'];
+    // CHANGED: Read session ID from the secure cookie instead of a header
+    const sessionId = req.cookies.sessionId;
     if (!sessionId) {
-        return res.status(401).json({ success: false, message: 'Unauthorized: No session ID provided' });
+        return res.status(401).json({ success: false, message: 'Unauthorized: No session token' });
     }
-
     try {
         const connection = await dbPool.getConnection();
-        // CHANGED: Join sessions with 'adminusers' table
         const [rows] = await connection.query(
-            "SELECT s.*, u.username FROM sessions s JOIN adminusers u ON s.user_id = u.id WHERE s.session_id = ? AND s.expires_at > NOW()",
-            [sessionId]
+            "SELECT s.*, u.username FROM sessions s JOIN adminusers u ON s.user_id = u.id WHERE s.session_id = ? AND s.expires_at > NOW()", [sessionId]
         );
         connection.release();
-
         if (rows.length === 0) {
+            // Clear the invalid cookie from the user's browser
+            res.clearCookie('sessionId');
             return res.status(401).json({ success: false, message: 'Unauthorized: Invalid or expired session' });
         }
-
         req.user = { id: rows[0].user_id, name: rows[0].username };
         next();
     } catch (error) {
@@ -130,41 +129,54 @@ const authenticateSession = async (req, res, next) => {
 
 // --- API ENDPOINTS ---
 
+// NEW: Rate limiter for the login route to prevent brute-force attacks
+const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10, // Limit each IP to 10 login requests per windowMs
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { success: false, message: 'Too many login attempts. Please try again in 15 minutes.' }
+});
+
 app.get('/', (req, res) => {
     res.json({ message: 'Aperture Command Server is running!', clientsConnected: clients.size });
 });
 
-// CHANGED: Login endpoint now checks the 'adminusers' table
-app.post('/login', async (req, res) => {
+// CHANGED: Login endpoint now uses rate limiting and sets a secure cookie
+app.post('/login', loginLimiter, async (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) {
         return res.status(400).json({ success: false, message: 'Username and password are required.' });
     }
-
     try {
         const connection = await dbPool.getConnection();
         const [rows] = await connection.query("SELECT * FROM adminusers WHERE username = ?", [username]);
-
         if (rows.length === 0) {
             connection.release();
             return res.status(401).json({ success: false, message: 'Invalid credentials' });
         }
-
         const user = rows[0];
         const isMatch = await bcrypt.compare(password, user.password_hash);
 
         if (isMatch) {
             const sessionId = generateSessionId();
             const expiresAt = new Date(Date.now() + (8 * 60 * 60 * 1000)); // 8 hours
-
             await connection.query(
-                "INSERT INTO sessions (session_id, user_id, username, expires_at) VALUES (?, ?, ?, ?)",
-                [sessionId, user.id, user.username, expiresAt]
+                "INSERT INTO sessions (session_id, user_id, username, expires_at) VALUES (?, ?, ?, ?)", [sessionId, user.id, user.username, expiresAt]
             );
             connection.release();
 
+            // CHANGED: Set a secure, HttpOnly cookie instead of sending the ID in the response body
+            res.cookie('sessionId', sessionId, {
+                httpOnly: true, // Prevents JavaScript from accessing the cookie
+                secure: process.env.NODE_ENV === 'production', // Only send over HTTPS
+                sameSite: 'strict', // Mitigates CSRF attacks
+                expires: expiresAt
+            });
+
             console.log('Login successful for admin:', username);
-            res.json({ success: true, sessionId: sessionId, username: user.username });
+            // We no longer send the sessionId in the response body
+            res.json({ success: true, username: user.username });
         } else {
             connection.release();
             res.status(401).json({ success: false, message: 'Invalid credentials' });
@@ -175,21 +187,20 @@ app.post('/login', async (req, res) => {
     }
 });
 
-app.post('/logout', async (req, res) => {
-    const sessionId = req.headers['x-session-id'];
-    if (!sessionId) {
-        return res.status(400).json({ success: false, message: 'No session ID provided' });
+// CHANGED: Logout now clears the cookie
+app.post('/logout', (req, res) => {
+    const sessionId = req.cookies.sessionId;
+    if (sessionId) {
+        dbPool.query("DELETE FROM sessions WHERE session_id = ?", [sessionId]).catch(err => {
+            console.error("Error clearing session from DB on logout:", err);
+        });
     }
-    try {
-        const connection = await dbPool.getConnection();
-        await connection.query("DELETE FROM sessions WHERE session_id = ?", [sessionId]);
-        connection.release();
-        res.json({ success: true, message: 'Logged out successfully' });
-    } catch (error) {
-        console.error('Logout error:', error);
-        res.status(500).json({ success: false, message: 'Internal server error' });
-    }
+    // Clear the cookie from the user's browser regardless
+    res.clearCookie('sessionId');
+    res.json({ success: true, message: 'Logged out successfully' });
 });
+
+// (The rest of your endpoints: /connect, /poll, /api/*, etc. remain unchanged but are now more secure because authenticateSession is stronger)
 
 // --- GAME CLIENT ENDPOINTS (Unchanged) ---
 app.post('/connect', async (req, res) => {
@@ -262,7 +273,6 @@ app.get('/api/player-stats', authenticateSession, async (req, res) => {
     } catch (error) { res.status(500).json({ error: 'Failed to retrieve weekly player statistics.' }); }
 });
 
-// CHANGED: Add user endpoint now inserts into 'adminusers'
 app.post('/admin/add-user', authenticateSession, async (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) {
@@ -297,8 +307,7 @@ setInterval(() => {
 setInterval(async () => {
     const playerCount = clients.size;
     if (playerCount > 0) {
-        try { await dbPool.query("INSERT INTO player_snapshots (player_count) VALUES (?)", [playerCount]); }
-        catch (error) { console.error("[DB] Failed to log player snapshot:", error.message) }
+        try { await dbPool.query("INSERT INTO player_snapshots (player_count) VALUES (?)", [playerCount]); } catch (error) { console.error("[DB] Failed to log player snapshot:", error.message) }
     }
 }, SNAPSHOT_INTERVAL_MS);
 
@@ -320,3 +329,4 @@ async function startServer() {
 }
 
 startServer();
+
