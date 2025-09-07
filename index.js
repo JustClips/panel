@@ -25,9 +25,11 @@ const allowedOrigins = [
     'https://w1ckllon.com', // Your admin panel's domain
     'http://localhost:5500',
     'http://127.0.0.1:5500'
+    // Add your Railway app's frontend URL here if it's different from the backend
 ];
 app.use(cors({
     origin: function(origin, callback) {
+        // Allow requests with no origin (like mobile apps or curl requests)
         if (!origin || allowedOrigins.indexOf(origin) !== -1) {
             callback(null, true);
         } else {
@@ -38,6 +40,11 @@ app.use(cors({
 
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
+
+// <<< NEW >>> SERVE THE FRONTEND PANEL
+// This tells Express to serve any files in a 'public' folder.
+// When a user visits your main URL, it will automatically send them public/index.html.
+app.use(express.static('public'));
 
 // --- FILE UPLOAD & STATIC SERVING ---
 const uploadDir = 'uploads';
@@ -128,6 +135,7 @@ const verifyToken = (req, res, next) => {
 
 // --- AUTHENTICATION ENDPOINTS ---
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, message: 'Too many requests from this IP, please try again after 15 minutes' });
+
 app.post('/register', authLimiter, async (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) { return res.status(400).json({ message: 'Username and password are required.' }); }
@@ -160,6 +168,19 @@ app.post('/login', authLimiter, async (req, res) => {
         res.status(500).json({ message: 'Internal server error' });
     }
 });
+
+// <<< NEW >>> TOKEN VERIFICATION ROUTE
+// The frontend will hit this on page load to check if a stored token is still valid.
+app.get('/verify-token', verifyToken, (req, res) => {
+    // The 'verifyToken' middleware has already done the hard work.
+    // If we reach this point, the token is valid.
+    res.json({
+        success: true,
+        message: 'Token is valid.',
+        user: { id: req.user.id, username: req.user.username }
+    });
+});
+
 
 // --- TICKET ENDPOINTS ---
 
@@ -280,7 +301,6 @@ app.delete('/api/tickets/:id', verifyToken, async (req, res) => {
         if (tickets.length === 0) {
             return res.status(404).json({ message: 'Ticket not found.' });
         }
-        // ON DELETE CASCADE in the DB schema handles deleting associated messages
         await dbPool.query("DELETE FROM tickets WHERE id = ?", [id]);
         res.json({ success: true, message: `Ticket #${id} has been permanently deleted.` });
     } catch (error) {
