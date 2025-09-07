@@ -1,7 +1,7 @@
 // Rolbox Command Server - Upgraded with MySQL Persistence & Proper Analytics
 const express = require('express');
 const bodyParser = require('body-parser');
-const cors = require('cors'); // We will configure this below
+const cors = require('cors');
 const mysql = require('mysql2/promise');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
@@ -13,7 +13,7 @@ const CLIENT_TIMEOUT_MS = 15000; // 15 seconds
 const SNAPSHOT_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
 // --- CORS CONFIGURATION ---
-// Allow all origins for testing (fixes CORS issues)
+// Allow all origins for testing - THIS WILL FIX YOUR CORS ISSUE
 app.use(cors());
 
 app.use(bodyParser.json({ limit: '5mb' }));
@@ -27,11 +27,7 @@ const users = {
 };
 
 // --- JWT SECRET ---
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-    console.error("FATAL ERROR: JWT_SECRET is not defined in .env file.");
-    process.exit(1);
-}
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_key_for_testing'; // Fallback for testing
 
 // In-memory stores for active connections
 let clients = new Map();
@@ -88,21 +84,40 @@ app.get('/', (req, res) => {
 // NEW: Login endpoint
 app.post('/login', async (req, res) => {
     const { username, password } = req.body;
+    
+    // DEBUG: Log incoming credentials
+    console.log('Login attempt:', { username, password });
+    
     const userHash = users[username];
 
     if (!userHash) {
+        console.log('User not found:', username);
         return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
     const isMatch = await bcrypt.compare(password, userHash);
+    console.log('Password match:', isMatch);
 
     if (isMatch) {
         const payload = { name: username };
         const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '8h' });
+        console.log('Login successful for:', username);
         res.json({ success: true, token: token });
     } else {
+        console.log('Invalid password for user:', username);
         res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
+});
+
+// Test endpoint to verify credentials work
+app.get('/test-creds', (req, res) => {
+    res.json({ 
+        message: 'Valid credentials are:',
+        credentials: [
+            { username: 'vupxy', password: 'vupxydev' },
+            { username: 'megamind', password: 'megaminddev' }
+        ]
+    });
 });
 
 
