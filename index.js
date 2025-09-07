@@ -4,9 +4,9 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken'); // NEW: For JSON Web Tokens
-const rateLimit = require('express-rate-limit'); // For brute-force protection
-const helmet = require('helmet'); // For security headers
+const jwt = require('jsonwebtoken');
+const rateLimit = require('express-rate-limit');
+const helmet = require('helmet');
 require('dotenv').config();
 
 const app = express();
@@ -19,18 +19,21 @@ const SNAPSHOT_INTERVAL_MS = 5 * 60 * 1000;
 app.use(helmet()); // Set security-related HTTP headers
 
 // Configure CORS
+// FIXED: Added your frontend URL to the list of allowed origins
 const allowedOrigins = [
-    'https://your-frontend-url.up.railway.app', // IMPORTANT: Replace with your actual admin panel URL
-    'http://localhost:5500', 
+    'https://w1ckllon.com', // Your admin panel's domain
+    'http://localhost:5500',
     'http://127.0.0.1:5500'
 ];
 app.use(cors({
     origin: function(origin, callback) {
-        if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-            callback(null, true);
-        } else {
-            callback(new Error('Not allowed by CORS'));
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.indexOf(origin) === -1) {
+            const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+            return callback(new Error(msg), false);
         }
+        return callback(null, true);
     }
 }));
 
@@ -67,8 +70,6 @@ async function initializeDatabase() {
         await connection.query(`CREATE TABLE IF NOT EXISTS player_snapshots (id INT AUTO_INCREMENT PRIMARY KEY, player_count INT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
         await connection.query(`CREATE TABLE IF NOT EXISTS adminusers (id INT AUTO_INCREMENT PRIMARY KEY, username VARCHAR(255) UNIQUE NOT NULL, password_hash VARCHAR(255) NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
         
-        // REMOVED: The 'sessions' table is no longer needed with stateless JWT authentication.
-
         const [cols] = await connection.query("SHOW COLUMNS FROM `connections`");
         const colNames = cols.map(c => c.Field);
         if (!colNames.includes("player_count")) { await connection.query("ALTER TABLE `connections` ADD COLUMN `player_count` INT DEFAULT 0;"); }
@@ -92,10 +93,10 @@ async function initializeDatabase() {
     }
 }
 
-// --- AUTHENTICATION MIDDLEWARE (CHANGED to JWT) ---
+// --- AUTHENTICATION MIDDLEWARE ---
 const verifyToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1]; // Format: "Bearer TOKEN"
+    const token = authHeader && authHeader.split(' ')[1];
 
     if (!token) {
         return res.status(401).json({ success: false, message: 'Unauthorized: No token provided' });
@@ -124,7 +125,6 @@ app.get('/', (req, res) => {
     res.json({ message: 'Aperture Command Server is running!', clientsConnected: clients.size });
 });
 
-// CHANGED: Login endpoint now generates and sends a JWT
 app.post('/login', loginLimiter, async (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) {
@@ -147,9 +147,7 @@ app.post('/login', loginLimiter, async (req, res) => {
         const isMatch = await bcrypt.compare(password, user.password_hash);
 
         if (isMatch) {
-            // Create JWT payload
             const payload = { id: user.id, username: user.username };
-            // Sign the token
             const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '8h' });
 
             console.log('Login successful for admin:', username);
@@ -163,14 +161,13 @@ app.post('/login', loginLimiter, async (req, res) => {
     }
 });
 
-// CHANGED: Logout is now a stateless action on the client (this endpoint is for convenience)
 app.post('/logout', (req, res) => {
-    // With JWT, logout is handled by the client deleting the token.
-    // This endpoint can be called to signify the action is complete.
+    // This endpoint can remain for clients that want to explicitly log out,
+    // but with JWT, the client can also just delete the token.
     res.json({ success: true, message: 'Logged out successfully' });
 });
 
-// --- GAME CLIENT ENDPOINTS (Unchanged) ---
+// --- GAME CLIENT ENDPOINTS ---
 app.post('/connect', async (req, res) => {
     const { id, username, gameName, serverInfo, playerCount, avatarUrl, userId } = req.body;
     if (!id || !username || !gameName || !serverInfo) { return res.status(400).json({ error: "Bad Request: Missing required fields." }) }
@@ -193,7 +190,7 @@ app.post('/poll', (req, res) => {
     pendingCommands.set(id, []); res.json({ commands })
 });
 
-// --- PROTECTED ADMIN ENDPOINTS (now use verifyToken middleware) ---
+// --- PROTECTED ADMIN ENDPOINTS ---
 app.get('/api/clients', verifyToken, (req, res) => {
     res.json({ count: clients.size, clients: Array.from(clients.values()) });
 });
@@ -262,7 +259,7 @@ app.post('/admin/add-user', verifyToken, async (req, res) => {
 
 // --- UTILITY INTERVALS ---
 setInterval(() => {
-    const now = Date.now();
+    const now = Date.Just replace your current `index.js` content with this code and redeploy on Railway. This should resolve the CORS error immediately.now();
     clients.forEach((client, id) => {
         if (now - client.lastSeen > CLIENT_TIMEOUT_MS) {
             clients.delete(id);
@@ -278,8 +275,6 @@ setInterval(async () => {
         try { await dbPool.query("INSERT INTO player_snapshots (player_count) VALUES (?)", [playerCount]); } catch (error) { console.error("[DB] Failed to log player snapshot:", error.message) }
     }
 }, SNAPSHOT_INTERVAL_MS);
-
-// REMOVED: Session cleanup interval is no longer needed.
 
 // --- START SERVER ---
 async function startServer() {
