@@ -1,4 +1,4 @@
-// Rolbox Command Server - PARANOID EDITION V2.4 (FINAL Session Fix)
+// Rolbox Command Server - PARANOID EDITION V2.5 (DB Migration Fix)
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
@@ -58,7 +58,7 @@ const dbKnex = knex({ client: 'mysql2', connection: { host: process.env.DB_HOST,
 const sessionStore = new KnexSessionStore({ 
     knex: dbKnex, 
     tablename: 'sessions',
-    createtable: false, // <<< FINAL SESSION FIX >>> We are creating the table ourselves, so we tell the library NOT to.
+    createtable: false,
     clearInterval: 1000 * 60 * 60
 });
 app.use(session({
@@ -93,13 +93,19 @@ async function initializeDatabase() {
         const connection = await dbPool.getConnection();
         console.log("Successfully connected to MySQL database.");
 
-        // <<< FINAL SESSION FIX >>> We are now MANUALLY creating the sessions table with the EXACT schema the library expects.
         await connection.query(`CREATE TABLE IF NOT EXISTS sessions (sid VARCHAR(255) NOT NULL PRIMARY KEY, sess JSON NOT NULL, expired DATETIME NOT NULL);`);
 
         await connection.query(`CREATE TABLE IF NOT EXISTS adminusers (id INT AUTO_INCREMENT PRIMARY KEY, username VARCHAR(255) UNIQUE NOT NULL, password_hash VARCHAR(255) NOT NULL, role ENUM('buyer', 'seller', 'admin') NOT NULL DEFAULT 'buyer', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
-        const [columns] = await connection.query("SHOW COLUMNS FROM `adminusers` LIKE 'role'");
-        if (columns.length === 0) { console.log("Upgrading 'adminusers' table..."); await connection.query("ALTER TABLE `adminusers` ADD COLUMN `role` ENUM('buyer', 'seller', 'admin') NOT NULL DEFAULT 'buyer' AFTER `password_hash`;"); }
-        await connection.query(`CREATE TABLE IF NOT EXISTS connections (id INT AUTO_INCREMENT PRIMARY KEY, client_id VARCHAR(255) NOT NULL, username VARCHAR(255) NOT NULL, user_id BIGINT, game_name VARCHAR(255), server_info VARCHAR(255), player_count INT, connected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, ip_address VARCHAR(45));`);
+        const [roleColumns] = await connection.query("SHOW COLUMNS FROM `adminusers` LIKE 'role'");
+        if (roleColumns.length === 0) { console.log("Upgrading 'adminusers' table..."); await connection.query("ALTER TABLE `adminusers` ADD COLUMN `role` ENUM('buyer', 'seller', 'admin') NOT NULL DEFAULT 'buyer' AFTER `password_hash`;"); }
+        
+        await connection.query(`CREATE TABLE IF NOT EXISTS connections (id INT AUTO_INCREMENT PRIMARY KEY, client_id VARCHAR(255) NOT NULL, username VARCHAR(255) NOT NULL, user_id BIGINT, game_name VARCHAR(255), server_info VARCHAR(255), player_count INT, connected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
+        const [ipColumns] = await connection.query("SHOW COLUMNS FROM `connections` LIKE 'ip_address'");
+        if (ipColumns.length === 0) {
+            console.log("Upgrading 'connections' table, adding 'ip_address' column...");
+            await connection.query("ALTER TABLE `connections` ADD COLUMN `ip_address` VARCHAR(45) NULL AFTER `player_count`;");
+        }
+        
         await connection.query(`CREATE TABLE IF NOT EXISTS commands (id INT AUTO_INCREMENT PRIMARY KEY, command_type VARCHAR(50) NOT NULL, content TEXT, executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, executed_by VARCHAR(255));`);
         await connection.query(`CREATE TABLE IF NOT EXISTS player_snapshots (id INT AUTO_INCREMENT PRIMARY KEY, player_count INT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
         await connection.query(`CREATE TABLE IF NOT EXISTS key_redemptions (id INT AUTO_INCREMENT PRIMARY KEY, redeemed_by_admin VARCHAR(255) NOT NULL, discord_user_id VARCHAR(255) NOT NULL, generated_key VARCHAR(255) NOT NULL, screenshot_filename VARCHAR(255), redeemed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
