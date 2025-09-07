@@ -172,7 +172,7 @@ app.get('/tickets/my', verifyToken, async (req, res) => {
              JOIN adminusers u ON t.user_id = u.id 
              WHERE t.user_id = ? 
              ORDER BY t.updated_at DESC`,
-            [req.user.id] // Filter by the logged-in user's ID
+            [req.user.id]
         );
         for (let ticket of tickets) {
             const [messages] = await dbPool.query("SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC", [ticket.id]);
@@ -232,23 +232,17 @@ app.post('/tickets/:id/messages', verifyToken, async (req, res) => {
     const { id } = req.params;
     const { message } = req.body;
     if (!message) { return res.status(400).json({ message: 'Message is required' }); }
-
     try {
         const [tickets] = await dbPool.query("SELECT * FROM tickets WHERE id = ?", [id]);
         if (tickets.length === 0) { return res.status(404).json({ message: 'Ticket not found.' }); }
-        
         const ticket = tickets[0];
-        // Correctly identify if the sender is the buyer (user) or a seller
         const senderType = (ticket.user_id === req.user.id) ? 'user' : 'seller';
-
         await dbPool.query("INSERT INTO ticket_messages (ticket_id, sender, message) VALUES (?, ?, ?)", [id, senderType, message]);
-        
         if (ticket.status === 'awaiting') {
              await dbPool.query("UPDATE tickets SET status = 'processing', updated_at = CURRENT_TIMESTAMP WHERE id = ?", [id]);
         } else {
              await dbPool.query("UPDATE tickets SET updated_at = CURRENT_TIMESTAMP WHERE id = ?", [id]);
         }
-        
         const [updatedTickets] = await dbPool.query(`SELECT t.*, u.username as buyer_name FROM tickets t JOIN adminusers u ON t.user_id = u.id WHERE t.id = ?`, [id]);
         const [messages] = await dbPool.query("SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC", [id]);
         const updatedTicket = updatedTickets[0];
@@ -260,26 +254,38 @@ app.post('/tickets/:id/messages', verifyToken, async (req, res) => {
     }
 });
 
-// **NEW**: Endpoint for SELLERS to close a ticket.
+// Endpoint for SELLERS to close a ticket.
 app.post('/api/tickets/:id/close', verifyToken, async (req, res) => {
+    const { id } = req.params;
+    try {
+        const [tickets] = await dbPool.query("SELECT * FROM tickets WHERE id = ?", [id]);
+        if (tickets.length === 0) { return res.status(404).json({ message: 'Ticket not found.' }); }
+        await dbPool.query("UPDATE tickets SET status = 'completed', updated_at = CURRENT_TIMESTAMP WHERE id = ?", [id]);
+        const [updatedTickets] = await dbPool.query(`SELECT t.*, u.username as buyer_name FROM tickets t JOIN adminusers u ON t.user_id = u.id WHERE t.id = ?`, [id]);
+        const [messages] = await dbPool.query("SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC", [id]);
+        const updatedTicket = updatedTickets[0];
+        updatedTicket.messages = messages;
+        res.json(updatedTicket);
+    } catch (error) {
+        console.error('Error closing ticket:', error);
+        res.status(500).json({ message: 'Failed to close ticket' });
+    }
+});
+
+// **NEW**: Endpoint for SELLERS to DELETE a ticket.
+app.delete('/api/tickets/:id', verifyToken, async (req, res) => {
     const { id } = req.params;
     try {
         const [tickets] = await dbPool.query("SELECT * FROM tickets WHERE id = ?", [id]);
         if (tickets.length === 0) {
             return res.status(404).json({ message: 'Ticket not found.' });
         }
-        await dbPool.query("UPDATE tickets SET status = 'completed', updated_at = CURRENT_TIMESTAMP WHERE id = ?", [id]);
-        
-        // Respond with the updated ticket
-        const [updatedTickets] = await dbPool.query(`SELECT t.*, u.username as buyer_name FROM tickets t JOIN adminusers u ON t.user_id = u.id WHERE t.id = ?`, [id]);
-        const [messages] = await dbPool.query("SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC", [id]);
-        const updatedTicket = updatedTickets[0];
-        updatedTicket.messages = messages;
-
-        res.json(updatedTicket);
+        // ON DELETE CASCADE in the DB schema handles deleting associated messages
+        await dbPool.query("DELETE FROM tickets WHERE id = ?", [id]);
+        res.json({ success: true, message: `Ticket #${id} has been permanently deleted.` });
     } catch (error) {
-        console.error('Error closing ticket:', error);
-        res.status(500).json({ message: 'Failed to close ticket' });
+        console.error('Error deleting ticket:', error);
+        res.status(500).json({ message: 'Failed to delete ticket' });
     }
 });
 
@@ -290,14 +296,8 @@ app.post('/connect', async (req, res) => {
     if (!id || !username) return res.status(400).json({ error: "Missing required fields." });
     
     clients.set(id, { 
-        id, 
-        username, 
-        gameName, 
-        serverInfo, 
-        playerCount, 
-        userId, 
-        connectedAt: new Date(), 
-        lastSeen: Date.now() 
+        id, username, gameName, serverInfo, playerCount, userId, 
+        connectedAt: new Date(), lastSeen: Date.now() 
     });
     
     if (!pendingCommands.has(id)) pendingCommands.set(id, []);
