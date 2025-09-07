@@ -39,17 +39,19 @@ app.use(cors({
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
 
-// --- FILE UPLOAD SETUP (Multer) ---
+// --- FILE UPLOAD & STATIC SERVING ---
 const uploadDir = 'uploads';
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir);
 }
+// UPDATED: Serve uploaded images statically
+app.use('/uploads', express.static('uploads'));
+
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         cb(null, uploadDir);
     },
     filename: (req, file, cb) => {
-        // Create a unique filename to prevent overwrites
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
         cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
     }
@@ -91,10 +93,8 @@ async function initializeDatabase() {
         await connection.query(`CREATE TABLE IF NOT EXISTS commands (id INT AUTO_INCREMENT PRIMARY KEY, command_type VARCHAR(50) NOT NULL, content TEXT, executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
         await connection.query(`CREATE TABLE IF NOT EXISTS player_snapshots (id INT AUTO_INCREMENT PRIMARY KEY, player_count INT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
         await connection.query(`CREATE TABLE IF NOT EXISTS adminusers (id INT AUTO_INCREMENT PRIMARY KEY, username VARCHAR(255) UNIQUE NOT NULL, password_hash VARCHAR(255) NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
-        // NEW: Table for tracking key sales/redemptions
         await connection.query(`CREATE TABLE IF NOT EXISTS key_redemptions (id INT AUTO_INCREMENT PRIMARY KEY, redeemed_by_admin VARCHAR(255) NOT NULL, discord_user_id VARCHAR(255) NOT NULL, generated_key VARCHAR(255) NOT NULL, screenshot_filename VARCHAR(255), redeemed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
 
-        // Create default admin users if none exist
         const [adminUsers] = await connection.query("SELECT COUNT(*) as count FROM adminusers");
         if (adminUsers[0].count === 0) {
             console.log("Creating default admin users...");
@@ -200,7 +200,6 @@ app.post('/broadcast', verifyToken, async (req, res) => {
     res.json({ message: `Command broadcasted to ${successCount}/${clients.size} clients.` });
 });
 
-// NEW: Endpoint for sending commands to specific clients
 app.post('/api/command/targeted', verifyToken, (req, res) => {
     const { clientIds, command } = req.body;
     if (!Array.isArray(clientIds) || !command) return res.status(400).json({ error: 'Missing "clientIds" array or "command".' });
@@ -232,9 +231,8 @@ app.post('/kick', verifyToken, (req, res) => {
     res.json({ message: `Client ${client.username} kicked.` });
 });
 
-// NEW: Seller Panel endpoint for redeeming a key
 app.post('/api/seller/redeem', verifyToken, upload.single('screenshot'), async (req, res) => {
-    const { discordUsername: discordUserId } = req.body; // Assuming the input is the User ID
+    const { discordUsername: discordUserId } = req.body;
     const adminUsername = req.user.username;
     
     if (!discordUserId) return res.status(400).json({ error: 'Discord User ID is required.' });
@@ -253,26 +251,25 @@ app.post('/api/seller/redeem', verifyToken, upload.single('screenshot'), async (
 
         if (data.success && data.user_key) {
             const newKey = data.user_key;
-            // Log the successful redemption to our database
             await dbPool.query(
                 "INSERT INTO key_redemptions (redeemed_by_admin, discord_user_id, generated_key, screenshot_filename) VALUES (?, ?, ?, ?)",
                 [adminUsername, discordUserId, newKey, req.file.filename]
             );
             res.json({ success: true, message: `Key successfully generated and linked to ${discordUserId}.`, generatedKey: newKey });
         } else {
-            // If Luarmor fails, delete the uploaded file to save space
-            fs.unlinkSync(req.file.path);
+            if (req.file) fs.unlinkSync(req.file.path);
             res.status(400).json({ success: false, error: `Luarmor API Error: ${data.message || 'Unknown error.'}` });
         }
     } catch (error) {
-        fs.unlinkSync(req.file.path);
+        // UPDATED: Robust error handling for file deletion
+        if (req.file) fs.unlinkSync(req.file.path);
         console.error("Luarmor API request failed:", error.response ? error.response.data : error.message);
         res.status(500).json({ error: 'An internal error occurred while communicating with the key service.' });
     }
 });
 
 
-// --- ANALYTICS ENDPOINTS (Upgraded with period handling) ---
+// --- ANALYTICS & LOGS ENDPOINTS ---
 async function getAggregatedData(tableName, dateColumn, valueColumn, period, aggregationFn = 'COUNT') {
     let interval, groupByFormat;
     switch (period) {
@@ -319,7 +316,6 @@ app.get('/api/player-stats', verifyToken, async (req, res) => {
     }
 });
 
-// NEW: Endpoint to power the "Keys Sold" graph
 app.get('/api/seller/keys-sold', verifyToken, async (req, res) => {
     try {
         const data = await getAggregatedData('key_redemptions', 'redeemed_at', 'id', req.query.period, 'COUNT');
@@ -328,6 +324,18 @@ app.get('/api/seller/keys-sold', verifyToken, async (req, res) => {
         res.status(500).json({ error: 'Failed to retrieve key redemption statistics.' });
     }
 });
+
+// NEW: Endpoint to fetch the sales log data
+app.get('/api/seller/sales-log', verifyToken, async (req, res) => {
+    try {
+        const [rows] = await dbPool.query("SELECT * FROM key_redemptions ORDER BY redeemed_at DESC");
+        res.json(rows);
+    } catch (error) {
+        console.error("Failed to retrieve sales log:", error);
+        res.status(500).json({ error: 'Failed to retrieve sales log.' });
+    }
+});
+
 
 // --- UTILITY INTERVALS ---
 setInterval(() => {
