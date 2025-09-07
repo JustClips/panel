@@ -158,7 +158,6 @@ async function initializeDatabase() {
             await connection.query("INSERT INTO adminusers (username, password_hash) VALUES (?, ?), (?, ?)", ['vupxy', hashedVupxy, 'megamind', hashedMegamind]);
         }
 
-        // --- NEW: Section to create/ensure seller users exist ---
         const sellerUsers = [
             { username: 'Vandelz', password: 'Vandelzseller1' },
             { username: 'zuse35', password: 'zuse35seller1' },
@@ -175,7 +174,6 @@ async function initializeDatabase() {
                 console.log(`User ${user.username} created.`);
             }
         }
-        // --- End of new section ---
 
         connection.release();
         console.log("Database initialization complete.");
@@ -205,7 +203,6 @@ const authLimiter = rateLimit({
     message: 'Too many requests from this IP, please try again after 15 minutes' 
 });
 
-// ✅ ADDED: New /register endpoint
 app.post('/register', authLimiter, async (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) {
@@ -213,13 +210,11 @@ app.post('/register', authLimiter, async (req, res) => {
     }
 
     try {
-        // Check if user already exists
         const [existingUsers] = await dbPool.query("SELECT id FROM adminusers WHERE username = ?", [username]);
         if (existingUsers.length > 0) {
             return res.status(409).json({ message: 'Username already taken.' });
         }
 
-        // Hash password and create user
         const hashedPassword = await bcrypt.hash(password, 10);
         await dbPool.query("INSERT INTO adminusers (username, password_hash) VALUES (?, ?)", [username, hashedPassword]);
 
@@ -254,15 +249,15 @@ app.post('/login', authLimiter, async (req, res) => {
 });
 
 // --- TICKET ENDPOINTS ---
+
+// FIXED: This now gets ALL tickets for the seller panel to see.
 app.get('/tickets', verifyToken, async (req, res) => {
     try {
         const [tickets] = await dbPool.query(
-            `SELECT t.*, u.username as seller_name 
+            `SELECT t.*, u.username as buyer_name 
              FROM tickets t 
              JOIN adminusers u ON t.user_id = u.id 
-             WHERE t.user_id = ? 
-             ORDER BY t.created_at DESC`,
-            [req.user.id]
+             ORDER BY t.updated_at DESC`
         );
         
         // Add messages to each ticket
@@ -281,6 +276,7 @@ app.get('/tickets', verifyToken, async (req, res) => {
     }
 });
 
+// This endpoint is for BUYERS to create a ticket (e.g., from a different app/website). It's correct as is.
 app.post('/tickets', verifyToken, async (req, res) => {
     const { paymentMethod } = req.body;
     
@@ -289,8 +285,7 @@ app.post('/tickets', verifyToken, async (req, res) => {
     }
     
     try {
-        // Generate license key
-        const licenseKey = generateLicenseKey();
+        const licenseKey = "PENDING-" + Date.now();
         
         // Create ticket
         const [result] = await dbPool.query(
@@ -300,33 +295,17 @@ app.post('/tickets', verifyToken, async (req, res) => {
         
         const ticketId = result.insertId;
         
-        // Create initial message based on payment method
-        let message = `Welcome! I can help you purchase Eps1llon Hub Premium for $10 using ${paymentMethod}. `;
-        switch(paymentMethod) {
-            case 'PayPal':
-                message += 'Please send $10.00 to payments@eps1llonhub.com and reply with "payment sent" once completed.';
-                break;
-            case 'CashApp':
-                message += 'Please send $10.00 to $eps1llonhub and reply with "payment sent" once completed.';
-                break;
-            case 'Crypto':
-                message += 'Please send 0.0005 BTC to bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq and reply with "payment sent" once completed.';
-                break;
-            case 'Google Pay':
-                message += 'Please send $10.00 to eps1llon.hub@gmail.com and reply with "payment sent" once completed.';
-                break;
-            default:
-                message += 'Please send $10.00 and reply with "payment sent" once completed.';
-        }
+        // Create initial message
+        let message = `Welcome! A seller will be with you shortly to help you purchase with ${paymentMethod}.`;
         
         await dbPool.query(
             "INSERT INTO ticket_messages (ticket_id, sender, message) VALUES (?, ?, ?)",
-            [ticketId, 'seller', message]
+            [ticketId, 'seller', message] // The first message is automated, from the 'seller'
         );
         
-        // Fetch the created ticket
+        // Fetch the created ticket to return
         const [tickets] = await dbPool.query(
-            `SELECT t.*, u.username as seller_name 
+            `SELECT t.*, u.username as buyer_name 
              FROM tickets t 
              JOIN adminusers u ON t.user_id = u.id 
              WHERE t.id = ?`,
@@ -348,6 +327,7 @@ app.post('/tickets', verifyToken, async (req, res) => {
     }
 });
 
+// FIXED: This now allows a logged-in SELLER to reply to ANY ticket.
 app.post('/tickets/:id/messages', verifyToken, async (req, res) => {
     const { id } = req.params;
     const { message } = req.body;
@@ -357,51 +337,32 @@ app.post('/tickets/:id/messages', verifyToken, async (req, res) => {
     }
     
     try {
-        // Verify ticket belongs to user
+        // FIXED: Removed the check that required the seller to be the ticket owner.
+        // Now we just check if the ticket exists.
         const [tickets] = await dbPool.query(
-            "SELECT * FROM tickets WHERE id = ? AND user_id = ?",
-            [id, req.user.id]
+            "SELECT * FROM tickets WHERE id = ?",
+            [id]
         );
         
         if (tickets.length === 0) {
-            return res.status(404).json({ message: 'Ticket not found or you do not have permission to view it.' });
+            return res.status(404).json({ message: 'Ticket not found.' });
         }
         
-        const ticket = tickets[0];
-        
-        // Add user message
+        // FIXED: Message sender is now correctly set to 'seller' for replies from the panel.
         await dbPool.query(
             "INSERT INTO ticket_messages (ticket_id, sender, message) VALUES (?, ?, ?)",
-            [id, 'user', message]
+            [id, 'seller', message]
         );
         
-        // If the user says "payment sent" and the ticket is awaiting, move to processing
-        if (message.toLowerCase().includes('payment sent') && ticket.status === 'awaiting') {
-             await dbPool.query(
-                "UPDATE tickets SET status = 'processing' WHERE id = ?",
-                [id]
-            );
-
-            // Simulate a seller checking the payment and confirming
-            setTimeout(async () => {
-                try {
-                    await dbPool.query(
-                        "UPDATE tickets SET status = 'completed' WHERE id = ?",
-                        [id]
-                    );
-                    await dbPool.query(
-                        "INSERT INTO ticket_messages (ticket_id, sender, message) VALUES (?, ?, ?)",
-                        [id, 'seller', "Payment confirmed! Your license is now active."]
-                    );
-                } catch(err) {
-                    console.error("Error in delayed ticket update:", err);
-                }
-            }, 5000); // 5-second delay to simulate manual confirmation
-        }
+        // Bumps the ticket to the top of the list and marks it as being handled.
+        await dbPool.query(
+            "UPDATE tickets SET status = 'processing', updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            [id]
+        );
         
         // Fetch updated ticket to return to the client
         const [updatedTickets] = await dbPool.query(
-            `SELECT t.*, u.username as seller_name 
+            `SELECT t.*, u.username as buyer_name 
              FROM tickets t 
              JOIN adminusers u ON t.user_id = u.id 
              WHERE t.id = ?`,
