@@ -19,13 +19,6 @@ app.use(cors());
 app.use(bodyParser.json({ limit: '5mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '5mb' }));
 
-// --- SECURE USER STORAGE ---
-// Passwords are securely hashed. They are NOT stored in plaintext.
-const users = {
-    'vupxy': '$2a$10$fG.9Jg1E9g.X3fUa.1Zk9eYx.kL5v.8y/P5U6V/PzO4c.A/l.O1hO', // Hash for 'vupxydev'
-    'megamind': '$2a$10$wT0l/6Y5n.E3b/a.j/G.d.UoH.L5e.9G/M9V.f/j.K4R.B/k.S2kK'  // Hash for 'megaminddev'
-};
-
 // --- JWT SECRET ---
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_key_for_testing'; // Fallback for testing
 
@@ -33,7 +26,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_key_for_testing'; 
 let clients = new Map();
 let pendingCommands = new Map();
 
-// --- MySQL Database Setup (Unchanged) ---
+// --- MySQL Database Setup ---
 const dbConfig = process.env.DATABASE_URL ?
     { uri: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } } :
     {
@@ -47,13 +40,58 @@ const dbConfig = process.env.DATABASE_URL ?
     };
 const dbPool = mysql.createPool(dbConfig);
 
-// --- Database Initialization (Unchanged) ---
+// --- Database Initialization ---
 async function initializeDatabase() {
-    try{const connection=await dbPool.getConnection();console.log("Successfully connected to MySQL database.");await connection.query(`CREATE TABLE IF NOT EXISTS connections (id INT AUTO_INCREMENT PRIMARY KEY, client_id VARCHAR(255) NOT NULL, username VARCHAR(255) NOT NULL, user_id BIGINT, game_name VARCHAR(255), server_info VARCHAR(255), player_count INT, connected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);console.log("`connections` table is OK.");await connection.query(`CREATE TABLE IF NOT EXISTS commands (id INT AUTO_INCREMENT PRIMARY KEY, command_type VARCHAR(50) NOT NULL, content TEXT, executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);console.log("`commands` table is OK.");await connection.query(`CREATE TABLE IF NOT EXISTS player_snapshots (id INT AUTO_INCREMENT PRIMARY KEY, player_count INT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);console.log("`player_snapshots` table is OK.");const[cols]=await connection.query("SHOW COLUMNS FROM `connections`");const colNames=cols.map(c=>c.Field);if(!colNames.includes("player_count")){console.log("Updating `connections`: Adding `player_count` column...");await connection.query("ALTER TABLE `connections` ADD COLUMN `player_count` INT DEFAULT 0;")}
-if(!colNames.includes("game_name")){console.log("Updating `connections`: Adding `game_name` column...");await connection.query("ALTER TABLE `connections` ADD COLUMN `game_name` VARCHAR(255);")}
-if(!colNames.includes("server_info")){console.log("Updating `connections`: Adding `server_info` column...");await connection.query("ALTER TABLE `connections` ADD COLUMN `server_info` VARCHAR(255);")}
-if(!colNames.includes("user_id")){console.log("Updating `connections`: Adding `user_id` column...");await connection.query("ALTER TABLE `connections` ADD COLUMN `user_id` BIGINT;")}
-connection.release();console.log("Database initialization complete.")}catch(error){console.error("!!! DATABASE INITIALIZATION FAILED !!!",error.message);process.exit(1)}
+    try{
+        const connection=await dbPool.getConnection();
+        console.log("Successfully connected to MySQL database.");
+        
+        // Create connections table
+        await connection.query(`CREATE TABLE IF NOT EXISTS connections (id INT AUTO_INCREMENT PRIMARY KEY, client_id VARCHAR(255) NOT NULL, username VARCHAR(255) NOT NULL, user_id BIGINT, game_name VARCHAR(255), server_info VARCHAR(255), player_count INT, connected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
+        console.log("`connections` table is OK.");
+        
+        // Create commands table
+        await connection.query(`CREATE TABLE IF NOT EXISTS commands (id INT AUTO_INCREMENT PRIMARY KEY, command_type VARCHAR(50) NOT NULL, content TEXT, executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
+        console.log("`commands` table is OK.");
+        
+        // Create player_snapshots table
+        await connection.query(`CREATE TABLE IF NOT EXISTS player_snapshots (id INT AUTO_INCREMENT PRIMARY KEY, player_count INT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
+        console.log("`player_snapshots` table is OK.");
+        
+        // Create users table
+        await connection.query(`CREATE TABLE IF NOT EXISTS users (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            username VARCHAR(255) UNIQUE NOT NULL,
+            password_hash VARCHAR(255) NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );`);
+        console.log("`users` table is OK.");
+        
+        // Check and add columns to connections table if they don't exist
+        const[cols]=await connection.query("SHOW COLUMNS FROM `connections`");
+        const colNames=cols.map(c=>c.Field);
+        if(!colNames.includes("player_count")){console.log("Updating `connections`: Adding `player_count` column...");await connection.query("ALTER TABLE `connections` ADD COLUMN `player_count` INT DEFAULT 0;")}
+        if(!colNames.includes("game_name")){console.log("Updating `connections`: Adding `game_name` column...");await connection.query("ALTER TABLE `connections` ADD COLUMN `game_name` VARCHAR(255);")}
+        if(!colNames.includes("server_info")){console.log("Updating `connections`: Adding `server_info` column...");await connection.query("ALTER TABLE `connections` ADD COLUMN `server_info` VARCHAR(255);")}
+        if(!colNames.includes("user_id")){console.log("Updating `connections`: Adding `user_id` column...");await connection.query("ALTER TABLE `connections` ADD COLUMN `user_id` BIGINT;")}
+        
+        // Create default users if they don't exist
+        const [users] = await connection.query("SELECT COUNT(*) as count FROM users");
+        if (users[0].count === 0) {
+            console.log("Creating default users...");
+            const hashedVupxy = await bcrypt.hash('vupxydev', 10);
+            const hashedMegamind = await bcrypt.hash('megaminddev', 10);
+            await connection.query("INSERT INTO users (username, password_hash) VALUES (?, ?), (?, ?)", 
+                ['vupxy', hashedVupxy, 'megamind', hashedMegamind]);
+            console.log("Default users created: vupxy, megamind");
+        }
+        
+        connection.release();
+        console.log("Database initialization complete.");
+    }catch(error){
+        console.error("!!! DATABASE INITIALIZATION FAILED !!!",error.message);
+        process.exit(1);
+    }
 }
 
 // --- NEW: AUTHENTICATION MIDDLEWARE ---
@@ -71,7 +109,6 @@ const authenticateToken = (req, res, next) => {
     });
 };
 
-
 // --- API Endpoints ---
 
 // --- PUBLIC ENDPOINTS (No token required) ---
@@ -81,45 +118,58 @@ app.get('/', (req, res) => {
     res.json({ message: 'Aperture Command Server is running!', clientsConnected: clients.size });
 });
 
-// NEW: Login endpoint
+// NEW: Login endpoint (now uses database)
 app.post('/login', async (req, res) => {
     const { username, password } = req.body;
     
     // DEBUG: Log incoming credentials
     console.log('Login attempt:', { username, password });
     
-    const userHash = users[username];
-
-    if (!userHash) {
-        console.log('User not found:', username);
-        return res.status(401).json({ success: false, message: 'Invalid credentials' });
-    }
-
-    const isMatch = await bcrypt.compare(password, userHash);
-    console.log('Password match:', isMatch);
-
-    if (isMatch) {
-        const payload = { name: username };
-        const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '8h' });
-        console.log('Login successful for:', username);
-        res.json({ success: true, token: token });
-    } else {
-        console.log('Invalid password for user:', username);
-        res.status(401).json({ success: false, message: 'Invalid credentials' });
+    try {
+        const connection = await dbPool.getConnection();
+        const [rows] = await connection.query("SELECT * FROM users WHERE username = ?", [username]);
+        connection.release();
+        
+        if (rows.length === 0) {
+            console.log('User not found:', username);
+            return res.status(401).json({ success: false, message: 'Invalid credentials' });
+        }
+        
+        const user = rows[0];
+        const isMatch = await bcrypt.compare(password, user.password_hash);
+        console.log('Password match:', isMatch);
+        
+        if (isMatch) {
+            const payload = { name: username, id: user.id };
+            const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '8h' });
+            console.log('Login successful for:', username);
+            res.json({ success: true, token: token });
+        } else {
+            console.log('Invalid password for user:', username);
+            res.status(401).json({ success: false, message: 'Invalid credentials' });
+        }
+    } catch (error) {
+        console.error('Login error:', error);
+        res.status(500).json({ success: false, message: 'Internal server error' });
     }
 });
 
-// Test endpoint to verify credentials work
-app.get('/test-creds', (req, res) => {
-    res.json({ 
-        message: 'Valid credentials are:',
-        credentials: [
-            { username: 'vupxy', password: 'vupxydev' },
-            { username: 'megamind', password: 'megaminddev' }
-        ]
-    });
+// Test endpoint to verify system is working
+app.get('/test-system', async (req, res) => {
+    try {
+        const connection = await dbPool.getConnection();
+        const [users] = await connection.query("SELECT username FROM users");
+        connection.release();
+        
+        res.json({ 
+            message: 'System is working!',
+            user_count: users.length,
+            users: users.map(u => u.username)
+        });
+    } catch (error) {
+        res.status(500).json({ error: 'Database error' });
+    }
 });
-
 
 // Game Client Endpoints (these are for your game clients, not the admin panel)
 app.post('/connect', async (req, res) => { /* ... unchanged ... */ 
@@ -131,7 +181,6 @@ res.json({type:"connected",clientId:id,message:"Successfully registered."})});
 app.post('/poll', (req, res) => { /* ... unchanged ... */ 
     const{id}=req.body;if(!id||!clients.has(id)){return res.status(404).json({error:`Client ${id} not registered.`})}
 clients.get(id).lastSeen=Date.now();const commands=pendingCommands.get(id)||[];pendingCommands.set(id,[]);res.json({commands})});
-
 
 // --- PROTECTED ADMIN ENDPOINTS (Token required) ---
 
@@ -177,7 +226,6 @@ app.get('/api/player-stats', authenticateToken, async (req, res) => {
     }
 });
 
-
 // --- Utility Functions & Intervals (Unchanged) ---
 setInterval(() => { /* ... unchanged ... */ 
     const now=Date.now();clients.forEach((client,id)=>{if(now-client.lastSeen>CLIENT_TIMEOUT_MS){clients.delete(id);pendingCommands.delete(id);console.log(`[TIMEOUT] Kicked inactive client: ${client.username} (ID: ${id})`)}})},5000);
@@ -185,8 +233,33 @@ setInterval(() => { /* ... unchanged ... */
 setInterval(async () => { /* ... unchanged ... */ 
     const playerCount=clients.size;if(playerCount>0){try{await dbPool.query("INSERT INTO player_snapshots (player_count) VALUES (?)",[playerCount]);console.log(`[DB] Logged player snapshot: ${playerCount} players.`)}catch(error){console.error("[DB] Failed to log player snapshot:",error.message)}}},SNAPSHOT_INTERVAL_MS);
 
+// --- ADMIN ENDPOINT TO ADD USERS ---
+app.post('/admin/add-user', authenticateToken, async (req, res) => {
+    const { username, password } = req.body;
+    
+    if (!username || !password) {
+        return res.status(400).json({ success: false, message: 'Username and password required' });
+    }
+    
+    try {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const connection = await dbPool.getConnection();
+        await connection.query("INSERT INTO users (username, password_hash) VALUES (?, ?)", [username, hashedPassword]);
+        connection.release();
+        
+        console.log(`Admin added new user: ${username}`);
+        res.json({ success: true, message: 'User added successfully' });
+    } catch (error) {
+        if (error.code === 'ER_DUP_ENTRY') {
+            res.status(400).json({ success: false, message: 'Username already exists' });
+        } else {
+            console.error('Error adding user:', error);
+            res.status(500).json({ success: false, message: 'Internal server error' });
+        }
+    }
+});
 
-// --- Start Server (Unchanged) ---
+// --- Start Server ---
 async function startServer() {
     await initializeDatabase();
     app.listen(PORT, () => console.log(`Aperture Command Server running on port ${PORT}`));
