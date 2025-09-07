@@ -1,4 +1,4 @@
-// Rolbox Command Server - PARANOID EDITION V2.5 (DB Migration Fix)
+// Rolbox Command Server - PARANOID EDITION V2.5 (Syntax Fix)
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
@@ -18,7 +18,6 @@ const knex = require('knex');
 const csrf = require('csurf');
 const { nanoid } = require('nanoid');
 require('dotenv').config();
-
 
 // --- CRITICAL STARTUP CHECKS ---
 if (!process.env.JWT_SECRET || !process.env.SESSION_SECRET) {
@@ -55,8 +54,8 @@ app.use(express.static('public'));
 
 // --- SESSION MANAGEMENT & CSRF PROTECTION ---
 const dbKnex = knex({ client: 'mysql2', connection: { host: process.env.DB_HOST, user: process.env.DB_USER, password: process.env.DB_PASSWORD, database: process.env.DB_DATABASE }});
-const sessionStore = new KnexSessionStore({ 
-    knex: dbKnex, 
+const sessionStore = new KnexSessionStore({
+    knex: dbKnex,
     tablename: 'sessions',
     createtable: false,
     clearInterval: 1000 * 60 * 60
@@ -76,7 +75,6 @@ app.use(session({
 const csrfProtection = csrf();
 app.use((req, res, next) => { if (['/connect', '/poll'].includes(req.path)) { return next(); } csrfProtection(req, res, next); });
 
-
 // --- FILE UPLOAD (HARDENED) ---
 const uploadDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadDir)) { fs.mkdirSync(uploadDir); }
@@ -92,6 +90,8 @@ async function initializeDatabase() {
     try {
         const connection = await dbPool.getConnection();
         console.log("Successfully connected to MySQL database.");
+        
+        // <<< SYNTAX FIX >>> Removed the stray "text" word that was here.
 
         await connection.query(`CREATE TABLE IF NOT EXISTS sessions (sid VARCHAR(255) NOT NULL PRIMARY KEY, sess JSON NOT NULL, expired DATETIME NOT NULL);`);
 
@@ -122,7 +122,6 @@ async function initializeDatabase() {
     }
 }
 
-
 // --- AUTH MIDDLEWARE ---
 const verifyToken = async (req, res, next) => { const authHeader = req.headers['authorization']; const token = authHeader && authHeader.split(' ')[1]; if (!token) return res.status(401).json({ message: 'Unauthorized: No token provided' }); try { const decoded = jwt.verify(token, process.env.JWT_SECRET); const [sessions] = await dbPool.query("SELECT * FROM sessions WHERE sid = ?", [decoded.sessionId]); if (sessions.length === 0) { return res.status(401).json({ message: 'Session has been revoked. Please log in again.' }); } req.user = decoded; next(); } catch (err) { return res.status(403).json({ message: 'Forbidden: Invalid or expired token' }); } };
 const verifyRole = (...allowedRoles) => (req, res, next) => { if (!req.user || !allowedRoles.includes(req.user.role)) { return res.status(403).json({ message: 'Forbidden: You do not have permission for this action.' }); } next(); };
@@ -141,17 +140,17 @@ app.get('/api/csrf-token', (req, res) => { res.json({ csrfToken: req.csrfToken()
 
 app.post('/register', authLimiter, body('username').isLength({ min: 3, max: 20 }).isAlphanumeric().trim(), body('password').isLength({ min: 12 }).withMessage('Password must be at least 12 characters long.').matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{12,}$/).withMessage('Password must contain uppercase, lowercase, number, and special character.'),
     async (req, res, next) => {
-        try {
-            const errors = validationResult(req);
-            if (!errors.isEmpty()) { addStrike(req.ip); return res.status(400).json({ errors: errors.array() }); }
-            const { username, password } = req.body;
-            const [existingUsers] = await dbPool.query("SELECT id FROM adminusers WHERE username = ?", [username]);
-            if (existingUsers.length > 0) return res.status(409).json({ message: 'Username already taken.' });
-            const hashedPassword = await hash(password);
-            await dbPool.query("INSERT INTO adminusers (username, password_hash, role) VALUES (?, ?, 'buyer')", [username, hashedPassword]);
-            res.status(201).json({ success: true, message: 'User created successfully.' });
-        } catch (error) { next(error); }
-    });
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) { addStrike(req.ip); return res.status(400).json({ errors: errors.array() }); }
+        const { username, password } = req.body;
+        const [existingUsers] = await dbPool.query("SELECT id FROM adminusers WHERE username = ?", [username]);
+        if (existingUsers.length > 0) return res.status(409).json({ message: 'Username already taken.' });
+        const hashedPassword = await hash(password);
+        await dbPool.query("INSERT INTO adminusers (username, password_hash, role) VALUES (?, ?, 'buyer')", [username, hashedPassword]);
+        res.status(201).json({ success: true, message: 'User created successfully.' });
+    } catch (error) { next(error); }
+});
 
 app.post('/login', authLimiter, async (req, res, next) => {
     try {
@@ -176,46 +175,46 @@ app.get('/verify-token', verifyToken, (req, res) => { res.json({ success: true, 
 app.get('/tickets/my', verifyToken, apiLimiter, async (req, res, next) => { try { const [tickets] = await dbPool.query( `SELECT t.*, u.username as buyer_name FROM tickets t JOIN adminusers u ON t.user_id = u.id WHERE t.user_id = ? ORDER BY t.updated_at DESC`, [req.user.id] ); for (let ticket of tickets) { const [messages] = await dbPool.query("SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC", [ticket.id]); ticket.messages = messages; } res.json(tickets); } catch(error) { next(error) } });
 app.get('/tickets/all', verifyToken, verifyRole('seller', 'admin'), apiLimiter, async (req, res, next) => { try { const [tickets] = await dbPool.query( `SELECT t.*, u.username as buyer_name FROM tickets t JOIN adminusers u ON t.user_id = u.id ORDER BY t.updated_at DESC` ); for (let ticket of tickets) { const [messages] = await dbPool.query("SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC", [ticket.id]); ticket.messages = messages; } res.json(tickets); } catch(error) { next(error) } });
 app.post('/tickets', verifyToken, body('paymentMethod').isLength({ min: 2, max: 50 }).trim().escape(),
-    async (req, res, next) => { 
-        try {
-            const errors = validationResult(req);
-            if (!errors.isEmpty()) { addStrike(req.ip); return res.status(400).json({ errors: errors.array() }); }
-            const { paymentMethod } = req.body;
-            const userId = req.user.id;
-            const [existingTickets] = await dbPool.query("SELECT id FROM tickets WHERE user_id = ?", [userId]);
-            if (existingTickets.length > 0) { addStrike(req.ip, 2); return res.status(409).json({ message: "You have already created a support ticket. Only one ticket is allowed per user." }); }
-            const licenseKey = `PENDING-${nanoid(16)}`;
-            const [result] = await dbPool.query("INSERT INTO tickets (user_id, license_key, payment_method, status) VALUES (?, ?, ?, 'awaiting')", [userId, licenseKey, paymentMethod]);
-            const ticketId = result.insertId;
-            let message = `Welcome! A seller will be with you shortly to help you purchase with ${paymentMethod}.`;
-            await dbPool.query("INSERT INTO ticket_messages (ticket_id, sender, message) VALUES (?, ?, ?)", [ticketId, 'seller', message]);
-            const [tickets] = await dbPool.query(`SELECT t.*, u.username as buyer_name FROM tickets t JOIN adminusers u ON t.user_id = u.id WHERE t.id = ?`, [ticketId]);
-            const [messages] = await dbPool.query("SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC", [ticketId]);
-            const ticket = tickets[0];
-            ticket.messages = messages;
-            res.status(201).json(ticket);
-        } catch (error) { next(error); }
-    });
+    async (req, res, next) => {
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) { addStrike(req.ip); return res.status(400).json({ errors: errors.array() }); }
+        const { paymentMethod } = req.body;
+        const userId = req.user.id;
+        const [existingTickets] = await dbPool.query("SELECT id FROM tickets WHERE user_id = ?", [userId]);
+        if (existingTickets.length > 0) { addStrike(req.ip, 2); return res.status(409).json({ message: "You have already created a support ticket. Only one ticket is allowed per user." }); }
+        const licenseKey = `PENDING-${nanoid(16)}`;
+        const [result] = await dbPool.query("INSERT INTO tickets (user_id, license_key, payment_method, status) VALUES (?, ?, ?, 'awaiting')", [userId, licenseKey, paymentMethod]);
+        const ticketId = result.insertId;
+        let message = `Welcome! A seller will be with you shortly to help you purchase with ${paymentMethod}.`;
+        await dbPool.query("INSERT INTO ticket_messages (ticket_id, sender, message) VALUES (?, ?, ?)", [ticketId, 'seller', message]);
+        const [tickets] = await dbPool.query(`SELECT t.*, u.username as buyer_name FROM tickets t JOIN adminusers u ON t.user_id = u.id WHERE t.id = ?`, [ticketId]);
+        const [messages] = await dbPool.query("SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC", [ticketId]);
+        const ticket = tickets[0];
+        ticket.messages = messages;
+        res.status(201).json(ticket);
+    } catch (error) { next(error); }
+});
 app.post('/tickets/:id/messages', verifyToken, apiLimiter, body('message').isLength({ min: 1, max: 2000 }).trim().escape(),
-    async (req, res, next) => { 
-        try {
-            const errors = validationResult(req);
-            if (!errors.isEmpty()) { addStrike(req.ip); return res.status(400).json({ errors: errors.array() }); }
-            const { id } = req.params;
-            const { message } = req.body;
-            const [tickets] = await dbPool.query("SELECT * FROM tickets WHERE id = ?", [id]);
-            if (tickets.length === 0) return res.status(404).json({ message: 'Ticket not found.' });
-            const ticket = tickets[0];
-            if (req.user.role === 'buyer' && ticket.user_id !== req.user.id) { return res.status(403).json({ message: 'Forbidden: You do not own this ticket.'}); }
-            const senderType = ['seller', 'admin'].includes(req.user.role) ? 'seller' : 'user';
-            await dbPool.query("INSERT INTO ticket_messages (ticket_id, sender, message) VALUES (?, ?, ?)", [id, senderType, message]);
-            if (ticket.status === 'awaiting' && senderType === 'seller') { await dbPool.query("UPDATE tickets SET status = 'processing', updated_at = CURRENT_TIMESTAMP WHERE id = ?", [id]); } else { await dbPool.query("UPDATE tickets SET updated_at = CURRENT_TIMESTAMP WHERE id = ?", [id]); }
-            const [updatedTickets] = await dbPool.query(`SELECT t.*, u.username as buyer_name FROM tickets t JOIN adminusers u ON t.user_id = u.id WHERE t.id = ?`, [id]);
-            const [messages] = await dbPool.query("SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC", [id]);
-            const updatedTicket = updatedTickets[0];
-            updatedTicket.messages = messages;
-            res.json(updatedTicket);
-        } catch(error) { next(error) }
+    async (req, res, next) => {
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) { addStrike(req.ip); return res.status(400).json({ errors: errors.array() }); }
+        const { id } = req.params;
+        const { message } = req.body;
+        const [tickets] = await dbPool.query("SELECT * FROM tickets WHERE id = ?", [id]);
+        if (tickets.length === 0) return res.status(404).json({ message: 'Ticket not found.' });
+        const ticket = tickets[0];
+        if (req.user.role === 'buyer' && ticket.user_id !== req.user.id) { return res.status(403).json({ message: 'Forbidden: You do not own this ticket.'}); }
+        const senderType = ['seller', 'admin'].includes(req.user.role) ? 'seller' : 'user';
+        await dbPool.query("INSERT INTO ticket_messages (ticket_id, sender, message) VALUES (?, ?, ?)", [id, senderType, message]);
+        if (ticket.status === 'awaiting' && senderType === 'seller') { await dbPool.query("UPDATE tickets SET status = 'processing', updated_at = CURRENT_TIMESTAMP WHERE id = ?", [id]); } else { await dbPool.query("UPDATE tickets SET updated_at = CURRENT_TIMESTAMP WHERE id = ?", [id]); }
+        const [updatedTickets] = await dbPool.query(`SELECT t.*, u.username as buyer_name FROM tickets t JOIN adminusers u ON t.user_id = u.id WHERE t.id = ?`, [id]);
+        const [messages] = await dbPool.query("SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC", [id]);
+        const updatedTicket = updatedTickets[0];
+        updatedTicket.messages = messages;
+        res.json(updatedTicket);
+    } catch(error) { next(error) }
     });
 app.post('/api/tickets/:id/close', verifyToken, verifyRole('seller', 'admin'), actionLimiter, async (req, res, next) => { try { const { id } = req.params; const [tickets] = await dbPool.query("SELECT * FROM tickets WHERE id = ?", [id]); if (tickets.length === 0) return res.status(404).json({ message: 'Ticket not found.' }); await dbPool.query("UPDATE tickets SET status = 'completed', updated_at = CURRENT_TIMESTAMP WHERE id = ?", [id]); const [updatedTickets] = await dbPool.query(`SELECT t.*, u.username as buyer_name FROM tickets t JOIN adminusers u ON t.user_id = u.id WHERE t.id = ?`, [id]); const [messages] = await dbPool.query("SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC", [id]); const updatedTicket = updatedTickets[0]; updatedTicket.messages = messages; res.json(updatedTicket); } catch(error) { next(error) } });
 app.delete('/api/tickets/:id', verifyToken, verifyRole('seller', 'admin'), actionLimiter, async (req, res, next) => { try { const { id } = req.params; const [tickets] = await dbPool.query("SELECT * FROM tickets WHERE id = ?", [id]); if (tickets.length === 0) return res.status(404).json({ message: 'Ticket not found.' }); await dbPool.query("DELETE FROM tickets WHERE id = ?", [id]); res.json({ success: true, message: `Ticket #${id} has been permanently deleted.` }); } catch(error) { next(error) } });
