@@ -234,14 +234,15 @@ app.get('/api/clients', (req, res) => {
     res.json({ count: clients.size, clients: Array.from(clients.values()) });
 });
 
-// Endpoint for the "Commands Per Day" chart
+// Endpoint for the "Connections Per Day" chart
 app.get('/api/executions', async (req, res) => {
     try {
+        // --- THIS QUERY HAS BEEN CHANGED to count connections instead of commands ---
         const [rows] = await dbPool.query(`
-            SELECT DATE(executed_at) AS date, COUNT(id) AS count 
-            FROM commands
-            WHERE executed_at >= CURDATE() - INTERVAL 30 DAY
-            GROUP BY DATE(executed_at) 
+            SELECT DATE(connected_at) AS date, COUNT(id) AS count 
+            FROM connections
+            WHERE connected_at >= CURDATE() - INTERVAL 30 DAY
+            GROUP BY DATE(connected_at) 
             ORDER BY date ASC;
         `);
         const resultsMap = new Map(rows.map(r => [new Date(r.date).toISOString().slice(0, 10), r.count]));
