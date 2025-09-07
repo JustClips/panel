@@ -1,4 +1,4 @@
-// Rolbox Command Server - PARANOID EDITION V2.2 (Session Table Fix)
+// Rolbox Command Server - PARANOID EDITION V2.3 (Final Session Fix)
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
@@ -58,8 +58,8 @@ const dbKnex = knex({ client: 'mysql2', connection: { host: process.env.DB_HOST,
 const sessionStore = new KnexSessionStore({ 
     knex: dbKnex, 
     tablename: 'sessions',
-    createtable: true, // <<< SESSION FIX >>> Ensure the table is created by the library if it doesn't exist
-    clearInterval: 1000 * 60 * 60 // Clean up expired sessions every hour
+    createtable: true, // Let the library create the table with the correct schema
+    clearInterval: 1000 * 60 * 60
 });
 app.use(session({
     secret: process.env.SESSION_SECRET,
@@ -92,6 +92,8 @@ async function initializeDatabase() {
     try {
         const connection = await dbPool.getConnection();
         console.log("Successfully connected to MySQL database.");
+
+        // We create all tables EXCEPT the 'sessions' table.
         await connection.query(`CREATE TABLE IF NOT EXISTS adminusers (id INT AUTO_INCREMENT PRIMARY KEY, username VARCHAR(255) UNIQUE NOT NULL, password_hash VARCHAR(255) NOT NULL, role ENUM('buyer', 'seller', 'admin') NOT NULL DEFAULT 'buyer', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
         const [columns] = await connection.query("SHOW COLUMNS FROM `adminusers` LIKE 'role'");
         if (columns.length === 0) { console.log("Upgrading 'adminusers' table..."); await connection.query("ALTER TABLE `adminusers` ADD COLUMN `role` ENUM('buyer', 'seller', 'admin') NOT NULL DEFAULT 'buyer' AFTER `password_hash`;"); }
@@ -101,7 +103,6 @@ async function initializeDatabase() {
         await connection.query(`CREATE TABLE IF NOT EXISTS key_redemptions (id INT AUTO_INCREMENT PRIMARY KEY, redeemed_by_admin VARCHAR(255) NOT NULL, discord_user_id VARCHAR(255) NOT NULL, generated_key VARCHAR(255) NOT NULL, screenshot_filename VARCHAR(255), redeemed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
         await connection.query(`CREATE TABLE IF NOT EXISTS tickets (id INT AUTO_INCREMENT PRIMARY KEY, user_id INT NOT NULL, status ENUM('awaiting', 'processing', 'completed') DEFAULT 'awaiting', license_key VARCHAR(255), payment_method VARCHAR(50), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, FOREIGN KEY (user_id) REFERENCES adminusers(id));`);
         await connection.query(`CREATE TABLE IF NOT EXISTS ticket_messages (id INT AUTO_INCREMENT PRIMARY KEY, ticket_id INT NOT NULL, sender ENUM('user', 'seller') NOT NULL, message TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE);`);
-        // <<< SESSION FIX >>> REMOVED the line that created the 'sessions' table here.
         
         const allUsers = [ { username: 'Vandelz', password: 'Vandelzseller1', role: 'seller' }, { username: 'zuse35', password: 'zuse35seller1', role: 'seller' }, { username: 'Duzin', password: 'Duzinseller1', role: 'seller' }, { username: 'swiftkey', password: 'swiftkeyseller1', role: 'seller' }, { username: 'vupxy', password: 'vupxydev', role: 'admin' }, { username: 'megamind', password: 'megaminddev', role: 'admin' }];
         for (const user of allUsers) { const [existingUser] = await dbPool.query("SELECT * FROM adminusers WHERE username = ?", [user.username]); if (existingUser.length === 0) { console.log(`Creating user: ${user.username}...`); const hashedPassword = await hash(user.password); await dbPool.query("INSERT INTO adminusers (username, password_hash, role) VALUES (?, ?, ?)", [user.username, hashedPassword, user.role]); } else if (existingUser[0].role !== user.role) { console.log(`Updating role for user: ${user.username}`); await dbPool.query("UPDATE adminusers SET role = ? WHERE username = ?", [user.role, user.username]); } }
