@@ -22,10 +22,6 @@ app.use(bodyParser.urlencoded({ extended: true, limit: '5mb' }));
 let clients = new Map();
 let pendingCommands = new Map();
 
-// --- Session Storage ---
-// In-memory session storage (in production, use Redis or database)
-const sessions = new Map();
-
 // Generate session ID
 function generateSessionId() {
     return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
@@ -72,6 +68,17 @@ async function initializeDatabase() {
         );`);
         console.log("`users` table is OK.");
         
+        // Create sessions table
+        await connection.query(`CREATE TABLE IF NOT EXISTS sessions (
+            session_id VARCHAR(255) PRIMARY KEY,
+            user_id INT NOT NULL,
+            username VARCHAR(255) NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            expires_at TIMESTAMP NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        );`);
+        console.log("`sessions` table is OK.");
+        
         // Check and add columns to connections table if they don't exist
         const[cols]=await connection.query("SHOW COLUMNS FROM `connections`");
         const colNames=cols.map(c=>c.Field);
@@ -101,22 +108,32 @@ async function initializeDatabase() {
 
 // --- AUTHENTICATION MIDDLEWARE ---
 // This function runs before protected routes to verify the session
-const authenticateSession = (req, res, next) => {
+const authenticateSession = async (req, res, next) => {
     const sessionId = req.headers['x-session-id'];
     
-    if (!sessionId || !sessions.has(sessionId)) {
-        return res.status(401).json({ success: false, message: 'Unauthorized: Invalid session' });
+    if (!sessionId) {
+        return res.status(401).json({ success: false, message: 'Unauthorized: No session ID provided' });
     }
     
-    const session = sessions.get(sessionId);
-    // Check if session expired (8 hours)
-    if (Date.now() > session.expiresAt) {
-        sessions.delete(sessionId);
-        return res.status(401).json({ success: false, message: 'Session expired' });
+    try {
+        const connection = await dbPool.getConnection();
+        const [rows] = await connection.query(
+            "SELECT s.*, u.username FROM sessions s JOIN users u ON s.user_id = u.id WHERE s.session_id = ? AND s.expires_at > NOW()", 
+            [sessionId]
+        );
+        connection.release();
+        
+        if (rows.length === 0) {
+            return res.status(401).json({ success: false, message: 'Unauthorized: Invalid or expired session' });
+        }
+        
+        const session = rows[0];
+        req.user = { id: session.user_id, name: session.username };
+        next(); // Session is valid, proceed
+    } catch (error) {
+        console.error('Session validation error:', error);
+        return res.status(500).json({ success: false, message: 'Internal server error' });
     }
-    
-    req.user = session.user;
-    next(); // Session is valid, proceed
 };
 
 // --- API Endpoints ---
@@ -138,9 +155,9 @@ app.post('/login', async (req, res) => {
     try {
         const connection = await dbPool.getConnection();
         const [rows] = await connection.query("SELECT * FROM users WHERE username = ?", [username]);
-        connection.release();
         
         if (rows.length === 0) {
+            connection.release();
             console.log('User not found:', username);
             return res.status(401).json({ success: false, message: 'Invalid credentials' });
         }
@@ -150,14 +167,24 @@ app.post('/login', async (req, res) => {
         console.log('Password match:', isMatch);
         
         if (isMatch) {
-            // Create session
+            // Create session in database
             const sessionId = generateSessionId();
-            const expiresAt = Date.now() + (8 * 60 * 60 * 1000); // 8 hours
-            sessions.set(sessionId, { user: { id: user.id, name: user.username }, expiresAt });
+            const expiresAt = new Date(Date.now() + (8 * 60 * 60 * 1000)); // 8 hours
+            
+            // Delete any existing sessions for this user
+            await connection.query("DELETE FROM sessions WHERE user_id = ?", [user.id]);
+            
+            // Create new session
+            await connection.query(
+                "INSERT INTO sessions (session_id, user_id, username, expires_at) VALUES (?, ?, ?, ?)", 
+                [sessionId, user.id, user.username, expiresAt]
+            );
+            connection.release();
             
             console.log('Login successful for:', username);
             res.json({ success: true, sessionId: sessionId, username: user.username });
         } else {
+            connection.release();
             console.log('Invalid password for user:', username);
             res.status(401).json({ success: false, message: 'Invalid credentials' });
         }
@@ -168,13 +195,25 @@ app.post('/login', async (req, res) => {
 });
 
 // Logout endpoint
-app.post('/logout', (req, res) => {
+app.post('/logout', async (req, res) => {
     const sessionId = req.headers['x-session-id'];
-    if (sessionId && sessions.has(sessionId)) {
-        sessions.delete(sessionId);
-        res.json({ success: true, message: 'Logged out successfully' });
-    } else {
-        res.status(400).json({ success: false, message: 'Invalid session' });
+    if (!sessionId) {
+        return res.status(400).json({ success: false, message: 'No session ID provided' });
+    }
+    
+    try {
+        const connection = await dbPool.getConnection();
+        const [result] = await connection.query("DELETE FROM sessions WHERE session_id = ?", [sessionId]);
+        connection.release();
+        
+        if (result.affectedRows > 0) {
+            res.json({ success: true, message: 'Logged out successfully' });
+        } else {
+            res.status(400).json({ success: false, message: 'Invalid session' });
+        }
+    } catch (error) {
+        console.error('Logout error:', error);
+        res.status(500).json({ success: false, message: 'Internal server error' });
     }
 });
 
@@ -257,6 +296,20 @@ setInterval(() => { /* ... unchanged ... */
 setInterval(async () => { /* ... unchanged ... */ 
     const playerCount=clients.size;if(playerCount>0){try{await dbPool.query("INSERT INTO player_snapshots (player_count) VALUES (?)",[playerCount]);console.log(`[DB] Logged player snapshot: ${playerCount} players.`)}catch(error){console.error("[DB] Failed to log player snapshot:",error.message)}}},SNAPSHOT_INTERVAL_MS);
 
+// --- CLEANUP EXPIRED SESSIONS ---
+setInterval(async () => {
+    try {
+        const connection = await dbPool.getConnection();
+        const [result] = await connection.query("DELETE FROM sessions WHERE expires_at < NOW()");
+        connection.release();
+        if (result.affectedRows > 0) {
+            console.log(`Cleaned up ${result.affectedRows} expired sessions`);
+        }
+    } catch (error) {
+        console.error('Session cleanup error:', error);
+    }
+}, 60000); // Check every minute
+
 // --- ADMIN ENDPOINT TO ADD USERS ---
 app.post('/admin/add-user', authenticateSession, async (req, res) => {
     const { username, password } = req.body;
@@ -282,17 +335,6 @@ app.post('/admin/add-user', authenticateSession, async (req, res) => {
         }
     }
 });
-
-// --- CLEANUP EXPIRED SESSIONS ---
-setInterval(() => {
-    const now = Date.now();
-    sessions.forEach((session, sessionId) => {
-        if (now > session.expiresAt) {
-            sessions.delete(sessionId);
-            console.log(`Cleaned up expired session: ${sessionId}`);
-        }
-    });
-}, 60000); // Check every minute
 
 // --- Start Server ---
 async function startServer() {
