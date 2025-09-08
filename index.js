@@ -1153,6 +1153,13 @@ app.get('/api/country-stats',
     }
 );
 
+// --- NEW HEALTH CHECK ENDPOINT ---
+// This simple endpoint is used by the panel to verify that the server is running.
+app.get('/api/health', (req, res) => {
+    res.status(200).json({ status: 'ok' });
+});
+
+
 // --- UTILITY INTERVALS ---
 // Clean up inactive clients
 setInterval(() => {
@@ -1214,6 +1221,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
