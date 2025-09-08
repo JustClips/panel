@@ -119,11 +119,11 @@ let pendingCommands = new Map();
 // Updated to use Railway's default environment variables for MySQL.
 // Railway injects these automatically when a MySQL service is linked.
 const dbPool = mysql.createPool({
-    host: process.env.MYSQLHOST,       // Changed from DB_HOST
-    user: process.env.MYSQLUSER,       // Changed from DB_USER
-    password: process.env.MYSQLPASSWORD, // Changed from DB_PASSWORD
-    database: process.env.MYSQLDATABASE, // Changed from DB_DATABASE
-    port: process.env.MYSQLPORT || 3306, // Added Railway's port variable
+    host: process.env.MYSQLHOST,
+    user: process.env.MYSQLUSER,
+    password: process.env.MYSQLPASSWORD,
+    database: process.env.MYSQLDATABASE,
+    port: process.env.MYSQLPORT || 3306,
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,
