@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aperture Seller Hub</title>
+    <title>Eps1llon Seller Hub</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -233,7 +233,6 @@
             font-weight: 600;
         }
         
-        /* -- START: NEW METRIC CARD STYLES -- */
         .metrics-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
@@ -293,7 +292,6 @@
         .metric-card .metric-icon i {
             text-shadow: var(--primary-glow-text);
         }
-        /* -- END: NEW METRIC CARD STYLES -- */
 
         .panel-body { padding: 1.5rem; flex-grow: 1; }
         .chart-container { height: 350px; position: relative; padding: 1.5rem; }
@@ -590,7 +588,6 @@
             height: 50px; 
         }
 
-        /* Server status indicator */
         #status-dot {
             display: inline-block;
             width: 10px;
@@ -602,6 +599,37 @@
         #status-dot.online {
             background-color: #28a745; /* Green when online */
             box-shadow: 0 0 8px rgba(40, 167, 69, 0.5);
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+        .sales-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        .sales-table th, .sales-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .sales-table thead th {
+            background-color: var(--bg-dark);
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .sales-table tbody tr:hover {
+            background-color: rgba(255, 255, 255, 0.03);
+        }
+        .sales-table td {
+            color: var(--text-light);
+        }
+        .sales-table .key-cell {
+            font-family: monospace;
+            color: var(--primary);
         }
 
         @media(max-width: 1200px) { 
@@ -640,7 +668,7 @@
 <body>
     <div id="login-container">
         <div class="login-box">
-            <h2><i class="fa-solid fa-atom"></i> Seller Hub</h2>
+            <h2><i class="fa-solid fa-atom"></i> Eps1llon Seller Hub</h2>
             <p>Yo, log in to get started</p>
             <form id="login-form">
                 <div class="input-group">
@@ -657,7 +685,7 @@
 
     <div id="app-container">
         <aside class="sidebar">
-            <div class="logo"><i class="fa-solid fa-atom"></i><h1>Aperture</h1></div>
+            <div class="logo"><i class="fa-solid fa-atom"></i><h1>Eps1llon</h1></div>
             <nav>
                 <ul class="nav-links">
                     <li class="nav-category"><span>General</span></li>
@@ -666,6 +694,7 @@
                     <li><a href="#" data-tab="commands"><i class="fas fa-terminal"></i> <span>Commands</span></a></li>
                     <li class="nav-category"><span>Sales</span></li>
                     <li><a href="#" data-tab="seller"><i class="fas fa-key"></i> <span>Key Tools</span></a></li>
+                    <li><a href="#" data-tab="sales-log"><i class="fas fa-history"></i> <span>Sales Log</span></a></li>
                     <li><a href="#" data-tab="chats"><i class="fas fa-comments"></i> <span>Buyer Chats</span></a></li>
                     <li class="logout-link"><a href="#" id="logout-btn"><i class="fas fa-sign-out-alt"></i> <span>Logout</span></a></li>
                 </ul>
@@ -783,6 +812,29 @@
                 </div>
             </section>
 
+             <section class="content-panel" id="sales-log-tab">
+                <div class="panel-wrapper">
+                    <div class="panel-header"><h2><i class="fas fa-history"></i> Sales Log</h2></div>
+                    <div class="panel-body">
+                        <div class="table-container">
+                            <table class="sales-table">
+                                <thead>
+                                    <tr>
+                                        <th>Key</th>
+                                        <th>Discord ID</th>
+                                        <th>Redeemed By</th>
+                                        <th>Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="sales-log-table-body">
+                                    <!-- Rows will be inserted here by JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <section class="content-panel" id="chats-tab">
                 <div id="chats-grid">
                     <div class="panel-wrapper">
@@ -846,7 +898,7 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const SERVER_URL = ''; // Auto-detects backend URL
+            const SERVER_URL = ''; // Auto-detects backend URL by using a relative path
             const loginContainer = document.getElementById('login-container');
             const appContainer = document.getElementById('app-container');
             const loginForm = document.getElementById('login-form');
@@ -925,10 +977,12 @@
 
             function initApp() {
                 const API = {
+                    health: `${SERVER_URL}/api/health`,
                     clients: `${SERVER_URL}/api/clients`,
                     executions: `${SERVER_URL}/api/executions`,
                     playerStats: `${SERVER_URL}/api/player-stats`,
                     keysSold: `${SERVER_URL}/api/seller/keys-sold`,
+                    salesLog: `${SERVER_URL}/api/seller/sales-log`,
                     redeemKey: `${SERVER_URL}/api/seller/redeem`,
                     chats: `${SERVER_URL}/tickets/all`,
                     closeTicket: `${SERVER_URL}/api/tickets`,
@@ -963,38 +1017,40 @@
                         case 'dashboard': loadDashboardData(); break;
                         case 'players': loadPlayersData(); break;
                         case 'seller': loadSellerData(); break;
+                        case 'sales-log': loadSalesLog(); break;
                         case 'chats': loadChats(); break;
                     }
                 };
                 
-                async function loadDashboardData() {
+                async function checkServerStatus() {
+                    const statusDot = document.getElementById('status-dot');
+                    const statusText = document.getElementById('status-text');
                     try {
-                        // Fetch clients data for player count
-                        const clientsRes = await authFetch(API.clients);
-                        if (!clientsRes.ok) throw new Error('Failed to fetch client data');
-                        const clientsData = await clientsRes.json();
-                        
-                        // Update player count
-                        const playerCount = clientsData.count || 0;
-                        document.getElementById('player-count').textContent = playerCount;
-                        
-                        // Update server status indicator
-                        const statusDot = document.getElementById('status-dot');
-                        const statusText = document.getElementById('status-text');
-                        if (playerCount > 0) {
+                        const response = await fetch(API.health);
+                        if (response.ok) {
                             statusDot.classList.add('online');
                             statusText.textContent = 'Server Online';
                         } else {
-                            statusDot.classList.remove('online');
-                            statusText.textContent = 'Server Offline';
+                           throw new Error('Health check failed');
                         }
+                    } catch (error) {
+                        statusDot.classList.remove('online');
+                        statusText.textContent = 'Server Offline';
+                    }
+                }
+
+                async function loadDashboardData() {
+                    checkServerStatus();
+                    try {
+                        const clientsRes = await authFetch(API.clients);
+                        if (!clientsRes.ok) throw new Error('Failed to fetch client data');
+                        const clientsData = await clientsRes.json();
+                        document.getElementById('player-count').textContent = clientsData.count || 0;
                         
-                        // Fetch keys sold data
                         const salesRes = await authFetch(`${API.keysSold}?period=daily`);
                         if (!salesRes.ok) throw new Error('Failed to fetch sales data');
                         const salesData = await salesRes.json();
                         
-                        // Calculate total keys sold today
                         const totalKeysSold = salesData.reduce((sum, item) => sum + (parseInt(item.count) || 0), 0);
                         document.getElementById('keys-sold-count').textContent = totalKeysSold;
                         
@@ -1003,11 +1059,8 @@
                         showNotification(error.message, 'error');
                         document.getElementById('player-count').textContent = 'N/A';
                         document.getElementById('keys-sold-count').textContent = 'N/A';
-                        document.getElementById('status-dot').classList.remove('online');
-                        document.getElementById('status-text').textContent = 'Connection Error';
                     }
                     
-                    // Render charts
                     document.querySelectorAll('#dashboard-tab .timeframe-selector').forEach(selector => {
                         const chartId = selector.dataset.chart;
                         const endpoint = `api/${selector.dataset.endpoint}`;
@@ -1027,8 +1080,8 @@
                         if (!response.ok) throw new Error('Network error fetching players');
                         const data = await response.json();
                         
-                        // Update player count in real-time
                         document.getElementById('player-count').textContent = data.count || 0;
+                        checkServerStatus();
                         
                         if (data.clients.length === 0) {
                             grid.innerHTML = `<p class="text-center text-text-muted" style="grid-column: 1 / -1; text-align: center; padding: 2rem; color: var(--text-muted);">No players currently connected.</p>`;
@@ -1079,6 +1132,30 @@
                     const selector = document.querySelector('#seller-tab .timeframe-selector');
                     const endpoint = `api/${selector.dataset.endpoint}`;
                     renderChart(selector.dataset.chart, `${SERVER_URL}/${endpoint}`, selector.dataset.label, selector.dataset.color, 'monthly');
+                }
+
+                async function loadSalesLog() {
+                    const tableBody = document.getElementById('sales-log-table-body');
+                    try {
+                        const response = await authFetch(API.salesLog);
+                        if (!response.ok) throw new Error("Could not fetch sales log.");
+                        const logs = await response.json();
+                        if (logs.length === 0) {
+                            tableBody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 2rem; color: var(--text-muted);">No sales have been logged yet.</td></tr>`;
+                            return;
+                        }
+                        tableBody.innerHTML = logs.map(log => `
+                            <tr>
+                                <td class="key-cell">${escapeHTML(log.generated_key)}</td>
+                                <td>${escapeHTML(log.discord_user_id)}</td>
+                                <td>${escapeHTML(log.redeemed_by_admin)}</td>
+                                <td>${new Date(log.redeemed_at).toLocaleString()}</td>
+                            </tr>
+                        `).join('');
+                    } catch (error) {
+                         showNotification(error.message, 'error');
+                         tableBody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 2rem; color: var(--danger);">${error.message}</td></tr>`;
+                    }
                 }
                 
                 document.getElementById('redeem-key-form').addEventListener('submit', async function(e) {
@@ -1140,7 +1217,15 @@
                             const item = document.createElement('div');
                             item.className = 'chat-item';
                             item.dataset.chatId = chat.id;
-                            item.innerHTML = `<div class="chat-header"><span class="chat-id">#${chat.id}</span><span class="status-badge status-${chat.status}">${chat.status}</span></div><div class="chat-user">Buyer: ${escapeHTML(chat.buyer_name)}</div><div class="chat-date">${new Date(chat.updated_at).toLocaleString()}</div>`;
+                            item.innerHTML = `
+                                <div class="chat-header">
+                                    <span class="chat-id">#${chat.id}</span>
+                                    <span class="status-badge status-${chat.status}">${chat.status}</span>
+                                </div>
+                                <div class="chat-user">Buyer: ${escapeHTML(chat.buyer_name)}</div>
+                                <div class="chat-payment" style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">Method: ${escapeHTML(chat.payment_method)}</div>
+                                <div class="chat-date" style="margin-top: 4px;">${new Date(chat.updated_at).toLocaleString()}</div>
+                            `;
                             item.addEventListener('click', () => displayChatDetails(chat.id));
                             chatList.appendChild(item);
                         });
@@ -1224,7 +1309,6 @@
                     const confirmBtn = document.getElementById('confirm-action-btn');
                     const cancelBtn = document.getElementById('cancel-action-btn');
                     
-                    // Clone and replace to remove old event listeners
                     const newConfirmBtn = confirmBtn.cloneNode(true);
                     confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
 
