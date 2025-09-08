@@ -5,7 +5,6 @@ const cors = require('cors');
 const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const multer = require('multer');
 const axios = require('axios');
@@ -16,26 +15,24 @@ require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const CLIENT_TIMEOUT_MS = 15000;
+const CLIENT_TIMEOUT_MS = 30000; // Increased timeout to 30 seconds
 const SNAPSHOT_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
 // --- TRUST PROXY FOR RAILWAY ---
-app.set('trust proxy', 1); // Add this line to trust the first proxy
+app.set('trust proxy', 1);
 
 // --- SECURITY & CORE MIDDLEWARE ---
 app.use(helmet());
 
 const allowedOrigins = [
-    'https://w1ckllon.com', // Your admin panel's domain
+    'https://w1ckllon.com',
     'http://localhost:5500',
     'http://127.0.0.1:5500'
 ];
 
 const corsOptions = {
     origin: function (origin, callback) {
-        // Allow requests with no origin (like mobile apps or curl requests)
         if (!origin) return callback(null, true);
-        
         if (allowedOrigins.indexOf(origin) !== -1) {
             callback(null, true);
         } else {
@@ -47,25 +44,21 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions)); // Handle preflight requests
+app.options('*', cors(corsOptions));
 
-app.use(bodyParser.json({ limit: '100kb' })); // Reduced limit for API endpoints
+app.use(bodyParser.json({ limit: '100kb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '100kb' }));
 
 // --- ADDITIONAL SECURITY MIDDLEWARE ---
-// Request validation middleware
 const validateRequest = (req, res, next) => {
-    // Check for suspicious user agents
     const userAgent = req.headers['user-agent'] || '';
     const suspiciousAgents = ['bot', 'crawler', 'scanner', 'curl', 'wget'];
     if (suspiciousAgents.some(agent => userAgent.toLowerCase().includes(agent))) {
         console.warn(`Suspicious user agent detected: ${userAgent} from ${req.ip}`);
-        // You can choose to block or just log
     }
     
-    // Check request size
     const contentLength = parseInt(req.headers['content-length']);
-    if (contentLength > 10 * 1024 * 1024) { // 10MB limit
+    if (contentLength > 10 * 1024 * 1024) {
         return res.status(413).json({ error: 'Payload too large' });
     }
     
@@ -73,48 +66,6 @@ const validateRequest = (req, res, next) => {
 };
 
 app.use(validateRequest);
-
-// --- RATE LIMITING ---
-const authRateLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 5, // limit each IP to 5 auth requests per windowMs
-    message: { error: 'Too many authentication attempts. Please try again later.' },
-    standardHeaders: true,
-    legacyHeaders: false,
-    skipSuccessfulRequests: true // Don't count successful logins
-});
-
-const ticketCreationRateLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000, // 1 hour
-    max: 2, // Only 2 ticket creations per hour per IP
-    message: { error: 'Too many ticket requests. Please try again later.' },
-    standardHeaders: true,
-    legacyHeaders: false,
-});
-
-const ticketMessageRateLimiter = rateLimit({
-    windowMs: 10 * 60 * 1000, // 10 minutes
-    max: 20, // Max 20 messages per 10 minutes per IP
-    message: { error: 'Too many messages. Please slow down.' },
-    standardHeaders: true,
-    legacyHeaders: false,
-});
-
-const strictRateLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 10, // limit each IP to 10 requests per windowMs
-    message: { error: 'Too many requests from this IP, please try again after 15 minutes' },
-    standardHeaders: true,
-    legacyHeaders: false,
-});
-
-const generalRateLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // limit each IP to 100 requests per windowMs
-    message: { error: 'Too many requests from this IP, please try again after 15 minutes' },
-    standardHeaders: true,
-    legacyHeaders: false,
-});
 
 // --- FILE UPLOAD & STATIC SERVING ---
 const uploadDir = 'uploads';
@@ -133,24 +84,19 @@ const storage = multer.diskStorage({
     }
 });
 
-// Enhanced file upload with additional validation
 const upload = multer({
     storage: storage,
     limits: { 
-        fileSize: 5 * 1024 * 1024, // 5 MB limit
-        files: 1 // Only allow 1 file
+        fileSize: 5 * 1024 * 1024,
+        files: 1
     },
     fileFilter: (req, file, cb) => {
-        // Validate file type
         if (file.mimetype !== "image/png") {
             return cb(new Error("Only .png files are allowed!"), false);
         }
-        
-        // Validate file name
         if (!file.originalname.match(/\.(png)$/i)) {
             return cb(new Error("File must have .png extension!"), false);
         }
-        
         cb(null, true);
     }
 });
@@ -178,14 +124,93 @@ async function initializeDatabase() {
         const connection = await dbPool.getConnection();
         console.log("Successfully connected to MySQL database.");
 
-        await connection.query(`CREATE TABLE IF NOT EXISTS connections (id INT AUTO_INCREMENT PRIMARY KEY, client_id VARCHAR(255) NOT NULL, username VARCHAR(255) NOT NULL, user_id BIGINT, game_name VARCHAR(255), server_info VARCHAR(255), player_count INT, connected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
-        await connection.query(`CREATE TABLE IF NOT EXISTS commands (id INT AUTO_INCREMENT PRIMARY KEY, command_type VARCHAR(50) NOT NULL, content TEXT, executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
-        await connection.query(`CREATE TABLE IF NOT EXISTS player_snapshots (id INT AUTO_INCREMENT PRIMARY KEY, player_count INT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
-        await connection.query(`CREATE TABLE IF NOT EXISTS adminusers (id INT AUTO_INCREMENT PRIMARY KEY, username VARCHAR(255) UNIQUE NOT NULL, password_hash VARCHAR(255) NOT NULL, role ENUM('admin','seller','buyer') NOT NULL DEFAULT 'buyer', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
-        await connection.query(`CREATE TABLE IF NOT EXISTS key_redemptions (id INT AUTO_INCREMENT PRIMARY KEY, redeemed_by_admin VARCHAR(255) NOT NULL, discord_user_id VARCHAR(255) NOT NULL, generated_key VARCHAR(255) NOT NULL, screenshot_filename VARCHAR(255), redeemed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
-        await connection.query(`CREATE TABLE IF NOT EXISTS tickets (id INT AUTO_INCREMENT PRIMARY KEY, user_id INT NOT NULL, status ENUM('awaiting', 'processing', 'completed') DEFAULT 'awaiting', license_key VARCHAR(255), payment_method VARCHAR(50), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, FOREIGN KEY (user_id) REFERENCES adminusers(id));`);
-        await connection.query(`CREATE TABLE IF NOT EXISTS ticket_messages (id INT AUTO_INCREMENT PRIMARY KEY, ticket_id INT NOT NULL, sender ENUM('user', 'seller') NOT NULL, message TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE);`);
+        // Existing tables
+        await connection.query(`CREATE TABLE IF NOT EXISTS connections (
+            id INT AUTO_INCREMENT PRIMARY KEY, 
+            client_id VARCHAR(255) NOT NULL, 
+            username VARCHAR(255) NOT NULL, 
+            user_id BIGINT, 
+            game_name VARCHAR(255), 
+            server_info VARCHAR(255), 
+            player_count INT, 
+            connected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );`);
+        
+        await connection.query(`CREATE TABLE IF NOT EXISTS commands (
+            id INT AUTO_INCREMENT PRIMARY KEY, 
+            command_type VARCHAR(50) NOT NULL, 
+            content TEXT, 
+            executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );`);
+        
+        await connection.query(`CREATE TABLE IF NOT EXISTS player_snapshots (
+            id INT AUTO_INCREMENT PRIMARY KEY, 
+            player_count INT NOT NULL, 
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );`);
+        
+        await connection.query(`CREATE TABLE IF NOT EXISTS adminusers (
+            id INT AUTO_INCREMENT PRIMARY KEY, 
+            username VARCHAR(255) UNIQUE NOT NULL, 
+            password_hash VARCHAR(255) NOT NULL, 
+            role ENUM('admin','seller','buyer') NOT NULL DEFAULT 'buyer', 
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );`);
+        
+        await connection.query(`CREATE TABLE IF NOT EXISTS key_redemptions (
+            id INT AUTO_INCREMENT PRIMARY KEY, 
+            redeemed_by_admin VARCHAR(255) NOT NULL, 
+            discord_user_id VARCHAR(255) NOT NULL, 
+            generated_key VARCHAR(255) NOT NULL, 
+            screenshot_filename VARCHAR(255), 
+            redeemed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );`);
+        
+        await connection.query(`CREATE TABLE IF NOT EXISTS tickets (
+            id INT AUTO_INCREMENT PRIMARY KEY, 
+            user_id INT NOT NULL, 
+            status ENUM('awaiting', 'processing', 'completed') DEFAULT 'awaiting', 
+            license_key VARCHAR(255), 
+            payment_method VARCHAR(50), 
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, 
+            FOREIGN KEY (user_id) REFERENCES adminusers(id)
+        );`);
+        
+        await connection.query(`CREATE TABLE IF NOT EXISTS ticket_messages (
+            id INT AUTO_INCREMENT PRIMARY KEY, 
+            ticket_id INT NOT NULL, 
+            sender ENUM('user', 'seller') NOT NULL, 
+            message TEXT NOT NULL, 
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
+            FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE
+        );`);
 
+        // New tables for location and executor tracking
+        await connection.query(`CREATE TABLE IF NOT EXISTS user_locations (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            client_id VARCHAR(255) NOT NULL,
+            username VARCHAR(255) NOT NULL,
+            city VARCHAR(255),
+            country VARCHAR(255),
+            latitude DECIMAL(10, 8),
+            longitude DECIMAL(11, 8),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_client_id (client_id),
+            INDEX idx_country (country)
+        );`);
+        
+        await connection.query(`CREATE TABLE IF NOT EXISTS executor_stats (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            client_id VARCHAR(255) NOT NULL,
+            username VARCHAR(255) NOT NULL,
+            executor_name VARCHAR(255),
+            executor_version VARCHAR(255),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_executor (executor_name)
+        );`);
+
+        // Create admin users if they don't exist
         const [adminUsers] = await connection.query("SELECT COUNT(*) as count FROM adminusers");
         if (adminUsers[0].count === 0) {
             console.log("Creating default admin/buyer users...");
@@ -193,8 +218,24 @@ async function initializeDatabase() {
             const hashedMegamind = await bcrypt.hash('megaminddev', 10);
             await connection.query("INSERT INTO adminusers (username, password_hash, role) VALUES (?, ?, 'admin'), (?, ?, 'admin')", ['vupxy', hashedVupxy, 'megamind', hashedMegamind]);
         }
-        const sellerUsers = [ { username: 'Vandelz', password: 'Vandelzseller1' }, { username: 'zuse35', password: 'zuse35seller1' }, { username: 'Duzin', password: 'Duzinseller1' }, { username: 'swiftkey', password: 'swiftkeyseller1' }];
-        for (const user of sellerUsers) { const [existingUser] = await connection.query("SELECT COUNT(*) as count FROM adminusers WHERE username = ?", [user.username]); if (existingUser[0].count === 0) { console.log(`Creating seller user: ${user.username}...`); const hashedPassword = await bcrypt.hash(user.password, 10); await connection.query("INSERT INTO adminusers (username, password_hash, role) VALUES (?, ?, 'seller')", [user.username, hashedPassword]); console.log(`User ${user.username} created.`); } }
+        
+        const sellerUsers = [
+            { username: 'Vandelz', password: 'Vandelzseller1' },
+            { username: 'zuse35', password: 'zuse35seller1' },
+            { username: 'Duzin', password: 'Duzinseller1' },
+            { username: 'swiftkey', password: 'swiftkeyseller1' }
+        ];
+        
+        for (const user of sellerUsers) {
+            const [existingUser] = await connection.query("SELECT COUNT(*) as count FROM adminusers WHERE username = ?", [user.username]);
+            if (existingUser[0].count === 0) {
+                console.log(`Creating seller user: ${user.username}...`);
+                const hashedPassword = await bcrypt.hash(user.password, 10);
+                await connection.query("INSERT INTO adminusers (username, password_hash, role) VALUES (?, ?, 'seller')", [user.username, hashedPassword]);
+                console.log(`User ${user.username} created.`);
+            }
+        }
+        
         connection.release();
         console.log("Database initialization complete.");
     } catch (error) {
@@ -258,14 +299,12 @@ const validateDiscordId = [
 
 const validateKeyRedemption = [
     ...validateDiscordId,
-    // Additional validation for key redemption can be added here
 ];
 
 // --- AUTHENTICATION ENDPOINTS ---
-app.post('/register', authRateLimiter, async (req, res) => {
+app.post('/register', async (req, res) => {
     const { username, password } = req.body;
     
-    // Input validation
     if (!username || !password) { 
         return res.status(400).json({ message: 'Username and password are required.' }); 
     }
@@ -282,7 +321,6 @@ app.post('/register', authRateLimiter, async (req, res) => {
         return res.status(400).json({ message: 'Password must be between 6 and 100 characters.' });
     }
     
-    // Check for common password patterns
     if (password.toLowerCase() === username.toLowerCase()) {
         return res.status(400).json({ message: 'Password cannot be similar to username.' });
     }
@@ -293,7 +331,7 @@ app.post('/register', authRateLimiter, async (req, res) => {
             return res.status(409).json({ message: 'Username already taken.' }); 
         }
         
-        const hashedPassword = await bcrypt.hash(password, 12); // Increased rounds for better security
+        const hashedPassword = await bcrypt.hash(password, 12);
         await dbPool.query("INSERT INTO adminusers (username, password_hash, role) VALUES (?, ?, 'buyer')", [username, hashedPassword]);
         res.status(201).json({ success: true, message: 'User created successfully.' });
     } catch (error) {
@@ -302,10 +340,9 @@ app.post('/register', authRateLimiter, async (req, res) => {
     }
 });
 
-app.post('/login', authRateLimiter, async (req, res) => {
+app.post('/login', async (req, res) => {
     const { username, password } = req.body;
     
-    // Input validation
     if (!username || !password || !process.env.JWT_SECRET) {
         return res.status(400).json({ message: 'Invalid request or server config error.' });
     }
@@ -317,7 +354,6 @@ app.post('/login', authRateLimiter, async (req, res) => {
     try {
         const [rows] = await dbPool.query("SELECT * FROM adminusers WHERE username = ?", [username]);
         if (rows.length === 0) {
-            // Delay response to prevent timing attacks
             await new Promise(resolve => setTimeout(resolve, 1000));
             return res.status(401).json({ message: 'Invalid credentials' });
         }
@@ -344,20 +380,15 @@ app.post('/login', authRateLimiter, async (req, res) => {
     }
 });
 
-// Verify token endpoint for frontend
 app.get('/verify-token', verifyToken, (req, res) => {
     res.json({ user: req.user });
 });
 
-// Logout endpoint
 app.post('/logout', (req, res) => {
-    // Nothing to do on server side for JWT - client just deletes token
     res.json({ success: true });
 });
 
 // --- TICKET ENDPOINTS ---
-
-// **NEW**: Endpoint for BUYERS to get ONLY THEIR tickets
 app.get('/tickets/my', verifyToken, requireAnyRole, async (req, res) => {
     try {
         const [tickets] = await dbPool.query(
@@ -379,7 +410,6 @@ app.get('/tickets/my', verifyToken, requireAnyRole, async (req, res) => {
     }
 });
 
-// **RENAMED**: Endpoint for SELLERS to get ALL tickets
 app.get('/tickets/all', verifyToken, requireSeller, async (req, res) => {
     try {
         const [tickets] = await dbPool.query(
@@ -399,14 +429,11 @@ app.get('/tickets/all', verifyToken, requireSeller, async (req, res) => {
     }
 });
 
-// Endpoint for BUYERS to create a ticket - ONE TICKET PER USER LIMIT
 app.post('/tickets', 
-    ticketCreationRateLimiter, 
     verifyToken, 
     requireBuyer, 
     validateTicketCreation,
     async (req, res) => {
-        // Validate input
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
             return res.status(400).json({ 
@@ -418,7 +445,6 @@ app.post('/tickets',
         const { paymentMethod } = req.body;
         
         try {
-            // Check if user already has an open ticket
             const [existingTickets] = await dbPool.query(
                 "SELECT id FROM tickets WHERE user_id = ? AND status != 'completed'", 
                 [req.user.id]
@@ -429,7 +455,6 @@ app.post('/tickets',
                 });
             }
             
-            // Additional spam protection - check recent ticket creation
             const [recentTickets] = await dbPool.query(
                 "SELECT COUNT(*) as count FROM tickets WHERE user_id = ? AND created_at > DATE_SUB(NOW(), INTERVAL 1 HOUR)",
                 [req.user.id]
@@ -472,14 +497,11 @@ app.post('/tickets',
     }
 );
 
-// Endpoint for sending messages.
 app.post('/tickets/:id/messages', 
-    ticketMessageRateLimiter,
     verifyToken, 
     requireAnyRole, 
     validateTicketMessage,
     async (req, res) => {
-        // Validate input
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
             return res.status(400).json({ 
@@ -491,7 +513,6 @@ app.post('/tickets/:id/messages',
         const { id } = req.params;
         const { message } = req.body;
         
-        // Validate ticket ID
         if (!id || isNaN(id)) {
             return res.status(400).json({ message: 'Invalid ticket ID' });
         }
@@ -503,12 +524,10 @@ app.post('/tickets/:id/messages',
             }
             const ticket = tickets[0];
             
-            // Check if user can send message to this ticket
             if (req.user.role === 'buyer' && ticket.user_id !== req.user.id) {
                 return res.status(403).json({ message: 'You can only send messages to your own tickets.' });
             }
             
-            // Spam protection - check message frequency
             const [recentMessages] = await dbPool.query(
                 "SELECT COUNT(*) as count FROM ticket_messages WHERE ticket_id = ? AND created_at > DATE_SUB(NOW(), INTERVAL 1 MINUTE)",
                 [id]
@@ -556,14 +575,12 @@ app.post('/tickets/:id/messages',
     }
 );
 
-// Endpoint for SELLERS to close a ticket.
 app.post('/api/tickets/:id/close', 
     verifyToken, 
     requireSeller, 
     async (req, res) => {
         const { id } = req.params;
         
-        // Validate ticket ID
         if (!id || isNaN(id)) {
             return res.status(400).json({ message: 'Invalid ticket ID' });
         }
@@ -598,14 +615,12 @@ app.post('/api/tickets/:id/close',
     }
 );
 
-// **NEW**: Endpoint for SELLERS to DELETE a ticket.
 app.delete('/api/tickets/:id', 
     verifyToken, 
     requireSeller, 
     async (req, res) => {
         const { id } = req.params;
         
-        // Validate ticket ID
         if (!id || isNaN(id)) {
             return res.status(400).json({ message: 'Invalid ticket ID' });
         }
@@ -616,7 +631,6 @@ app.delete('/api/tickets/:id',
                 return res.status(404).json({ message: 'Ticket not found.' });
             }
             
-            // ON DELETE CASCADE in the DB schema handles deleting associated messages
             await dbPool.query("DELETE FROM tickets WHERE id = ?", [id]);
             res.json({ success: true, message: `Ticket #${id} has been permanently deleted.` });
         } catch (error) {
@@ -627,61 +641,166 @@ app.delete('/api/tickets/:id',
 );
 
 // --- GAME CLIENT ENDPOINTS ---
-app.post('/connect', 
-    generalRateLimiter, 
-    async (req, res) => {
-        const { id, username, gameName, serverInfo, playerCount, userId } = req.body;
-        
-        // Input validation
-        if (!id || !username) {
-            return res.status(400).json({ error: "Missing required fields." });
-        }
-        
-        if (typeof id !== 'string' || typeof username !== 'string') {
-            return res.status(400).json({ error: "Invalid field types." });
-        }
-        
-        if (id.length > 255 || username.length > 255) {
-            return res.status(400).json({ error: "Field values too long." });
-        }
-        
-        // Validate playerCount
-        if (playerCount !== undefined && (isNaN(playerCount) || playerCount < 0 || playerCount > 1000000)) {
-            return res.status(400).json({ error: "Invalid player count." });
-        }
-        
-        clients.set(id, { 
-            id, username, gameName, serverInfo, playerCount, userId, 
-            connectedAt: new Date(), lastSeen: Date.now() 
-        });
-        
-        if (!pendingCommands.has(id)) pendingCommands.set(id, []);
+app.post('/connect', async (req, res) => {
+    const { 
+        id, 
+        username, 
+        gameName, 
+        serverInfo, 
+        playerCount, 
+        userId,
+        city,
+        country,
+        executorName,
+        executorVersion
+    } = req.body;
+    
+    if (!id || !username) {
+        return res.status(400).json({ error: "Missing required fields." });
+    }
+    
+    if (typeof id !== 'string' || typeof username !== 'string') {
+        return res.status(400).json({ error: "Invalid field types." });
+    }
+    
+    if (id.length > 255 || username.length > 255) {
+        return res.status(400).json({ error: "Field values too long." });
+    }
+    
+    if (playerCount !== undefined && (isNaN(playerCount) || playerCount < 0 || playerCount > 1000000)) {
+        return res.status(400).json({ error: "Invalid player count." });
+    }
+    
+    clients.set(id, { 
+        id, 
+        username, 
+        gameName, 
+        serverInfo, 
+        playerCount, 
+        userId, 
+        city,
+        country,
+        executorName,
+        executorVersion,
+        connectedAt: new Date(), 
+        lastSeen: Date.now() 
+    });
+    
+    if (!pendingCommands.has(id)) pendingCommands.set(id, []);
 
-        console.log(`[CONNECT] Client registered: ${username} (ID: ${id})`);
-        try {
+    console.log(`[CONNECT] Client registered: ${username} (ID: ${id})`);
+    
+    try {
+        // Store connection info
+        await dbPool.query(
+            "INSERT INTO connections (client_id, username, user_id, game_name, server_info, player_count) VALUES (?, ?, ?, ?, ?, ?)", 
+            [id, username, userId, gameName, serverInfo, playerCount]
+        );
+        
+        // Store location info if provided
+        if (city && country) {
+            // Get geolocation coordinates
+            let lat = null, lon = null;
+            try {
+                const geoResponse = await axios.get(`http://ip-api.com/json/${city},${country}`);
+                if (geoResponse.data && geoResponse.data.lat && geoResponse.data.lon) {
+                    lat = geoResponse.data.lat;
+                    lon = geoResponse.data.lon;
+                }
+            } catch (geoError) {
+                console.warn('Geolocation lookup failed:', geoError.message);
+            }
+            
             await dbPool.query(
-                "INSERT INTO connections (client_id, username, user_id, game_name, server_info, player_count) VALUES (?, ?, ?, ?, ?, ?)", 
-                [id, username, userId, gameName, serverInfo, playerCount]
+                "INSERT INTO user_locations (client_id, username, city, country, latitude, longitude) VALUES (?, ?, ?, ?, ?, ?)",
+                [id, username, city, country, lat, lon]
             );
-        } catch (error) {
-            console.error(`[DB] Failed to log connection for ${username}:`, error.message);
         }
-        res.json({ message: "Successfully registered." });
-    }
-);
-
-app.post('/poll', 
-    generalRateLimiter, 
-    (req, res) => {
-        const { id } = req.body;
-        if (!id || !clients.has(id)) return res.status(404).json({ error: "Client not registered." });
         
-        clients.get(id).lastSeen = Date.now();
-        const commands = pendingCommands.get(id) || [];
-        pendingCommands.set(id, []);
-        res.json({ commands });
+        // Store executor info if provided
+        if (executorName) {
+            await dbPool.query(
+                "INSERT INTO executor_stats (client_id, username, executor_name, executor_version) VALUES (?, ?, ?, ?)",
+                [id, username, executorName, executorVersion || 'Unknown']
+            );
+        }
+    } catch (error) {
+        console.error(`[DB] Failed to log connection for ${username}:`, error.message);
     }
-);
+    
+    res.json({ message: "Successfully registered." });
+});
+
+// New heartbeat endpoint for continuous updates
+app.post('/heartbeat', async (req, res) => {
+    const { 
+        id, 
+        username, 
+        gameName, 
+        serverInfo, 
+        playerCount, 
+        userId,
+        city,
+        country,
+        executorName,
+        executorVersion
+    } = req.body;
+    
+    if (!id || !clients.has(id)) {
+        return res.status(404).json({ error: "Client not registered." });
+    }
+    
+    // Update client data
+    const client = clients.get(id);
+    client.lastSeen = Date.now();
+    client.gameName = gameName || client.gameName;
+    client.serverInfo = serverInfo || client.serverInfo;
+    client.playerCount = playerCount !== undefined ? playerCount : client.playerCount;
+    client.userId = userId || client.userId;
+    client.city = city || client.city;
+    client.country = country || client.country;
+    client.executorName = executorName || client.executorName;
+    client.executorVersion = executorVersion || client.executorVersion;
+    
+    // Update location if changed
+    if (city && country && (city !== client.city || country !== client.country)) {
+        try {
+            let lat = null, lon = null;
+            const geoResponse = await axios.get(`http://ip-api.com/json/${city},${country}`);
+            if (geoResponse.data && geoResponse.data.lat && geoResponse.data.lon) {
+                lat = geoResponse.data.lat;
+                lon = geoResponse.data.lon;
+            }
+            
+            await dbPool.query(
+                "INSERT INTO user_locations (client_id, username, city, country, latitude, longitude) VALUES (?, ?, ?, ?, ?, ?)",
+                [id, username, city, country, lat, lon]
+            );
+        } catch (geoError) {
+            console.warn('Geolocation lookup failed:', geoError.message);
+        }
+    }
+    
+    // Update executor info if changed
+    if (executorName && executorName !== client.executorName) {
+        await dbPool.query(
+            "INSERT INTO executor_stats (client_id, username, executor_name, executor_version) VALUES (?, ?, ?, ?)",
+            [id, username, executorName, executorVersion || 'Unknown']
+        );
+    }
+    
+    res.json({ message: "Heartbeat received." });
+});
+
+app.post('/poll', (req, res) => {
+    const { id } = req.body;
+    if (!id || !clients.has(id)) return res.status(404).json({ error: "Client not registered." });
+    
+    clients.get(id).lastSeen = Date.now();
+    const commands = pendingCommands.get(id) || [];
+    pendingCommands.set(id, []);
+    res.json({ commands });
+});
 
 // --- PROTECTED ADMIN ENDPOINTS ---
 app.get('/api/clients', 
@@ -692,23 +811,19 @@ app.get('/api/clients',
     }
 );
 
-// ONLY ADMINS CAN BROADCAST
 app.post('/broadcast', 
-    strictRateLimiter, 
     verifyToken, 
     requireAdmin, 
     async (req, res) => {
         const { command } = req.body;
         if (!command) return res.status(400).json({ error: 'Missing "command"' });
         
-        // Validate command content
         if (typeof command !== 'string' && typeof command !== 'object') {
             return res.status(400).json({ error: 'Invalid command format' });
         }
         
-        // Size limit for commands
         const commandSize = JSON.stringify(command).length;
-        if (commandSize > 10000) { // 10KB limit
+        if (commandSize > 10000) {
             return res.status(400).json({ error: 'Command too large' });
         }
         
@@ -741,12 +856,10 @@ app.post('/api/command/targeted',
         if (!Array.isArray(clientIds) || !command) 
             return res.status(400).json({ error: 'Missing "clientIds" array or "command".' });
         
-        // Validate client IDs
         if (clientIds.length > 100) {
             return res.status(400).json({ error: 'Too many clients specified' });
         }
         
-        // Validate command content
         if (typeof command !== 'string' && typeof command !== 'object') {
             return res.status(400).json({ error: 'Invalid command format' });
         }
@@ -782,15 +895,12 @@ app.post('/kick',
     }
 );
 
-// ONLY SELLERS CAN REDEEM KEYS
 app.post('/api/seller/redeem', 
-    strictRateLimiter, 
     verifyToken, 
     requireSeller, 
     upload.single('screenshot'), 
     validateKeyRedemption,
     async (req, res) => {
-        // Validate input
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
             return res.status(400).json({ 
@@ -808,8 +918,7 @@ app.post('/api/seller/redeem',
             return res.status(500).json({ error: "Luarmor API is not configured on the server." });
         }
 
-        // Validate file
-        if (req.file.size > 5 * 1024 * 1024) { // 5MB
+        if (req.file.size > 5 * 1024 * 1024) {
             if (req.file.path) fs.unlinkSync(req.file.path);
             return res.status(400).json({ error: 'File too large. Maximum 5MB allowed.' });
         }
@@ -827,7 +936,7 @@ app.post('/api/seller/redeem',
         try {
             const luarmorResponse = await axios.post(url, payload, { 
                 headers,
-                timeout: 10000 // 10 second timeout
+                timeout: 10000
             });
             const data = luarmorResponse.data;
 
@@ -853,7 +962,6 @@ app.post('/api/seller/redeem',
             if (req.file && req.file.path) fs.unlinkSync(req.file.path);
             console.error("Luarmor API request failed:", error.response ? error.response.data : error.message);
             
-            // Handle specific error cases
             if (error.response) {
                 if (error.response.status === 429) {
                     return res.status(429).json({ error: 'Rate limit exceeded with key service. Please try again later.' });
@@ -941,11 +1049,77 @@ app.get('/api/seller/sales-log',
     requireSeller, 
     async (req, res) => {
         try {
-            const [rows] = await dbPool.query("SELECT * FROM key_redemptions ORDER BY redeemed_at DESC LIMIT 1000"); // Limit results
+            const [rows] = await dbPool.query("SELECT * FROM key_redemptions ORDER BY redeemed_at DESC LIMIT 1000");
             res.json(rows);
         } catch (error) {
             console.error("Failed to retrieve sales log:", error);
             res.status(500).json({ error: 'Failed to retrieve sales log.' });
+        }
+    }
+);
+
+// --- NEW ENDPOINTS FOR 3D EARTH VISUALIZATION ---
+app.get('/api/locations', 
+    verifyToken, 
+    requireAnyRole, 
+    async (req, res) => {
+        try {
+            const [locations] = await dbPool.query(`
+                SELECT DISTINCT city, country, latitude, longitude, 
+                       COUNT(*) as user_count
+                FROM user_locations 
+                WHERE latitude IS NOT NULL AND longitude IS NOT NULL
+                GROUP BY city, country, latitude, longitude
+                ORDER BY user_count DESC
+                LIMIT 1000
+            `);
+            res.json(locations);
+        } catch (error) {
+            console.error('Error fetching locations:', error);
+            res.status(500).json({ error: 'Failed to fetch location data' });
+        }
+    }
+);
+
+app.get('/api/executor-stats', 
+    verifyToken, 
+    requireAnyRole, 
+    async (req, res) => {
+        try {
+            const [executors] = await dbPool.query(`
+                SELECT executor_name, 
+                       COUNT(*) as usage_count,
+                       COUNT(DISTINCT username) as unique_users
+                FROM executor_stats 
+                WHERE executor_name IS NOT NULL
+                GROUP BY executor_name
+                ORDER BY usage_count DESC
+            `);
+            res.json(executors);
+        } catch (error) {
+            console.error('Error fetching executor stats:', error);
+            res.status(500).json({ error: 'Failed to fetch executor statistics' });
+        }
+    }
+);
+
+app.get('/api/country-stats', 
+    verifyToken, 
+    requireAnyRole, 
+    async (req, res) => {
+        try {
+            const [countries] = await dbPool.query(`
+                SELECT country, 
+                       COUNT(*) as user_count
+                FROM user_locations 
+                WHERE country IS NOT NULL
+                GROUP BY country
+                ORDER BY user_count DESC
+            `);
+            res.json(countries);
+        } catch (error) {
+            console.error('Error fetching country stats:', error);
+            res.status(500).json({ error: 'Failed to fetch country statistics' });
         }
     }
 );
@@ -989,7 +1163,6 @@ setInterval(async () => {
 app.use((err, req, res, next) => {
     console.error('Unhandled error:', err);
     
-    // Handle multer errors
     if (err instanceof multer.MulterError) {
         if (err.code === 'LIMIT_FILE_SIZE') {
             return res.status(400).json({ error: 'File too large. Maximum 5MB allowed.' });
@@ -1000,24 +1173,19 @@ app.use((err, req, res, next) => {
         return res.status(400).json({ error: `Upload error: ${err.message}` });
     }
     
-    // Handle validation errors
     if (err.name === 'ValidationError') {
         return res.status(400).json({ error: err.message });
     }
     
-    // Handle JWT errors
     if (err.name === 'JsonWebTokenError') {
         return res.status(401).json({ error: 'Invalid token' });
     }
     
-    // Handle rate limit errors
     if (err.code === 'ERR_ERL_UNEXPECTED_X_FORWARDED_FOR') {
-        // This is expected on Railway - just log and continue
         console.warn('X-Forwarded-For header detected with trust proxy enabled');
-        return next(); // Continue to next middleware
+        return next();
     }
     
-    // Generic error
     res.status(500).json({ error: 'Internal server error' });
 });
 
