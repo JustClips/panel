@@ -174,7 +174,6 @@ async function initializeDatabase() {
     try {
         const connection = await dbPool.getConnection();
         console.log("Successfully connected to MySQL database.");
-
         await connection.query(`CREATE TABLE IF NOT EXISTS sessions (sid VARCHAR(255) NOT NULL PRIMARY KEY, sess JSON NOT NULL, expired DATETIME NOT NULL);`);
         await connection.query(`CREATE TABLE IF NOT EXISTS adminusers (id INT AUTO_INCREMENT PRIMARY KEY, username VARCHAR(255) UNIQUE NOT NULL, password_hash VARCHAR(255) NOT NULL, role ENUM('buyer', 'seller', 'admin') NOT NULL DEFAULT 'buyer', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
         const [roleColumns] = await connection.query("SHOW COLUMNS FROM `adminusers` LIKE 'role'");
@@ -182,20 +181,17 @@ async function initializeDatabase() {
             console.log("Upgrading 'adminusers' table...");
             await connection.query("ALTER TABLE `adminusers` ADD COLUMN `role` ENUM('buyer', 'seller', 'admin') NOT NULL DEFAULT 'buyer' AFTER `password_hash`;");
         }
-
         await connection.query(`CREATE TABLE IF NOT EXISTS connections (id INT AUTO_INCREMENT PRIMARY KEY, client_id VARCHAR(255) NOT NULL, username VARCHAR(255) NOT NULL, user_id BIGINT, game_name VARCHAR(255), server_info VARCHAR(255), player_count INT, connected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
         const [ipColumns] = await connection.query("SHOW COLUMNS FROM `connections` LIKE 'ip_address'");
         if (ipColumns.length === 0) {
             console.log("Upgrading 'connections' table, adding 'ip_address' column...");
             await connection.query("ALTER TABLE `connections` ADD COLUMN `ip_address` VARCHAR(45) NULL AFTER `player_count`;");
         }
-
         await connection.query(`CREATE TABLE IF NOT EXISTS commands (id INT AUTO_INCREMENT PRIMARY KEY, command_type VARCHAR(50) NOT NULL, content TEXT, executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, executed_by VARCHAR(255));`);
         await connection.query(`CREATE TABLE IF NOT EXISTS player_snapshots (id INT AUTO_INCREMENT PRIMARY KEY, player_count INT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
         await connection.query(`CREATE TABLE IF NOT EXISTS key_redemptions (id INT AUTO_INCREMENT PRIMARY KEY, redeemed_by_admin VARCHAR(255) NOT NULL, discord_user_id VARCHAR(255) NOT NULL, generated_key VARCHAR(255) NOT NULL, screenshot_filename VARCHAR(255), redeemed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
         await connection.query(`CREATE TABLE IF NOT EXISTS tickets (id INT AUTO_INCREMENT PRIMARY KEY, user_id INT NOT NULL, status ENUM('awaiting', 'processing', 'completed') DEFAULT 'awaiting', license_key VARCHAR(255), payment_method VARCHAR(50), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, FOREIGN KEY (user_id) REFERENCES adminusers(id));`);
         await connection.query(`CREATE TABLE IF NOT EXISTS ticket_messages (id INT AUTO_INCREMENT PRIMARY KEY, ticket_id INT NOT NULL, sender ENUM('user', 'seller') NOT NULL, message TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE);`);
-
         const allUsers = [
             { username: 'Vandelz', password: 'Vandelzseller1', role: 'seller' },
             { username: 'zuse35', password: 'zuse35seller1', role: 'seller' },
@@ -654,13 +650,18 @@ app.use((err, req, res, next) => {
     if (err instanceof multer.MulterError) {
         return res.status(400).json({ message: `File upload error: ${err.message}` });
     }
-    res.status(500).json({ message: 'An unexpected server error occurred.' });
+    res.status(500).json({ message: 'An unexpected server error occurred.', error: err.message });
 });
 
 // --- START SERVER ---
 async function startServer() {
-    await initializeDatabase();
-    app.listen(PORT, () => console.log(`Aperture Command Server running on port ${PORT}`));
+    try {
+        await initializeDatabase();
+        app.listen(PORT, () => console.log(`Aperture Command Server running on port ${PORT}`));
+    } catch (error) {
+        console.error('[STARTUP ERROR]', error);
+        process.exit(1);
+    }
 }
 
 startServer();
