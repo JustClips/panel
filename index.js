@@ -39,6 +39,23 @@ app.use(cors({
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
 
+// --- RATE LIMITING ---
+const strictRateLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10, // limit each IP to 10 requests per windowMs
+    message: { error: 'Too many requests from this IP, please try again after 15 minutes' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+const generalRateLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // limit each IP to 100 requests per windowMs
+    message: { error: 'Too many requests from this IP, please try again after 15 minutes' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
 // --- FILE UPLOAD & STATIC SERVING ---
 const uploadDir = 'uploads';
 if (!fs.existsSync(uploadDir)) {
@@ -91,7 +108,7 @@ async function initializeDatabase() {
         await connection.query(`CREATE TABLE IF NOT EXISTS connections (id INT AUTO_INCREMENT PRIMARY KEY, client_id VARCHAR(255) NOT NULL, username VARCHAR(255) NOT NULL, user_id BIGINT, game_name VARCHAR(255), server_info VARCHAR(255), player_count INT, connected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
         await connection.query(`CREATE TABLE IF NOT EXISTS commands (id INT AUTO_INCREMENT PRIMARY KEY, command_type VARCHAR(50) NOT NULL, content TEXT, executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
         await connection.query(`CREATE TABLE IF NOT EXISTS player_snapshots (id INT AUTO_INCREMENT PRIMARY KEY, player_count INT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
-        await connection.query(`CREATE TABLE IF NOT EXISTS adminusers (id INT AUTO_INCREMENT PRIMARY KEY, username VARCHAR(255) UNIQUE NOT NULL, password_hash VARCHAR(255) NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
+        await connection.query(`CREATE TABLE IF NOT EXISTS adminusers (id INT AUTO_INCREMENT PRIMARY KEY, username VARCHAR(255) UNIQUE NOT NULL, password_hash VARCHAR(255) NOT NULL, role ENUM('admin','seller','buyer') NOT NULL DEFAULT 'buyer', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
         await connection.query(`CREATE TABLE IF NOT EXISTS key_redemptions (id INT AUTO_INCREMENT PRIMARY KEY, redeemed_by_admin VARCHAR(255) NOT NULL, discord_user_id VARCHAR(255) NOT NULL, generated_key VARCHAR(255) NOT NULL, screenshot_filename VARCHAR(255), redeemed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
         await connection.query(`CREATE TABLE IF NOT EXISTS tickets (id INT AUTO_INCREMENT PRIMARY KEY, user_id INT NOT NULL, status ENUM('awaiting', 'processing', 'completed') DEFAULT 'awaiting', license_key VARCHAR(255), payment_method VARCHAR(50), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, FOREIGN KEY (user_id) REFERENCES adminusers(id));`);
         await connection.query(`CREATE TABLE IF NOT EXISTS ticket_messages (id INT AUTO_INCREMENT PRIMARY KEY, ticket_id INT NOT NULL, sender ENUM('user', 'seller') NOT NULL, message TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE);`);
@@ -101,10 +118,10 @@ async function initializeDatabase() {
             console.log("Creating default admin/buyer users...");
             const hashedVupxy = await bcrypt.hash('vupxydev', 10);
             const hashedMegamind = await bcrypt.hash('megaminddev', 10);
-            await connection.query("INSERT INTO adminusers (username, password_hash) VALUES (?, ?), (?, ?)", ['vupxy', hashedVupxy, 'megamind', hashedMegamind]);
+            await connection.query("INSERT INTO adminusers (username, password_hash, role) VALUES (?, ?, 'admin'), (?, ?, 'admin')", ['vupxy', hashedVupxy, 'megamind', hashedMegamind]);
         }
         const sellerUsers = [ { username: 'Vandelz', password: 'Vandelzseller1' }, { username: 'zuse35', password: 'zuse35seller1' }, { username: 'Duzin', password: 'Duzinseller1' }, { username: 'swiftkey', password: 'swiftkeyseller1' }];
-        for (const user of sellerUsers) { const [existingUser] = await connection.query("SELECT COUNT(*) as count FROM adminusers WHERE username = ?", [user.username]); if (existingUser[0].count === 0) { console.log(`Creating seller user: ${user.username}...`); const hashedPassword = await bcrypt.hash(user.password, 10); await connection.query("INSERT INTO adminusers (username, password_hash) VALUES (?, ?)", [user.username, hashedPassword]); console.log(`User ${user.username} created.`); } }
+        for (const user of sellerUsers) { const [existingUser] = await connection.query("SELECT COUNT(*) as count FROM adminusers WHERE username = ?", [user.username]); if (existingUser[0].count === 0) { console.log(`Creating seller user: ${user.username}...`); const hashedPassword = await bcrypt.hash(user.password, 10); await connection.query("INSERT INTO adminusers (username, password_hash, role) VALUES (?, ?, 'seller')", [user.username, hashedPassword]); console.log(`User ${user.username} created.`); } }
         connection.release();
         console.log("Database initialization complete.");
     } catch (error) {
@@ -126,6 +143,21 @@ const verifyToken = (req, res, next) => {
     });
 };
 
+// --- ROLE-BASED AUTHORIZATION MIDDLEWARE ---
+const requireRole = (roles) => {
+    return (req, res, next) => {
+        if (!req.user || !roles.includes(req.user.role)) {
+            return res.status(403).json({ message: 'Forbidden: Insufficient permissions' });
+        }
+        next();
+    };
+};
+
+const requireAdmin = requireRole(['admin']);
+const requireSeller = requireRole(['seller', 'admin']);
+const requireBuyer = requireRole(['buyer', 'admin']);
+const requireAnyRole = requireRole(['admin', 'seller', 'buyer']);
+
 // --- AUTHENTICATION ENDPOINTS ---
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, message: 'Too many requests from this IP, please try again after 15 minutes' });
 app.post('/register', authLimiter, async (req, res) => {
@@ -135,7 +167,7 @@ app.post('/register', authLimiter, async (req, res) => {
         const [existingUsers] = await dbPool.query("SELECT id FROM adminusers WHERE username = ?", [username]);
         if (existingUsers.length > 0) { return res.status(409).json({ message: 'Username already taken.' }); }
         const hashedPassword = await bcrypt.hash(password, 10);
-        await dbPool.query("INSERT INTO adminusers (username, password_hash) VALUES (?, ?)", [username, hashedPassword]);
+        await dbPool.query("INSERT INTO adminusers (username, password_hash, role) VALUES (?, ?, 'buyer')", [username, hashedPassword]);
         res.status(201).json({ success: true, message: 'User created successfully.' });
     } catch (error) {
         console.error('Registration error:', error);
@@ -152,19 +184,30 @@ app.post('/login', authLimiter, async (req, res) => {
         const user = rows[0];
         const isMatch = await bcrypt.compare(password, user.password_hash);
         if (!isMatch) return res.status(401).json({ message: 'Invalid credentials' });
-        const payload = { id: user.id, username: user.username };
+        const payload = { id: user.id, username: user.username, role: user.role };
         const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '8h' });
-        res.json({ success: true, token, username: user.username });
+        res.json({ success: true, token, username: user.username, role: user.role });
     } catch (error) {
         console.error('Login error:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 });
 
+// Verify token endpoint for frontend
+app.get('/verify-token', verifyToken, (req, res) => {
+    res.json({ user: req.user });
+});
+
+// Logout endpoint
+app.post('/logout', (req, res) => {
+    // Nothing to do on server side for JWT - client just deletes token
+    res.json({ success: true });
+});
+
 // --- TICKET ENDPOINTS ---
 
 // **NEW**: Endpoint for BUYERS to get ONLY THEIR tickets
-app.get('/tickets/my', verifyToken, async (req, res) => {
+app.get('/tickets/my', verifyToken, requireAnyRole, async (req, res) => {
     try {
         const [tickets] = await dbPool.query(
             `SELECT t.*, u.username as buyer_name 
@@ -185,9 +228,8 @@ app.get('/tickets/my', verifyToken, async (req, res) => {
     }
 });
 
-
 // **RENAMED**: Endpoint for SELLERS to get ALL tickets
-app.get('/tickets/all', verifyToken, async (req, res) => {
+app.get('/tickets/all', verifyToken, requireSeller, async (req, res) => {
     try {
         const [tickets] = await dbPool.query(
             `SELECT t.*, u.username as buyer_name 
@@ -206,11 +248,21 @@ app.get('/tickets/all', verifyToken, async (req, res) => {
     }
 });
 
-// Endpoint for BUYERS to create a ticket.
-app.post('/tickets', verifyToken, async (req, res) => {
+// Endpoint for BUYERS to create a ticket - ONE TICKET PER USER LIMIT
+app.post('/tickets', strictRateLimiter, verifyToken, requireBuyer, async (req, res) => {
     const { paymentMethod } = req.body;
     if (!paymentMethod) { return res.status(400).json({ message: 'Payment method is required' }); }
+    
     try {
+        // Check if user already has an open ticket
+        const [existingTickets] = await dbPool.query(
+            "SELECT id FROM tickets WHERE user_id = ? AND status != 'completed'", 
+            [req.user.id]
+        );
+        if (existingTickets.length > 0) {
+            return res.status(400).json({ message: 'You already have an open ticket. Please wait for it to be processed.' });
+        }
+        
         const licenseKey = "PENDING-" + Date.now();
         const [result] = await dbPool.query("INSERT INTO tickets (user_id, license_key, payment_method, status) VALUES (?, ?, ?, 'awaiting')", [req.user.id, licenseKey, paymentMethod]);
         const ticketId = result.insertId;
@@ -228,7 +280,7 @@ app.post('/tickets', verifyToken, async (req, res) => {
 });
 
 // Endpoint for sending messages.
-app.post('/tickets/:id/messages', verifyToken, async (req, res) => {
+app.post('/tickets/:id/messages', verifyToken, requireAnyRole, async (req, res) => {
     const { id } = req.params;
     const { message } = req.body;
     if (!message) { return res.status(400).json({ message: 'Message is required' }); }
@@ -236,6 +288,12 @@ app.post('/tickets/:id/messages', verifyToken, async (req, res) => {
         const [tickets] = await dbPool.query("SELECT * FROM tickets WHERE id = ?", [id]);
         if (tickets.length === 0) { return res.status(404).json({ message: 'Ticket not found.' }); }
         const ticket = tickets[0];
+        
+        // Check if user can send message to this ticket
+        if (req.user.role === 'buyer' && ticket.user_id !== req.user.id) {
+            return res.status(403).json({ message: 'You can only send messages to your own tickets.' });
+        }
+        
         const senderType = (ticket.user_id === req.user.id) ? 'user' : 'seller';
         await dbPool.query("INSERT INTO ticket_messages (ticket_id, sender, message) VALUES (?, ?, ?)", [id, senderType, message]);
         if (ticket.status === 'awaiting') {
@@ -255,7 +313,7 @@ app.post('/tickets/:id/messages', verifyToken, async (req, res) => {
 });
 
 // Endpoint for SELLERS to close a ticket.
-app.post('/api/tickets/:id/close', verifyToken, async (req, res) => {
+app.post('/api/tickets/:id/close', verifyToken, requireSeller, async (req, res) => {
     const { id } = req.params;
     try {
         const [tickets] = await dbPool.query("SELECT * FROM tickets WHERE id = ?", [id]);
@@ -273,7 +331,7 @@ app.post('/api/tickets/:id/close', verifyToken, async (req, res) => {
 });
 
 // **NEW**: Endpoint for SELLERS to DELETE a ticket.
-app.delete('/api/tickets/:id', verifyToken, async (req, res) => {
+app.delete('/api/tickets/:id', verifyToken, requireSeller, async (req, res) => {
     const { id } = req.params;
     try {
         const [tickets] = await dbPool.query("SELECT * FROM tickets WHERE id = ?", [id]);
@@ -289,9 +347,8 @@ app.delete('/api/tickets/:id', verifyToken, async (req, res) => {
     }
 });
 
-
 // --- GAME CLIENT ENDPOINTS ---
-app.post('/connect', async (req, res) => {
+app.post('/connect', generalRateLimiter, async (req, res) => {
     const { id, username, gameName, serverInfo, playerCount, userId } = req.body;
     if (!id || !username) return res.status(400).json({ error: "Missing required fields." });
     
@@ -314,7 +371,7 @@ app.post('/connect', async (req, res) => {
     res.json({ message: "Successfully registered." });
 });
 
-app.post('/poll', (req, res) => {
+app.post('/poll', generalRateLimiter, (req, res) => {
     const { id } = req.body;
     if (!id || !clients.has(id)) return res.status(404).json({ error: "Client not registered." });
     
@@ -325,11 +382,12 @@ app.post('/poll', (req, res) => {
 });
 
 // --- PROTECTED ADMIN ENDPOINTS ---
-app.get('/api/clients', verifyToken, (req, res) => {
+app.get('/api/clients', verifyToken, requireAnyRole, (req, res) => {
     res.json({ count: clients.size, clients: Array.from(clients.values()) });
 });
 
-app.post('/broadcast', verifyToken, async (req, res) => {
+// ONLY ADMINS CAN BROADCAST
+app.post('/broadcast', strictRateLimiter, verifyToken, requireAdmin, async (req, res) => {
     const { command } = req.body;
     if (!command) return res.status(400).json({ error: 'Missing "command"' });
     
@@ -350,7 +408,7 @@ app.post('/broadcast', verifyToken, async (req, res) => {
     res.json({ message: `Command broadcasted to ${successCount}/${clients.size} clients.` });
 });
 
-app.post('/api/command/targeted', verifyToken, (req, res) => {
+app.post('/api/command/targeted', verifyToken, requireAdmin, (req, res) => {
     const { clientIds, command } = req.body;
     if (!Array.isArray(clientIds) || !command) 
         return res.status(400).json({ error: 'Missing "clientIds" array or "command".' });
@@ -367,7 +425,7 @@ app.post('/api/command/targeted', verifyToken, (req, res) => {
     res.json({ message: `Command sent to ${successCount}/${clientIds.length} selected clients.` });
 });
 
-app.post('/kick', verifyToken, (req, res) => {
+app.post('/kick', verifyToken, requireAdmin, (req, res) => {
     const { clientId } = req.body;
     const client = clients.get(clientId);
     if (!client) return res.status(404).json({ error: "Client not found." });
@@ -381,7 +439,8 @@ app.post('/kick', verifyToken, (req, res) => {
     res.json({ message: `Client ${client.username} kicked.` });
 });
 
-app.post('/api/seller/redeem', verifyToken, upload.single('screenshot'), async (req, res) => {
+// ONLY SELLERS CAN REDEEM KEYS
+app.post('/api/seller/redeem', strictRateLimiter, verifyToken, requireSeller, upload.single('screenshot'), async (req, res) => {
     const { discordUsername: discordUserId } = req.body;
     const adminUsername = req.user.username;
     
@@ -459,7 +518,7 @@ async function getAggregatedData(tableName, dateColumn, valueColumn, period, agg
     return rows;
 }
 
-app.get('/api/executions', verifyToken, async (req, res) => {
+app.get('/api/executions', verifyToken, requireAnyRole, async (req, res) => {
     try {
         const data = await getAggregatedData('connections', 'connected_at', 'id', req.query.period, 'COUNT');
         res.json(data);
@@ -468,7 +527,7 @@ app.get('/api/executions', verifyToken, async (req, res) => {
     }
 });
 
-app.get('/api/player-stats', verifyToken, async (req, res) => {
+app.get('/api/player-stats', verifyToken, requireAnyRole, async (req, res) => {
     try {
         const data = await getAggregatedData('player_snapshots', 'created_at', 'player_count', req.query.period, 'MAX');
         res.json(data);
@@ -477,7 +536,7 @@ app.get('/api/player-stats', verifyToken, async (req, res) => {
     }
 });
 
-app.get('/api/seller/keys-sold', verifyToken, async (req, res) => {
+app.get('/api/seller/keys-sold', verifyToken, requireSeller, async (req, res) => {
     try {
         const data = await getAggregatedData('key_redemptions', 'redeemed_at', 'id', req.query.period, 'COUNT');
         res.json(data);
@@ -486,7 +545,7 @@ app.get('/api/seller/keys-sold', verifyToken, async (req, res) => {
     }
 });
 
-app.get('/api/seller/sales-log', verifyToken, async (req, res) => {
+app.get('/api/seller/sales-log', verifyToken, requireSeller, async (req, res) => {
     try {
         const [rows] = await dbPool.query("SELECT * FROM key_redemptions ORDER BY redeemed_at DESC");
         res.json(rows);
