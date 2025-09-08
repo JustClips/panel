@@ -275,7 +275,7 @@ app.get('/api/csrf-token', (req, res) => {
     res.json({ csrfToken: req.csrfToken() });
 });
 
-app.post('/register', authLimiter, csrfProtection, body('username').isLength({ min: 3, max: 20 }).isAlphanumeric().trim(), body('password').isLength({ min: 12 }).withMessage('Password must be at least 12 characters long.').matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{12,}$/).withMessage('Password must contain uppercase, lowercase, number, and special character.'),
+app.post('/register', authLimiter, body('username').isLength({ min: 3, max: 20 }).isAlphanumeric().trim(), body('password').isLength({ min: 12 }).withMessage('Password must be at least 12 characters long.').matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{12,}$/).withMessage('Password must contain uppercase, lowercase, number, and special character.'),
     async (req, res, next) => {
         try {
             const errors = validationResult(req);
