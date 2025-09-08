@@ -32,6 +32,7 @@ app.use(helmet()); // Sets various HTTP headers for security
 // Define allowed origins for CORS. Add your frontend domains here.
 const allowedOrigins = [
     'https://w1ckllon.com',
+    'https://panel.up.railway.app', // Added your Railway domain
     'http://localhost:5500',
     'http://127.0.0.1:5500'
     // Add any other domains you might use for development or production
@@ -39,11 +40,21 @@ const allowedOrigins = [
 
 const corsOptions = {
     origin: function (origin, callback) {
+        // Log the incoming origin for debugging purposes.
+        console.log('Request received from origin:', origin);
+
         // Allow requests with no origin (like mobile apps or curl requests)
-        if (!origin) return callback(null, true);
-        if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+        if (!origin) {
+            console.log('Allowing request with no origin');
+            return callback(null, true);
+        }
+
+        if (allowedOrigins.indexOf(origin) !== -1) {
+            console.log(`Allowing origin: ${origin}`);
             callback(null, true);
         } else {
+            // This error is causing the server to crash. We log it to see the blocked address.
+            console.error(`Blocking origin: ${origin}`);
             callback(new Error('Not allowed by CORS'));
         }
     },
@@ -1203,4 +1214,6 @@ async function startServer() {
 }
 
 startServer();
+
+
 
