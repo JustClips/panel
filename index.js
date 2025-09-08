@@ -19,6 +19,9 @@ const PORT = process.env.PORT || 3000;
 const CLIENT_TIMEOUT_MS = 15000;
 const SNAPSHOT_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
+// --- TRUST PROXY FOR RAILWAY ---
+app.set('trust proxy', 1); // Add this line to trust the first proxy
+
 // --- SECURITY & CORE MIDDLEWARE ---
 app.use(helmet());
 
@@ -1005,6 +1008,13 @@ app.use((err, req, res, next) => {
     // Handle JWT errors
     if (err.name === 'JsonWebTokenError') {
         return res.status(401).json({ error: 'Invalid token' });
+    }
+    
+    // Handle rate limit errors
+    if (err.code === 'ERR_ERL_UNEXPECTED_X_FORWARDED_FOR') {
+        // This is expected on Railway - just log and continue
+        console.warn('X-Forwarded-For header detected with trust proxy enabled');
+        return next(); // Continue to next middleware
     }
     
     // Generic error
