@@ -11,6 +11,7 @@ const multer = require('multer');
 const axios = require('axios');
 const path = require('path');
 const fs = require('fs');
+const { body, validationResult } = require('express-validator');
 require('dotenv').config();
 
 const app = express();
@@ -45,10 +46,57 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions)); // Handle preflight requests
 
-app.use(bodyParser.json({ limit: '10mb' }));
-app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
+app.use(bodyParser.json({ limit: '100kb' })); // Reduced limit for API endpoints
+app.use(bodyParser.urlencoded({ extended: true, limit: '100kb' }));
+
+// --- ADDITIONAL SECURITY MIDDLEWARE ---
+// Request validation middleware
+const validateRequest = (req, res, next) => {
+    // Check for suspicious user agents
+    const userAgent = req.headers['user-agent'] || '';
+    const suspiciousAgents = ['bot', 'crawler', 'scanner', 'curl', 'wget'];
+    if (suspiciousAgents.some(agent => userAgent.toLowerCase().includes(agent))) {
+        console.warn(`Suspicious user agent detected: ${userAgent} from ${req.ip}`);
+        // You can choose to block or just log
+    }
+    
+    // Check request size
+    const contentLength = parseInt(req.headers['content-length']);
+    if (contentLength > 10 * 1024 * 1024) { // 10MB limit
+        return res.status(413).json({ error: 'Payload too large' });
+    }
+    
+    next();
+};
+
+app.use(validateRequest);
 
 // --- RATE LIMITING ---
+const authRateLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 5, // limit each IP to 5 auth requests per windowMs
+    message: { error: 'Too many authentication attempts. Please try again later.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+    skipSuccessfulRequests: true // Don't count successful logins
+});
+
+const ticketCreationRateLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hour
+    max: 2, // Only 2 ticket creations per hour per IP
+    message: { error: 'Too many ticket requests. Please try again later.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+const ticketMessageRateLimiter = rateLimit({
+    windowMs: 10 * 60 * 1000, // 10 minutes
+    max: 20, // Max 20 messages per 10 minutes per IP
+    message: { error: 'Too many messages. Please slow down.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
 const strictRateLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 10, // limit each IP to 10 requests per windowMs
@@ -81,15 +129,26 @@ const storage = multer.diskStorage({
         cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
     }
 });
+
+// Enhanced file upload with additional validation
 const upload = multer({
     storage: storage,
-    limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB limit
+    limits: { 
+        fileSize: 5 * 1024 * 1024, // 5 MB limit
+        files: 1 // Only allow 1 file
+    },
     fileFilter: (req, file, cb) => {
-        if (file.mimetype === "image/png") {
-            cb(null, true);
-        } else {
-            cb(new Error("Only .png files are allowed!"), false);
+        // Validate file type
+        if (file.mimetype !== "image/png") {
+            return cb(new Error("Only .png files are allowed!"), false);
         }
+        
+        // Validate file name
+        if (!file.originalname.match(/\.(png)$/i)) {
+            return cb(new Error("File must have .png extension!"), false);
+        }
+        
+        cb(null, true);
     }
 });
 
@@ -105,7 +164,9 @@ const dbPool = mysql.createPool({
     database: process.env.DB_DATABASE,
     waitForConnections: true,
     connectionLimit: 10,
-    queueLimit: 0
+    queueLimit: 0,
+    acquireTimeout: 60000,
+    timeout: 60000,
 });
 
 // --- DATABASE INITIALIZATION ---
@@ -167,15 +228,73 @@ const requireSeller = requireRole(['seller', 'admin']);
 const requireBuyer = requireRole(['buyer', 'admin']);
 const requireAnyRole = requireRole(['admin', 'seller', 'buyer']);
 
+// --- INPUT VALIDATION MIDDLEWARE ---
+const validateTicketCreation = [
+    body('paymentMethod')
+        .isIn(['PayPal', 'Crypto', 'Credit Card', 'Bank Transfer'])
+        .withMessage('Invalid payment method'),
+    body('paymentMethod')
+        .trim()
+        .isLength({ min: 2, max: 50 })
+        .withMessage('Payment method must be between 2 and 50 characters')
+];
+
+const validateTicketMessage = [
+    body('message')
+        .trim()
+        .isLength({ min: 1, max: 1000 })
+        .withMessage('Message must be between 1 and 1000 characters'),
+    body('message')
+        .matches(/^[a-zA-Z0-9\s\.,!?@#$%^&*()_+\-=```math
+```{};':"\\|,.<>\/?]*$/)
+        .withMessage('Message contains invalid characters')
+];
+
+const validateDiscordId = [
+    body('discordUsername')
+        .isLength({ min: 17, max: 20 })
+        .isNumeric()
+        .withMessage('Invalid Discord ID format')
+];
+
+const validateKeyRedemption = [
+    ...validateDiscordId,
+    // Additional validation for key redemption can be added here
+];
+
 // --- AUTHENTICATION ENDPOINTS ---
-const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, message: 'Too many requests from this IP, please try again after 15 minutes' });
-app.post('/register', authLimiter, async (req, res) => {
+app.post('/register', authRateLimiter, async (req, res) => {
     const { username, password } = req.body;
-    if (!username || !password) { return res.status(400).json({ message: 'Username and password are required.' }); }
+    
+    // Input validation
+    if (!username || !password) { 
+        return res.status(400).json({ message: 'Username and password are required.' }); 
+    }
+    
+    if (typeof username !== 'string' || typeof password !== 'string') {
+        return res.status(400).json({ message: 'Invalid input types.' });
+    }
+    
+    if (username.length < 3 || username.length > 30) {
+        return res.status(400).json({ message: 'Username must be between 3 and 30 characters.' });
+    }
+    
+    if (password.length < 6 || password.length > 100) {
+        return res.status(400).json({ message: 'Password must be between 6 and 100 characters.' });
+    }
+    
+    // Check for common password patterns
+    if (password.toLowerCase() === username.toLowerCase()) {
+        return res.status(400).json({ message: 'Password cannot be similar to username.' });
+    }
+    
     try {
         const [existingUsers] = await dbPool.query("SELECT id FROM adminusers WHERE username = ?", [username]);
-        if (existingUsers.length > 0) { return res.status(409).json({ message: 'Username already taken.' }); }
-        const hashedPassword = await bcrypt.hash(password, 10);
+        if (existingUsers.length > 0) { 
+            return res.status(409).json({ message: 'Username already taken.' }); 
+        }
+        
+        const hashedPassword = await bcrypt.hash(password, 12); // Increased rounds for better security
         await dbPool.query("INSERT INTO adminusers (username, password_hash, role) VALUES (?, ?, 'buyer')", [username, hashedPassword]);
         res.status(201).json({ success: true, message: 'User created successfully.' });
     } catch (error) {
@@ -184,18 +303,42 @@ app.post('/register', authLimiter, async (req, res) => {
     }
 });
 
-app.post('/login', authLimiter, async (req, res) => {
+app.post('/login', authRateLimiter, async (req, res) => {
     const { username, password } = req.body;
-    if (!username || !password || !process.env.JWT_SECRET) return res.status(400).json({ message: 'Invalid request or server config error.' });
+    
+    // Input validation
+    if (!username || !password || !process.env.JWT_SECRET) {
+        return res.status(400).json({ message: 'Invalid request or server config error.' });
+    }
+    
+    if (typeof username !== 'string' || typeof password !== 'string') {
+        return res.status(400).json({ message: 'Invalid input types.' });
+    }
+    
     try {
         const [rows] = await dbPool.query("SELECT * FROM adminusers WHERE username = ?", [username]);
-        if (rows.length === 0) return res.status(401).json({ message: 'Invalid credentials' });
+        if (rows.length === 0) {
+            // Delay response to prevent timing attacks
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            return res.status(401).json({ message: 'Invalid credentials' });
+        }
+        
         const user = rows[0];
         const isMatch = await bcrypt.compare(password, user.password_hash);
         if (!isMatch) return res.status(401).json({ message: 'Invalid credentials' });
+        
         const payload = { id: user.id, username: user.username, role: user.role };
-        const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '8h' });
-        res.json({ success: true, token, username: user.username, role: user.role });
+        const token = jwt.sign(payload, process.env.JWT_SECRET, { 
+            expiresIn: '8h',
+            issuer: 'aperture-hub'
+        });
+        
+        res.json({ 
+            success: true, 
+            token, 
+            username: user.username, 
+            role: user.role 
+        });
     } catch (error) {
         console.error('Login error:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -258,245 +401,473 @@ app.get('/tickets/all', verifyToken, requireSeller, async (req, res) => {
 });
 
 // Endpoint for BUYERS to create a ticket - ONE TICKET PER USER LIMIT
-app.post('/tickets', strictRateLimiter, verifyToken, requireBuyer, async (req, res) => {
-    const { paymentMethod } = req.body;
-    if (!paymentMethod) { return res.status(400).json({ message: 'Payment method is required' }); }
-    
-    try {
-        // Check if user already has an open ticket
-        const [existingTickets] = await dbPool.query(
-            "SELECT id FROM tickets WHERE user_id = ? AND status != 'completed'", 
-            [req.user.id]
-        );
-        if (existingTickets.length > 0) {
-            return res.status(400).json({ message: 'You already have an open ticket. Please wait for it to be processed.' });
+app.post('/tickets', 
+    ticketCreationRateLimiter, 
+    verifyToken, 
+    requireBuyer, 
+    validateTicketCreation,
+    async (req, res) => {
+        // Validate input
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ 
+                message: 'Validation failed', 
+                errors: errors.array().map(e => e.msg) 
+            });
         }
         
-        const licenseKey = "PENDING-" + Date.now();
-        const [result] = await dbPool.query("INSERT INTO tickets (user_id, license_key, payment_method, status) VALUES (?, ?, ?, 'awaiting')", [req.user.id, licenseKey, paymentMethod]);
-        const ticketId = result.insertId;
-        let message = `Welcome! A seller will be with you shortly to help you purchase with ${paymentMethod}.`;
-        await dbPool.query("INSERT INTO ticket_messages (ticket_id, sender, message) VALUES (?, ?, ?)", [ticketId, 'seller', message]);
-        const [tickets] = await dbPool.query(`SELECT t.*, u.username as buyer_name FROM tickets t JOIN adminusers u ON t.user_id = u.id WHERE t.id = ?`, [ticketId]);
-        const [messages] = await dbPool.query("SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC", [ticketId]);
-        const ticket = tickets[0];
-        ticket.messages = messages;
-        res.status(201).json(ticket);
-    } catch (error) {
-        console.error('Error creating ticket:', error);
-        res.status(500).json({ message: 'Failed to create ticket' });
+        const { paymentMethod } = req.body;
+        
+        try {
+            // Check if user already has an open ticket
+            const [existingTickets] = await dbPool.query(
+                "SELECT id FROM tickets WHERE user_id = ? AND status != 'completed'", 
+                [req.user.id]
+            );
+            if (existingTickets.length > 0) {
+                return res.status(400).json({ 
+                    message: 'You already have an open ticket. Please wait for it to be processed.' 
+                });
+            }
+            
+            // Additional spam protection - check recent ticket creation
+            const [recentTickets] = await dbPool.query(
+                "SELECT COUNT(*) as count FROM tickets WHERE user_id = ? AND created_at > DATE_SUB(NOW(), INTERVAL 1 HOUR)",
+                [req.user.id]
+            );
+            if (recentTickets[0].count > 5) {
+                return res.status(429).json({ 
+                    message: 'Too many tickets created recently. Please try again later.' 
+                });
+            }
+            
+            const licenseKey = "PENDING-" + Date.now();
+            const [result] = await dbPool.query(
+                "INSERT INTO tickets (user_id, license_key, payment_method, status) VALUES (?, ?, ?, 'awaiting')", 
+                [req.user.id, licenseKey, paymentMethod]
+            );
+            const ticketId = result.insertId;
+            
+            let message = `Welcome! A seller will be with you shortly to help you purchase with ${paymentMethod}.`;
+            await dbPool.query(
+                "INSERT INTO ticket_messages (ticket_id, sender, message) VALUES (?, ?, ?)", 
+                [ticketId, 'seller', message]
+            );
+            
+            const [tickets] = await dbPool.query(
+                `SELECT t.*, u.username as buyer_name FROM tickets t JOIN adminusers u ON t.user_id = u.id WHERE t.id = ?`, 
+                [ticketId]
+            );
+            const [messages] = await dbPool.query(
+                "SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC", 
+                [ticketId]
+            );
+            const ticket = tickets[0];
+            ticket.messages = messages;
+            
+            res.status(201).json(ticket);
+        } catch (error) {
+            console.error('Error creating ticket:', error);
+            res.status(500).json({ message: 'Failed to create ticket' });
+        }
     }
-});
+);
 
 // Endpoint for sending messages.
-app.post('/tickets/:id/messages', verifyToken, requireAnyRole, async (req, res) => {
-    const { id } = req.params;
-    const { message } = req.body;
-    if (!message) { return res.status(400).json({ message: 'Message is required' }); }
-    try {
-        const [tickets] = await dbPool.query("SELECT * FROM tickets WHERE id = ?", [id]);
-        if (tickets.length === 0) { return res.status(404).json({ message: 'Ticket not found.' }); }
-        const ticket = tickets[0];
-        
-        // Check if user can send message to this ticket
-        if (req.user.role === 'buyer' && ticket.user_id !== req.user.id) {
-            return res.status(403).json({ message: 'You can only send messages to your own tickets.' });
+app.post('/tickets/:id/messages', 
+    ticketMessageRateLimiter,
+    verifyToken, 
+    requireAnyRole, 
+    validateTicketMessage,
+    async (req, res) => {
+        // Validate input
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ 
+                message: 'Validation failed', 
+                errors: errors.array().map(e => e.msg) 
+            });
         }
         
-        const senderType = (ticket.user_id === req.user.id) ? 'user' : 'seller';
-        await dbPool.query("INSERT INTO ticket_messages (ticket_id, sender, message) VALUES (?, ?, ?)", [id, senderType, message]);
-        if (ticket.status === 'awaiting') {
-             await dbPool.query("UPDATE tickets SET status = 'processing', updated_at = CURRENT_TIMESTAMP WHERE id = ?", [id]);
-        } else {
-             await dbPool.query("UPDATE tickets SET updated_at = CURRENT_TIMESTAMP WHERE id = ?", [id]);
+        const { id } = req.params;
+        const { message } = req.body;
+        
+        // Validate ticket ID
+        if (!id || isNaN(id)) {
+            return res.status(400).json({ message: 'Invalid ticket ID' });
         }
-        const [updatedTickets] = await dbPool.query(`SELECT t.*, u.username as buyer_name FROM tickets t JOIN adminusers u ON t.user_id = u.id WHERE t.id = ?`, [id]);
-        const [messages] = await dbPool.query("SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC", [id]);
-        const updatedTicket = updatedTickets[0];
-        updatedTicket.messages = messages;
-        res.json(updatedTicket);
-    } catch (error) {
-        console.error('Error adding message:', error);
-        res.status(500).json({ message: 'Failed to add message' });
+        
+        try {
+            const [tickets] = await dbPool.query("SELECT * FROM tickets WHERE id = ?", [id]);
+            if (tickets.length === 0) { 
+                return res.status(404).json({ message: 'Ticket not found.' }); 
+            }
+            const ticket = tickets[0];
+            
+            // Check if user can send message to this ticket
+            if (req.user.role === 'buyer' && ticket.user_id !== req.user.id) {
+                return res.status(403).json({ message: 'You can only send messages to your own tickets.' });
+            }
+            
+            // Spam protection - check message frequency
+            const [recentMessages] = await dbPool.query(
+                "SELECT COUNT(*) as count FROM ticket_messages WHERE ticket_id = ? AND created_at > DATE_SUB(NOW(), INTERVAL 1 MINUTE)",
+                [id]
+            );
+            if (recentMessages[0].count > 5) {
+                return res.status(429).json({ 
+                    message: 'Too many messages sent recently. Please slow down.' 
+                });
+            }
+            
+            const senderType = (ticket.user_id === req.user.id) ? 'user' : 'seller';
+            await dbPool.query(
+                "INSERT INTO ticket_messages (ticket_id, sender, message) VALUES (?, ?, ?)", 
+                [id, senderType, message]
+            );
+            
+            if (ticket.status === 'awaiting') {
+                 await dbPool.query(
+                     "UPDATE tickets SET status = 'processing', updated_at = CURRENT_TIMESTAMP WHERE id = ?", 
+                     [id]
+                 );
+            } else {
+                 await dbPool.query(
+                     "UPDATE tickets SET updated_at = CURRENT_TIMESTAMP WHERE id = ?", 
+                     [id]
+                 );
+            }
+            
+            const [updatedTickets] = await dbPool.query(
+                `SELECT t.*, u.username as buyer_name FROM tickets t JOIN adminusers u ON t.user_id = u.id WHERE t.id = ?`, 
+                [id]
+            );
+            const [messages] = await dbPool.query(
+                "SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC", 
+                [id]
+            );
+            const updatedTicket = updatedTickets[0];
+            updatedTicket.messages = messages;
+            
+            res.json(updatedTicket);
+        } catch (error) {
+            console.error('Error adding message:', error);
+            res.status(500).json({ message: 'Failed to add message' });
+        }
     }
-});
+);
 
 // Endpoint for SELLERS to close a ticket.
-app.post('/api/tickets/:id/close', verifyToken, requireSeller, async (req, res) => {
-    const { id } = req.params;
-    try {
-        const [tickets] = await dbPool.query("SELECT * FROM tickets WHERE id = ?", [id]);
-        if (tickets.length === 0) { return res.status(404).json({ message: 'Ticket not found.' }); }
-        await dbPool.query("UPDATE tickets SET status = 'completed', updated_at = CURRENT_TIMESTAMP WHERE id = ?", [id]);
-        const [updatedTickets] = await dbPool.query(`SELECT t.*, u.username as buyer_name FROM tickets t JOIN adminusers u ON t.user_id = u.id WHERE t.id = ?`, [id]);
-        const [messages] = await dbPool.query("SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC", [id]);
-        const updatedTicket = updatedTickets[0];
-        updatedTicket.messages = messages;
-        res.json(updatedTicket);
-    } catch (error) {
-        console.error('Error closing ticket:', error);
-        res.status(500).json({ message: 'Failed to close ticket' });
+app.post('/api/tickets/:id/close', 
+    verifyToken, 
+    requireSeller, 
+    async (req, res) => {
+        const { id } = req.params;
+        
+        // Validate ticket ID
+        if (!id || isNaN(id)) {
+            return res.status(400).json({ message: 'Invalid ticket ID' });
+        }
+        
+        try {
+            const [tickets] = await dbPool.query("SELECT * FROM tickets WHERE id = ?", [id]);
+            if (tickets.length === 0) { 
+                return res.status(404).json({ message: 'Ticket not found.' }); 
+            }
+            
+            await dbPool.query(
+                "UPDATE tickets SET status = 'completed', updated_at = CURRENT_TIMESTAMP WHERE id = ?", 
+                [id]
+            );
+            
+            const [updatedTickets] = await dbPool.query(
+                `SELECT t.*, u.username as buyer_name FROM tickets t JOIN adminusers u ON t.user_id = u.id WHERE t.id = ?`, 
+                [id]
+            );
+            const [messages] = await dbPool.query(
+                "SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC", 
+                [id]
+            );
+            const updatedTicket = updatedTickets[0];
+            updatedTicket.messages = messages;
+            
+            res.json(updatedTicket);
+        } catch (error) {
+            console.error('Error closing ticket:', error);
+            res.status(500).json({ message: 'Failed to close ticket' });
+        }
     }
-});
+);
 
 // **NEW**: Endpoint for SELLERS to DELETE a ticket.
-app.delete('/api/tickets/:id', verifyToken, requireSeller, async (req, res) => {
-    const { id } = req.params;
-    try {
-        const [tickets] = await dbPool.query("SELECT * FROM tickets WHERE id = ?", [id]);
-        if (tickets.length === 0) {
-            return res.status(404).json({ message: 'Ticket not found.' });
+app.delete('/api/tickets/:id', 
+    verifyToken, 
+    requireSeller, 
+    async (req, res) => {
+        const { id } = req.params;
+        
+        // Validate ticket ID
+        if (!id || isNaN(id)) {
+            return res.status(400).json({ message: 'Invalid ticket ID' });
         }
-        // ON DELETE CASCADE in the DB schema handles deleting associated messages
-        await dbPool.query("DELETE FROM tickets WHERE id = ?", [id]);
-        res.json({ success: true, message: `Ticket #${id} has been permanently deleted.` });
-    } catch (error) {
-        console.error('Error deleting ticket:', error);
-        res.status(500).json({ message: 'Failed to delete ticket' });
+        
+        try {
+            const [tickets] = await dbPool.query("SELECT * FROM tickets WHERE id = ?", [id]);
+            if (tickets.length === 0) {
+                return res.status(404).json({ message: 'Ticket not found.' });
+            }
+            
+            // ON DELETE CASCADE in the DB schema handles deleting associated messages
+            await dbPool.query("DELETE FROM tickets WHERE id = ?", [id]);
+            res.json({ success: true, message: `Ticket #${id} has been permanently deleted.` });
+        } catch (error) {
+            console.error('Error deleting ticket:', error);
+            res.status(500).json({ message: 'Failed to delete ticket' });
+        }
     }
-});
+);
 
 // --- GAME CLIENT ENDPOINTS ---
-app.post('/connect', generalRateLimiter, async (req, res) => {
-    const { id, username, gameName, serverInfo, playerCount, userId } = req.body;
-    if (!id || !username) return res.status(400).json({ error: "Missing required fields." });
-    
-    clients.set(id, { 
-        id, username, gameName, serverInfo, playerCount, userId, 
-        connectedAt: new Date(), lastSeen: Date.now() 
-    });
-    
-    if (!pendingCommands.has(id)) pendingCommands.set(id, []);
+app.post('/connect', 
+    generalRateLimiter, 
+    async (req, res) => {
+        const { id, username, gameName, serverInfo, playerCount, userId } = req.body;
+        
+        // Input validation
+        if (!id || !username) {
+            return res.status(400).json({ error: "Missing required fields." });
+        }
+        
+        if (typeof id !== 'string' || typeof username !== 'string') {
+            return res.status(400).json({ error: "Invalid field types." });
+        }
+        
+        if (id.length > 255 || username.length > 255) {
+            return res.status(400).json({ error: "Field values too long." });
+        }
+        
+        // Validate playerCount
+        if (playerCount !== undefined && (isNaN(playerCount) || playerCount < 0 || playerCount > 1000000)) {
+            return res.status(400).json({ error: "Invalid player count." });
+        }
+        
+        clients.set(id, { 
+            id, username, gameName, serverInfo, playerCount, userId, 
+            connectedAt: new Date(), lastSeen: Date.now() 
+        });
+        
+        if (!pendingCommands.has(id)) pendingCommands.set(id, []);
 
-    console.log(`[CONNECT] Client registered: ${username} (ID: ${id})`);
-    try {
-        await dbPool.query(
-            "INSERT INTO connections (client_id, username, user_id, game_name, server_info, player_count) VALUES (?, ?, ?, ?, ?, ?)", 
-            [id, username, userId, gameName, serverInfo, playerCount]
-        );
-    } catch (error) {
-        console.error(`[DB] Failed to log connection for ${username}:`, error.message);
+        console.log(`[CONNECT] Client registered: ${username} (ID: ${id})`);
+        try {
+            await dbPool.query(
+                "INSERT INTO connections (client_id, username, user_id, game_name, server_info, player_count) VALUES (?, ?, ?, ?, ?, ?)", 
+                [id, username, userId, gameName, serverInfo, playerCount]
+            );
+        } catch (error) {
+            console.error(`[DB] Failed to log connection for ${username}:`, error.message);
+        }
+        res.json({ message: "Successfully registered." });
     }
-    res.json({ message: "Successfully registered." });
-});
+);
 
-app.post('/poll', generalRateLimiter, (req, res) => {
-    const { id } = req.body;
-    if (!id || !clients.has(id)) return res.status(404).json({ error: "Client not registered." });
-    
-    clients.get(id).lastSeen = Date.now();
-    const commands = pendingCommands.get(id) || [];
-    pendingCommands.set(id, []);
-    res.json({ commands });
-});
+app.post('/poll', 
+    generalRateLimiter, 
+    (req, res) => {
+        const { id } = req.body;
+        if (!id || !clients.has(id)) return res.status(404).json({ error: "Client not registered." });
+        
+        clients.get(id).lastSeen = Date.now();
+        const commands = pendingCommands.get(id) || [];
+        pendingCommands.set(id, []);
+        res.json({ commands });
+    }
+);
 
 // --- PROTECTED ADMIN ENDPOINTS ---
-app.get('/api/clients', verifyToken, requireAnyRole, (req, res) => {
-    res.json({ count: clients.size, clients: Array.from(clients.values()) });
-});
+app.get('/api/clients', 
+    verifyToken, 
+    requireAnyRole, 
+    (req, res) => {
+        res.json({ count: clients.size, clients: Array.from(clients.values()) });
+    }
+);
 
 // ONLY ADMINS CAN BROADCAST
-app.post('/broadcast', strictRateLimiter, verifyToken, requireAdmin, async (req, res) => {
-    const { command } = req.body;
-    if (!command) return res.status(400).json({ error: 'Missing "command"' });
-    
-    const commandObj = { type: "execute", payload: command };
-    let successCount = 0;
-    clients.forEach((c, id) => {
-        pendingCommands.get(id)?.push(commandObj);
-        successCount++;
-    });
-
-    try {
-        const commandType = typeof command === "string" ? "lua_script" : "json_action";
-        await dbPool.query("INSERT INTO commands (command_type, content) VALUES (?, ?)", [commandType, JSON.stringify(command)]);
-    } catch (error) { 
-        console.error("[DB] Failed to log broadcast command:", error.message); 
-    }
-    
-    res.json({ message: `Command broadcasted to ${successCount}/${clients.size} clients.` });
-});
-
-app.post('/api/command/targeted', verifyToken, requireAdmin, (req, res) => {
-    const { clientIds, command } = req.body;
-    if (!Array.isArray(clientIds) || !command) 
-        return res.status(400).json({ error: 'Missing "clientIds" array or "command".' });
-    
-    const commandObj = { type: "execute", payload: command };
-    let successCount = 0;
-    clientIds.forEach(id => {
-        if (clients.has(id) && pendingCommands.has(id)) {
-            pendingCommands.get(id).push(commandObj);
-            successCount++;
+app.post('/broadcast', 
+    strictRateLimiter, 
+    verifyToken, 
+    requireAdmin, 
+    async (req, res) => {
+        const { command } = req.body;
+        if (!command) return res.status(400).json({ error: 'Missing "command"' });
+        
+        // Validate command content
+        if (typeof command !== 'string' && typeof command !== 'object') {
+            return res.status(400).json({ error: 'Invalid command format' });
         }
-    });
+        
+        // Size limit for commands
+        const commandSize = JSON.stringify(command).length;
+        if (commandSize > 10000) { // 10KB limit
+            return res.status(400).json({ error: 'Command too large' });
+        }
+        
+        const commandObj = { type: "execute", payload: command };
+        let successCount = 0;
+        clients.forEach((c, id) => {
+            pendingCommands.get(id)?.push(commandObj);
+            successCount++;
+        });
 
-    res.json({ message: `Command sent to ${successCount}/${clientIds.length} selected clients.` });
-});
+        try {
+            const commandType = typeof command === "string" ? "lua_script" : "json_action";
+            await dbPool.query(
+                "INSERT INTO commands (command_type, content) VALUES (?, ?)", 
+                [commandType, JSON.stringify(command)]
+            );
+        } catch (error) { 
+            console.error("[DB] Failed to log broadcast command:", error.message); 
+        }
+        
+        res.json({ message: `Command broadcasted to ${successCount}/${clients.size} clients.` });
+    }
+);
 
-app.post('/kick', verifyToken, requireAdmin, (req, res) => {
-    const { clientId } = req.body;
-    const client = clients.get(clientId);
-    if (!client) return res.status(404).json({ error: "Client not found." });
-    
-    pendingCommands.get(clientId)?.push({ type: "kick" });
-    setTimeout(() => {
-        clients.delete(clientId);
-        pendingCommands.delete(clientId);
-    }, 5000);
-    
-    res.json({ message: `Client ${client.username} kicked.` });
-});
+app.post('/api/command/targeted', 
+    verifyToken, 
+    requireAdmin, 
+    (req, res) => {
+        const { clientIds, command } = req.body;
+        if (!Array.isArray(clientIds) || !command) 
+            return res.status(400).json({ error: 'Missing "clientIds" array or "command".' });
+        
+        // Validate client IDs
+        if (clientIds.length > 100) {
+            return res.status(400).json({ error: 'Too many clients specified' });
+        }
+        
+        // Validate command content
+        if (typeof command !== 'string' && typeof command !== 'object') {
+            return res.status(400).json({ error: 'Invalid command format' });
+        }
+        
+        const commandObj = { type: "execute", payload: command };
+        let successCount = 0;
+        clientIds.forEach(id => {
+            if (clients.has(id) && pendingCommands.has(id)) {
+                pendingCommands.get(id).push(commandObj);
+                successCount++;
+            }
+        });
+
+        res.json({ message: `Command sent to ${successCount}/${clientIds.length} selected clients.` });
+    }
+);
+
+app.post('/kick', 
+    verifyToken, 
+    requireAdmin, 
+    (req, res) => {
+        const { clientId } = req.body;
+        const client = clients.get(clientId);
+        if (!client) return res.status(404).json({ error: "Client not found." });
+        
+        pendingCommands.get(clientId)?.push({ type: "kick" });
+        setTimeout(() => {
+            clients.delete(clientId);
+            pendingCommands.delete(clientId);
+        }, 5000);
+        
+        res.json({ message: `Client ${client.username} kicked.` });
+    }
+);
 
 // ONLY SELLERS CAN REDEEM KEYS
-app.post('/api/seller/redeem', strictRateLimiter, verifyToken, requireSeller, upload.single('screenshot'), async (req, res) => {
-    const { discordUsername: discordUserId } = req.body;
-    const adminUsername = req.user.username;
-    
-    if (!discordUserId) return res.status(400).json({ error: 'Discord User ID is required.' });
-    if (!req.file) return res.status(400).json({ error: 'Screenshot file is required.' });
-    if (!process.env.LUARMOR_API_KEY || !process.env.LUARMOR_PROJECT_ID) {
-        return res.status(500).json({ error: "Luarmor API is not configured on the server." });
-    }
-
-    const url = `https://api.luarmor.net/v3/projects/${process.env.LUARMOR_PROJECT_ID}/users`;
-    const headers = { 
-        "Authorization": process.env.LUARMOR_API_KEY, 
-        "Content-Type": "application/json" 
-    };
-    const payload = { 
-        "discord_id": discordUserId, 
-        "note": `Redeemed by ${adminUsername} on ${new Date().toLocaleDateString()}` 
-    };
-
-    try {
-        const luarmorResponse = await axios.post(url, payload, { headers });
-        const data = luarmorResponse.data;
-
-        if (data.success && data.user_key) {
-            const newKey = data.user_key;
-            await dbPool.query(
-                "INSERT INTO key_redemptions (redeemed_by_admin, discord_user_id, generated_key, screenshot_filename) VALUES (?, ?, ?, ?)",
-                [adminUsername, discordUserId, newKey, req.file.filename]
-            );
-            res.json({ 
-                success: true, 
-                message: `Key successfully generated and linked to ${discordUserId}.`, 
-                generatedKey: newKey 
-            });
-        } else {
-            if (req.file) fs.unlinkSync(req.file.path);
-            res.status(400).json({ 
-                success: false, 
-                error: `Luarmor API Error: ${data.message || 'Unknown error.'}` 
+app.post('/api/seller/redeem', 
+    strictRateLimiter, 
+    verifyToken, 
+    requireSeller, 
+    upload.single('screenshot'), 
+    validateKeyRedemption,
+    async (req, res) => {
+        // Validate input
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ 
+                error: 'Validation failed', 
+                errors: errors.array().map(e => e.msg) 
             });
         }
-    } catch (error) {
-        if (req.file) fs.unlinkSync(req.file.path);
-        console.error("Luarmor API request failed:", error.response ? error.response.data : error.message);
-        res.status(500).json({ error: 'An internal error occurred while communicating with the key service.' });
+        
+        const { discordUsername: discordUserId } = req.body;
+        const adminUsername = req.user.username;
+        
+        if (!discordUserId) return res.status(400).json({ error: 'Discord User ID is required.' });
+        if (!req.file) return res.status(400).json({ error: 'Screenshot file is required.' });
+        if (!process.env.LUARMOR_API_KEY || !process.env.LUARMOR_PROJECT_ID) {
+            return res.status(500).json({ error: "Luarmor API is not configured on the server." });
+        }
+
+        // Validate file
+        if (req.file.size > 5 * 1024 * 1024) { // 5MB
+            if (req.file.path) fs.unlinkSync(req.file.path);
+            return res.status(400).json({ error: 'File too large. Maximum 5MB allowed.' });
+        }
+
+        const url = `https://api.luarmor.net/v3/projects/${process.env.LUARMOR_PROJECT_ID}/users`;
+        const headers = { 
+            "Authorization": process.env.LUARMOR_API_KEY, 
+            "Content-Type": "application/json" 
+        };
+        const payload = { 
+            "discord_id": discordUserId, 
+            "note": `Redeemed by ${adminUsername} on ${new Date().toLocaleDateString()}` 
+        };
+
+        try {
+            const luarmorResponse = await axios.post(url, payload, { 
+                headers,
+                timeout: 10000 // 10 second timeout
+            });
+            const data = luarmorResponse.data;
+
+            if (data.success && data.user_key) {
+                const newKey = data.user_key;
+                await dbPool.query(
+                    "INSERT INTO key_redemptions (redeemed_by_admin, discord_user_id, generated_key, screenshot_filename) VALUES (?, ?, ?, ?)",
+                    [adminUsername, discordUserId, newKey, req.file.filename]
+                );
+                res.json({ 
+                    success: true, 
+                    message: `Key successfully generated and linked to ${discordUserId}.`, 
+                    generatedKey: newKey 
+                });
+            } else {
+                if (req.file && req.file.path) fs.unlinkSync(req.file.path);
+                res.status(400).json({ 
+                    success: false, 
+                    error: `Luarmor API Error: ${data.message || 'Unknown error.'}` 
+                });
+            }
+        } catch (error) {
+            if (req.file && req.file.path) fs.unlinkSync(req.file.path);
+            console.error("Luarmor API request failed:", error.response ? error.response.data : error.message);
+            
+            // Handle specific error cases
+            if (error.response) {
+                if (error.response.status === 429) {
+                    return res.status(429).json({ error: 'Rate limit exceeded with key service. Please try again later.' });
+                }
+                if (error.response.status >= 500) {
+                    return res.status(503).json({ error: 'Key service temporarily unavailable. Please try again later.' });
+                }
+            }
+            
+            res.status(500).json({ error: 'An internal error occurred while communicating with the key service.' });
+        }
     }
-});
+);
 
 // --- ANALYTICS & LOGS ENDPOINTS ---
 async function getAggregatedData(tableName, dateColumn, valueColumn, period, aggregationFn = 'COUNT') {
@@ -527,42 +898,58 @@ async function getAggregatedData(tableName, dateColumn, valueColumn, period, agg
     return rows;
 }
 
-app.get('/api/executions', verifyToken, requireAnyRole, async (req, res) => {
-    try {
-        const data = await getAggregatedData('connections', 'connected_at', 'id', req.query.period, 'COUNT');
-        res.json(data);
-    } catch (error) {
-        res.status(500).json({ error: "Failed to retrieve connection statistics." });
+app.get('/api/executions', 
+    verifyToken, 
+    requireAnyRole, 
+    async (req, res) => {
+        try {
+            const data = await getAggregatedData('connections', 'connected_at', 'id', req.query.period, 'COUNT');
+            res.json(data);
+        } catch (error) {
+            res.status(500).json({ error: "Failed to retrieve connection statistics." });
+        }
     }
-});
+);
 
-app.get('/api/player-stats', verifyToken, requireAnyRole, async (req, res) => {
-    try {
-        const data = await getAggregatedData('player_snapshots', 'created_at', 'player_count', req.query.period, 'MAX');
-        res.json(data);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to retrieve player statistics.' });
+app.get('/api/player-stats', 
+    verifyToken, 
+    requireAnyRole, 
+    async (req, res) => {
+        try {
+            const data = await getAggregatedData('player_snapshots', 'created_at', 'player_count', req.query.period, 'MAX');
+            res.json(data);
+        } catch (error) {
+            res.status(500).json({ error: 'Failed to retrieve player statistics.' });
+        }
     }
-});
+);
 
-app.get('/api/seller/keys-sold', verifyToken, requireSeller, async (req, res) => {
-    try {
-        const data = await getAggregatedData('key_redemptions', 'redeemed_at', 'id', req.query.period, 'COUNT');
-        res.json(data);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to retrieve key redemption statistics.' });
+app.get('/api/seller/keys-sold', 
+    verifyToken, 
+    requireSeller, 
+    async (req, res) => {
+        try {
+            const data = await getAggregatedData('key_redemptions', 'redeemed_at', 'id', req.query.period, 'COUNT');
+            res.json(data);
+        } catch (error) {
+            res.status(500).json({ error: 'Failed to retrieve key redemption statistics.' });
+        }
     }
-});
+);
 
-app.get('/api/seller/sales-log', verifyToken, requireSeller, async (req, res) => {
-    try {
-        const [rows] = await dbPool.query("SELECT * FROM key_redemptions ORDER BY redeemed_at DESC");
-        res.json(rows);
-    } catch (error) {
-        console.error("Failed to retrieve sales log:", error);
-        res.status(500).json({ error: 'Failed to retrieve sales log.' });
+app.get('/api/seller/sales-log', 
+    verifyToken, 
+    requireSeller, 
+    async (req, res) => {
+        try {
+            const [rows] = await dbPool.query("SELECT * FROM key_redemptions ORDER BY redeemed_at DESC LIMIT 1000"); // Limit results
+            res.json(rows);
+        } catch (error) {
+            console.error("Failed to retrieve sales log:", error);
+            res.status(500).json({ error: 'Failed to retrieve sales log.' });
+        }
     }
-});
+);
 
 // --- UTILITY FUNCTIONS ---
 function generateLicenseKey() {
@@ -598,6 +985,35 @@ setInterval(async () => {
         }
     }
 }, SNAPSHOT_INTERVAL_MS);
+
+// --- ERROR HANDLING MIDDLEWARE ---
+app.use((err, req, res, next) => {
+    console.error('Unhandled error:', err);
+    
+    // Handle multer errors
+    if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+            return res.status(400).json({ error: 'File too large. Maximum 5MB allowed.' });
+        }
+        if (err.code === 'LIMIT_FILE_COUNT') {
+            return res.status(400).json({ error: 'Too many files uploaded.' });
+        }
+        return res.status(400).json({ error: `Upload error: ${err.message}` });
+    }
+    
+    // Handle validation errors
+    if (err.name === 'ValidationError') {
+        return res.status(400).json({ error: err.message });
+    }
+    
+    // Handle JWT errors
+    if (err.name === 'JsonWebTokenError') {
+        return res.status(401).json({ error: 'Invalid token' });
+    }
+    
+    // Generic error
+    res.status(500).json({ error: 'Internal server error' });
+});
 
 // --- START SERVER ---
 async function startServer() {
