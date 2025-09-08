@@ -243,11 +243,7 @@ const validateTicketMessage = [
     body('message')
         .trim()
         .isLength({ min: 1, max: 1000 })
-        .withMessage('Message must be between 1 and 1000 characters'),
-    body('message')
-        .matches(/^[a-zA-Z0-9\s\.,!?@#$%^&*()_+\-=```math
-```{};':"\\|,.<>\/?]*$/)
-        .withMessage('Message contains invalid characters')
+        .withMessage('Message must be between 1 and 1000 characters')
 ];
 
 const validateDiscordId = [
