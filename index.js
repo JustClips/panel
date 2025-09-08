@@ -18,6 +18,10 @@ const PORT = process.env.PORT || 3000;
 const CLIENT_TIMEOUT_MS = 30000; // Increased timeout to 30 seconds
 const SNAPSHOT_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
+// --- SERVE FRONTEND STATIC FILES ---
+// This tells Express to serve any files in the 'public' folder.
+app.use(express.static('public'));
+
 // --- TRUST PROXY FOR RAILWAY ---
 // This is important for correctly identifying the client's IP address when behind a proxy like Railway's.
 app.set('trust proxy', 1);
@@ -37,7 +41,7 @@ const corsOptions = {
     origin: function (origin, callback) {
         // Allow requests with no origin (like mobile apps or curl requests)
         if (!origin) return callback(null, true);
-        if (allowedOrigins.indexOf(origin) !== -1) {
+        if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
             callback(null, true);
         } else {
             callback(new Error('Not allowed by CORS'));
@@ -112,16 +116,19 @@ let clients = new Map();
 let pendingCommands = new Map();
 
 // --- MYSQL DATABASE SETUP ---
+// Updated to use Railway's default environment variables for MySQL.
+// Railway injects these automatically when a MySQL service is linked.
 const dbPool = mysql.createPool({
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_DATABASE,
+    host: process.env.MYSQLHOST,       // Changed from DB_HOST
+    user: process.env.MYSQLUSER,       // Changed from DB_USER
+    password: process.env.MYSQLPASSWORD, // Changed from DB_PASSWORD
+    database: process.env.MYSQLDATABASE, // Changed from DB_DATABASE
+    port: process.env.MYSQLPORT || 3306, // Added Railway's port variable
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,
     acquireTimeout: 60000,
-    timeout: 60000,
+    connectTimeout: 60000,
 });
 
 // --- DATABASE INITIALIZATION ---
@@ -216,9 +223,9 @@ async function initializeDatabase() {
         );`);
 
         // Create default admin users if none exist
-        const [adminUsers] = await connection.query("SELECT COUNT(*) as count FROM adminusers");
+        const [adminUsers] = await connection.query("SELECT COUNT(*) as count FROM adminusers WHERE role = 'admin'");
         if (adminUsers[0].count === 0) {
-            console.log("Creating default admin/buyer users...");
+            console.log("Creating default admin users...");
             const hashedVupxy = await bcrypt.hash('vupxydev', 10);
             const hashedMegamind = await bcrypt.hash('megaminddev', 10);
             await connection.query("INSERT INTO adminusers (username, password_hash, role) VALUES (?, ?, 'admin'), (?, ?, 'admin')", ['vupxy', hashedVupxy, 'megamind', hashedMegamind]);
@@ -1196,3 +1203,4 @@ async function startServer() {
 }
 
 startServer();
+
