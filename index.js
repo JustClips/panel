@@ -19,19 +19,23 @@ const CLIENT_TIMEOUT_MS = 30000; // Increased timeout to 30 seconds
 const SNAPSHOT_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
 // --- TRUST PROXY FOR RAILWAY ---
+// This is important for correctly identifying the client's IP address when behind a proxy like Railway's.
 app.set('trust proxy', 1);
 
 // --- SECURITY & CORE MIDDLEWARE ---
-app.use(helmet());
+app.use(helmet()); // Sets various HTTP headers for security
 
+// Define allowed origins for CORS. Add your frontend domains here.
 const allowedOrigins = [
     'https://w1ckllon.com',
     'http://localhost:5500',
     'http://127.0.0.1:5500'
+    // Add any other domains you might use for development or production
 ];
 
 const corsOptions = {
     origin: function (origin, callback) {
+        // Allow requests with no origin (like mobile apps or curl requests)
         if (!origin) return callback(null, true);
         if (allowedOrigins.indexOf(origin) !== -1) {
             callback(null, true);
@@ -44,21 +48,23 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
+app.options('*', cors(corsOptions)); // Pre-flight request handling
 
 app.use(bodyParser.json({ limit: '100kb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '100kb' }));
 
 // --- ADDITIONAL SECURITY MIDDLEWARE ---
 const validateRequest = (req, res, next) => {
+    // Basic User-Agent check for common bots/scanners
     const userAgent = req.headers['user-agent'] || '';
     const suspiciousAgents = ['bot', 'crawler', 'scanner', 'curl', 'wget'];
     if (suspiciousAgents.some(agent => userAgent.toLowerCase().includes(agent))) {
         console.warn(`Suspicious user agent detected: ${userAgent} from ${req.ip}`);
     }
     
+    // Prevent excessively large payloads
     const contentLength = parseInt(req.headers['content-length']);
-    if (contentLength > 10 * 1024 * 1024) {
+    if (contentLength > 10 * 1024 * 1024) { // 10MB limit
         return res.status(413).json({ error: 'Payload too large' });
     }
     
@@ -72,8 +78,10 @@ const uploadDir = 'uploads';
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir);
 }
+// Serve uploaded files statically
 app.use('/uploads', express.static('uploads'));
 
+// Multer configuration for file storage
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         cb(null, uploadDir);
@@ -84,18 +92,16 @@ const storage = multer.diskStorage({
     }
 });
 
+// Multer middleware for handling PNG file uploads
 const upload = multer({
     storage: storage,
     limits: { 
-        fileSize: 5 * 1024 * 1024,
-        files: 1
+        fileSize: 5 * 1024 * 1024, // 5MB file size limit
+        files: 1 
     },
     fileFilter: (req, file, cb) => {
-        if (file.mimetype !== "image/png") {
+        if (file.mimetype !== "image/png" || !file.originalname.match(/\.(png)$/i)) {
             return cb(new Error("Only .png files are allowed!"), false);
-        }
-        if (!file.originalname.match(/\.(png)$/i)) {
-            return cb(new Error("File must have .png extension!"), false);
         }
         cb(null, true);
     }
@@ -124,7 +130,7 @@ async function initializeDatabase() {
         const connection = await dbPool.getConnection();
         console.log("Successfully connected to MySQL database.");
 
-        // Existing tables
+        // Create tables if they don't exist
         await connection.query(`CREATE TABLE IF NOT EXISTS connections (
             id INT AUTO_INCREMENT PRIMARY KEY, 
             client_id VARCHAR(255) NOT NULL, 
@@ -186,7 +192,6 @@ async function initializeDatabase() {
             FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE
         );`);
 
-        // New tables for location and executor tracking
         await connection.query(`CREATE TABLE IF NOT EXISTS user_locations (
             id INT AUTO_INCREMENT PRIMARY KEY,
             client_id VARCHAR(255) NOT NULL,
@@ -210,7 +215,7 @@ async function initializeDatabase() {
             INDEX idx_executor (executor_name)
         );`);
 
-        // Create admin users if they don't exist
+        // Create default admin users if none exist
         const [adminUsers] = await connection.query("SELECT COUNT(*) as count FROM adminusers");
         if (adminUsers[0].count === 0) {
             console.log("Creating default admin/buyer users...");
@@ -219,6 +224,7 @@ async function initializeDatabase() {
             await connection.query("INSERT INTO adminusers (username, password_hash, role) VALUES (?, ?, 'admin'), (?, ?, 'admin')", ['vupxy', hashedVupxy, 'megamind', hashedMegamind]);
         }
         
+        // Create default seller users if they don't exist
         const sellerUsers = [
             { username: 'Vandelz', password: 'Vandelzseller1' },
             { username: 'zuse35', password: 'zuse35seller1' },
@@ -273,25 +279,29 @@ const requireBuyer = requireRole(['buyer', 'admin']);
 const requireAnyRole = requireRole(['admin', 'seller', 'buyer']);
 
 // --- INPUT VALIDATION MIDDLEWARE ---
+// More flexible list of payment methods to avoid breaking frontend if it changes.
 const validateTicketCreation = [
     body('paymentMethod')
-        .isIn(['PayPal', 'Crypto', 'Credit Card', 'Bank Transfer'])
-        .withMessage('Invalid payment method'),
-    body('paymentMethod')
         .trim()
+        .notEmpty().withMessage('Payment method is required.')
+        .isIn(['PayPal', 'Crypto', 'Credit Card', 'Bank Transfer', 'Google Pay', 'Apple Pay', 'CashApp', 'Gag Pets', 'Secret Brainrots'])
+        .withMessage('Invalid payment method selected.')
         .isLength({ min: 2, max: 50 })
-        .withMessage('Payment method must be between 2 and 50 characters')
+        .withMessage('Payment method must be between 2 and 50 characters.')
 ];
 
 const validateTicketMessage = [
     body('message')
         .trim()
+        .notEmpty().withMessage('Message cannot be empty.')
         .isLength({ min: 1, max: 1000 })
-        .withMessage('Message must be between 1 and 1000 characters')
+        .withMessage('Message must be between 1 and 1000 characters.')
+        .escape() // Sanitize input to prevent XSS attacks
 ];
 
 const validateDiscordId = [
     body('discordUsername')
+        .trim()
         .isLength({ min: 17, max: 20 })
         .isNumeric()
         .withMessage('Invalid Discord ID format')
@@ -354,7 +364,7 @@ app.post('/login', async (req, res) => {
     try {
         const [rows] = await dbPool.query("SELECT * FROM adminusers WHERE username = ?", [username]);
         if (rows.length === 0) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Delay to prevent timing attacks
             return res.status(401).json({ message: 'Invalid credentials' });
         }
         
@@ -385,6 +395,7 @@ app.get('/verify-token', verifyToken, (req, res) => {
 });
 
 app.post('/logout', (req, res) => {
+    // On the client-side, the token should be deleted. The server doesn't need to do anything.
     res.json({ success: true });
 });
 
@@ -1066,7 +1077,7 @@ app.get('/api/locations',
         try {
             const [locations] = await dbPool.query(`
                 SELECT DISTINCT city, country, latitude, longitude, 
-                       COUNT(*) as user_count
+                    COUNT(*) as user_count
                 FROM user_locations 
                 WHERE latitude IS NOT NULL AND longitude IS NOT NULL
                 GROUP BY city, country, latitude, longitude
@@ -1088,8 +1099,8 @@ app.get('/api/executor-stats',
         try {
             const [executors] = await dbPool.query(`
                 SELECT executor_name, 
-                       COUNT(*) as usage_count,
-                       COUNT(DISTINCT username) as unique_users
+                    COUNT(*) as usage_count,
+                    COUNT(DISTINCT username) as unique_users
                 FROM executor_stats 
                 WHERE executor_name IS NOT NULL
                 GROUP BY executor_name
@@ -1110,7 +1121,7 @@ app.get('/api/country-stats',
         try {
             const [countries] = await dbPool.query(`
                 SELECT country, 
-                       COUNT(*) as user_count
+                    COUNT(*) as user_count
                 FROM user_locations 
                 WHERE country IS NOT NULL
                 GROUP BY country
@@ -1124,20 +1135,8 @@ app.get('/api/country-stats',
     }
 );
 
-// --- UTILITY FUNCTIONS ---
-function generateLicenseKey() {
-    let key = 'EPS1LLON-';
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    for (let i = 0; i < 4; i++) {
-        for (let j = 0; j < 4; j++) {
-            key += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-        if (i < 3) key += '-';
-    }
-    return key;
-}
-
 // --- UTILITY INTERVALS ---
+// Clean up inactive clients
 setInterval(() => {
     const now = Date.now();
     clients.forEach((client, id) => {
@@ -1149,6 +1148,7 @@ setInterval(() => {
     });
 }, 5000);
 
+// Log player count snapshots periodically
 setInterval(async () => {
     if (clients.size > 0) {
         try {
@@ -1159,7 +1159,7 @@ setInterval(async () => {
     }
 }, SNAPSHOT_INTERVAL_MS);
 
-// --- ERROR HANDLING MIDDLEWARE ---
+// --- GLOBAL ERROR HANDLING MIDDLEWARE ---
 app.use((err, req, res, next) => {
     console.error('Unhandled error:', err);
     
