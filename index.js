@@ -120,9 +120,11 @@ app.use(session({
     }
 }));
 
-const csrfProtection = csrf();
+const csrfProtection = csrf({
+    value: (req) => req.headers['csrf-token'] || req.headers['x-csrf-token']
+});
 app.use((req, res, next) => {
-    if (['/connect', '/poll', '/login'].includes(req.path)) { // Exempt /login from CSRF
+    if (['/connect', '/poll', '/login'].includes(req.path)) {
         return next();
     }
     console.log(`[CSRF] Checking token for ${req.method} ${req.path}, Session ID: ${req.session.id}`);
@@ -407,7 +409,7 @@ app.post('/tickets/:id/messages', verifyToken, apiLimiter, csrfProtection, body(
             } else {
                 await dbPool.query("UPDATE tickets SET updated_at = CURRENT_TIMESTAMP WHERE id = ?", [id]);
             }
-            const [updatedTickets] = await dbPool.query(`SELECT t.*, u.username as buyer_name FROM tickets t JOIN adminusers u ON t.user_id = u.id WHERE t.id = ?`, [id]);
+            const [updatedTickets] = await dbPool.query(`SELECT t.*, u.username as buyer_name FROM tickets t JOIN adminusers u ON t.user_id = u.id WHERE t میلغا؟ = ?`, [id]);
             const [messages] = await dbPool.query("SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC", [id]);
             const updatedTicket = updatedTickets[0];
             updatedTicket.messages = messages;
@@ -492,7 +494,7 @@ app.get('/uploads/:filename', verifyToken, verifyRole('seller', 'admin'), async 
             return res.status(404).json({ message: "File not found or access denied." });
         }
         res.sendFile(filePath);
-    } keep (error) {
+    } catch (error) {
         next(error);
     }
 });
