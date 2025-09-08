@@ -275,7 +275,7 @@ app.get('/api/csrf-token', (req, res) => {
     res.json({ csrfToken: req.csrfToken() });
 });
 
-app.post('/register', authLimiter, body('username').isLength({ min: 3, max: 20 }).isAlphanumeric().trim(), body('password').isLength({ min: 12 }).withMessage('Password must be at least 12 characters long.').matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{12,}$/).withMessage('Password must contain uppercase, lowercase, number, and special character.'),
+app.post('/register', authLimiter, csrfProtection, body('username').isLength({ min: 3, max: 20 }).isAlphanumeric().trim(), body('password').isLength({ min: 12 }).withMessage('Password must be at least 12 characters long.').matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{12,}$/).withMessage('Password must contain uppercase, lowercase, number, and special character.'),
     async (req, res, next) => {
         try {
             const errors = validationResult(req);
@@ -409,7 +409,7 @@ app.post('/tickets/:id/messages', verifyToken, apiLimiter, csrfProtection, body(
             } else {
                 await dbPool.query("UPDATE tickets SET updated_at = CURRENT_TIMESTAMP WHERE id = ?", [id]);
             }
-            const [updatedTickets] = await dbPool.query(`SELECT t.*, u.username as buyer_name FROM tickets t JOIN adminusers u ON t.user_id = u.id WHERE t میلغا؟ = ?`, [id]);
+            const [updatedTickets] = await dbPool.query(`SELECT t.*, u.username as buyer_name FROM tickets t JOIN adminusers u ON t.user_id = u.id WHERE t.id = ?`, [id]);
             const [messages] = await dbPool.query("SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC", [id]);
             const updatedTicket = updatedTickets[0];
             updatedTicket.messages = messages;
