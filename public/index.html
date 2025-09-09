@@ -365,11 +365,11 @@
 
           <!-- Turnstile widget -->
           <div class="mt-4 mb-6">
-            <!-- This sitekey will now be set dynamically by JavaScript -->
+            <!-- This sitekey is intentionally left empty; it will be set dynamically by JavaScript -->
             <div
               id="turnstile-signup"
               class="cf-turnstile"
-              data-sitekey="" 
+              data-sitekey=""
               data-theme="dark"
             ></div>
           </div>
@@ -544,7 +544,7 @@
     // Turnstile globals
     let turnstileWidgetId = null;
     let turnstileToken = null;
-    
+
     // This function confirms the Cloudflare script has loaded.
     // We will RENDER the widget only when the modal opens.
     window.onTurnstileLoad = function () {};
@@ -578,9 +578,9 @@
       },
 
       async init() {
-        // Use '' for same-origin API calls, which is perfect for Railway
+        // Use '' for same-origin API calls, which is perfect for Railway/hosted environments
         this.API_BASE_URL = '';
-        
+
         this.cacheElements();
         this.loadState();
         this.registerEventListeners();
@@ -668,11 +668,12 @@
         try {
           const response = await fetch(`${this.API_BASE_URL}${endpoint}`, { ...options, headers });
           if (response.status === 401 || response.status === 403) {
+            // Special handling for registration failure due to Turnstile
             if (endpoint === '/register') {
-              this.showToast('Verification failed. Please complete the challenge and try again.');
-            } else {
-              this.logout();
-              this.showToast('Your session has expired. Please log in again.');
+                 this.showToast('Verification failed. Please try again.');
+            } else if (this.state.isLoggedIn) {
+                 this.logout();
+                 this.showToast('Your session has expired. Please log in again.');
             }
             return null;
           }
@@ -822,7 +823,7 @@
         this.elements.authModal.classList.remove('hidden');
         this.elements.authModal.classList.add('flex');
         setTimeout(() => this.elements.authModal.classList.add('visible'), 10);
-  
+
         const turnstileElement = document.getElementById('turnstile-signup');
         if (turnstileElement && window.turnstile && !turnstileWidgetId) {
           if (!this.config.turnstileSiteKey) {
@@ -873,7 +874,7 @@
           headers: {
             'x-turnstile-token': turnstileToken
           },
-          body: JSON.stringify({ username, password, turnstileToken })
+          body: JSON.stringify({ username, password, 'cf-turnstile-response': turnstileToken })
         });
 
         try { if (window.turnstile && turnstileWidgetId) turnstile.reset(turnstileWidgetId); } catch {}
@@ -1079,7 +1080,7 @@
 
           const paymentMethodBadge = ticket.payment_method ?
             `<span class="ticket-payment-badge">
-              <i class="${this.getPaymentMethodIcon(ticket.payment_method)}"></i> 
+              <i class="${this.getPaymentMethodIcon(ticket.payment_method)}"></i>
               ${ticket.payment_method}
             </span>` : '';
 
@@ -1200,7 +1201,7 @@
       }
     };
 
-    // Start the application after fetching config
+    // Start the application after fetching the server configuration
     document.addEventListener('DOMContentLoaded', async () => {
       await App.loadConfig();
       App.init();
