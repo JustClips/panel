@@ -592,8 +592,8 @@
           <p class="text-lg md:text-xl max-w-3xl mx-auto mb-16 text-text-muted" data-animate style="transition-delay: 100ms;">
             We support a vast array of secure payment options. Your premium access is just a click away.
           </p>
-          <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-8" data-animate style="transition-delay: 200ms;">
-             <div class="card has-ripple flex flex-col items-center justify-center p-6 text-center aspect-square rounded-2xl">
+          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6" data-animate style="transition-delay: 200ms;">
+            <div class="card has-ripple flex flex-col items-center justify-center p-6 text-center aspect-square rounded-2xl">
               <i class="fab fa-paypal text-5xl mb-4 text-blue-600"></i>
               <h3 class="text-lg font-bold text-text-light z-10">PayPal</h3>
             </div>
@@ -608,6 +608,26 @@
             <div class="card has-ripple flex flex-col items-center justify-center p-6 text-center aspect-square rounded-2xl">
               <i class="fas fa-university text-5xl mb-4 text-gray-400"></i>
               <h3 class="text-lg font-bold text-text-light z-10">Bank Transfer</h3>
+            </div>
+             <div class="card has-ripple flex flex-col items-center justify-center p-6 text-center aspect-square rounded-2xl">
+              <i class="fab fa-google-pay text-5xl mb-4 text-blue-500"></i>
+              <h3 class="text-lg font-bold text-text-light z-10">Google Pay</h3>
+            </div>
+            <div class="card has-ripple flex flex-col items-center justify-center p-6 text-center aspect-square rounded-2xl">
+              <i class="fab fa-apple-pay text-5xl mb-4 text-gray-300"></i>
+              <h3 class="text-lg font-bold text-text-light z-10">Apple Pay</h3>
+            </div>
+            <div class="card has-ripple flex flex-col items-center justify-center p-6 text-center aspect-square rounded-2xl">
+              <i class="fas fa-dollar-sign text-5xl mb-4 text-green-500"></i>
+              <h3 class="text-lg font-bold text-text-light z-10">CashApp</h3>
+            </div>
+            <div class="card card-special has-ripple flex flex-col items-center justify-center p-6 text-center aspect-square rounded-2xl">
+              <i class="fas fa-paw text-5xl mb-4 text-orange-400"></i>
+              <h3 class="text-lg font-bold text-text-light z-10">Gag Pets</h3>
+            </div>
+            <div class="card card-special has-ripple flex flex-col items-center justify-center p-6 text-center aspect-square rounded-2xl">
+              <i class="fas fa-brain text-5xl mb-4 text-pink-500"></i>
+              <h3 class="text-lg font-bold text-text-light z-10">Secret Brainrots</h3>
             </div>
           </div>
         </div>
@@ -817,7 +837,7 @@
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       // By leaving this empty, API calls will be made to the same host that serves this file.
-      const API_BASE_URL = ''; 
+      const API_BASE_URL = 'https:eps1llon.win'; 
       
       const App = {
         state: {
@@ -1212,14 +1232,7 @@
           } else {
             try {
                const data = await response.json();
-               if(data.message.includes("already have an open ticket")) {
-                  this.showToast("Redirecting to your open ticket...");
-                  setTimeout(() => {
-                      this.openTicketSystem();
-                  }, 1500);
-               } else {
-                   this.showToast(data.message || 'Failed to create ticket.');
-               }
+               this.showToast(data.message || 'Failed to create ticket.');
             } catch(e) {
                  this.showToast('Failed to create ticket.');
             }
