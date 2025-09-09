@@ -30,7 +30,7 @@ app.use(helmet({
             "script-src": ["'self'", "'unsafe-inline'", "https://cdn.tailwindcss.com", "https://challenges.cloudflare.com", "https://cdn.jsdelivr.net"],
             "style-src": ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com", "https://fonts.googleapis.com"],
             "font-src": ["'self'", "https://cdnjs.cloudflare.com", "https://fonts.gstatic.com"],
-            "img-src": ["'self'", "data:", "https://i.imgur.com"],
+            "img-src": ["'self'", "data:", "https://i.imgur.com", "https://cdn.discordapp.com"],
             "frame-src": ["'self'", "https://challenges.cloudflare.com"]
         }
     }
@@ -60,30 +60,6 @@ app.options('*', cors(corsOptions));
 app.use(bodyParser.json({ limit: '100kb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '100kb' }));
 
-// --- FILE UPLOAD & STATIC SERVING ---
-const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) { fs.mkdirSync(uploadDir); }
-app.use('/uploads', express.static(uploadDir));
-
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, uploadDir),
-    filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-    }
-});
-const upload = multer({
-    storage: storage,
-    limits: { fileSize: 5 * 1024 * 1024 },
-    fileFilter: (req, file, cb) => {
-        if (file.mimetype === "image/png" && file.originalname.match(/\.(png)$/i)) {
-            cb(null, true);
-        } else {
-            cb(new Error("Only .png files are allowed!"), false);
-        }
-    }
-});
-
 // --- MYSQL DATABASE SETUP ---
 const dbPool = mysql.createPool({
     host: process.env.MYSQLHOST, user: process.env.MYSQLUSER, password: process.env.MYSQLPASSWORD,
@@ -96,7 +72,7 @@ async function initializeDatabase() {
     try {
         const connection = await dbPool.getConnection();
         console.log("Successfully connected to MySQL database.");
-        await connection.query(`CREATE TABLE IF NOT EXISTS adminusers (id INT AUTO_INCREMENT PRIMARY KEY, username VARCHAR(255) UNIQUE NOT NULL, password_hash VARCHAR(255) NOT NULL, role ENUM('admin','seller','buyer') NOT NULL DEFAULT 'buyer', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
+        await connection.query(`CREATE TABLE IF NOT EXISTS adminusers (id INT AUTO_INCREMENT PRIMARY KEY, username VARCHAR(255) UNIQUE NOT NULL, password_hash VARCHAR(255), role ENUM('admin','seller','buyer') NOT NULL DEFAULT 'buyer', discord_id VARCHAR(255) UNIQUE NULL, discord_avatar VARCHAR(255) NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
         await connection.query(`CREATE TABLE IF NOT EXISTS tickets (id INT AUTO_INCREMENT PRIMARY KEY, user_id INT NOT NULL, status ENUM('awaiting', 'processing', 'completed') DEFAULT 'awaiting', license_key VARCHAR(255), payment_method VARCHAR(50), claimed_by INT NULL DEFAULT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, FOREIGN KEY (user_id) REFERENCES adminusers(id) ON DELETE CASCADE, FOREIGN KEY (claimed_by) REFERENCES adminusers(id) ON DELETE SET NULL);`);
         await connection.query(`CREATE TABLE IF NOT EXISTS ticket_messages (id INT AUTO_INCREMENT PRIMARY KEY, ticket_id INT NOT NULL, sender ENUM('user', 'seller') NOT NULL, message TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE);`);
         connection.release();
@@ -111,22 +87,9 @@ async function initializeDatabase() {
 const verifyToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
-    if (!token) {
-        return res.status(401).json({ message: 'Unauthorized: No token provided.' });
-    }
-    if (!process.env.JWT_SECRET) {
-        console.error("CRITICAL: JWT_SECRET environment variable is not set on the server.");
-        return res.status(500).json({ message: "Server configuration error." });
-    }
+    if (!token) return res.status(401).json({ message: 'Unauthorized' });
     jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-        if (err) {
-            if (err.name === 'TokenExpiredError') {
-                console.log('Token validation failed: Token has expired.');
-                return res.status(403).json({ message: 'Forbidden: Session has expired.' });
-            }
-            console.error('Token validation error:', err.message);
-            return res.status(403).json({ message: 'Forbidden: Invalid session token.' });
-        }
+        if (err) return res.status(403).json({ message: 'Forbidden: Invalid Token' });
         req.user = user;
         next();
     });
@@ -134,10 +97,7 @@ const verifyToken = (req, res, next) => {
 
 const verifyTurnstile = async (req, res, next) => {
     const secretKey = process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY;
-    if (!secretKey) {
-        console.error("CRITICAL: CLOUDFLARE_TURNSTILE_SECRET_KEY is not set.");
-        return next();
-    }
+    if (!secretKey) return next();
     const token = req.body.turnstileToken;
     if (!token) return res.status(400).json({ message: 'CAPTCHA token is required.' });
     try {
@@ -146,15 +106,13 @@ const verifyTurnstile = async (req, res, next) => {
         formData.append('response', token);
         if (req.ip) { formData.append('remoteip', req.ip); }
         const response = await axios.post('https://challenges.cloudflare.com/turnstile/v0/siteverify', formData);
-        const outcome = response.data;
-        if (outcome.success) {
+        if (response.data.success) {
             next();
         } else {
-            console.error('Turnstile verification failed. Cloudflare error codes:', outcome['error-codes']);
+            console.error('Turnstile verification failed. Cloudflare error codes:', response.data['error-codes']);
             res.status(403).json({ message: 'Failed CAPTCHA verification.' });
         }
     } catch (error) {
-        console.error('Server error during Turnstile verification:', error.message);
         res.status(500).json({ message: 'Error verifying CAPTCHA.' });
     }
 };
@@ -165,14 +123,9 @@ const requireRole = (roles) => (req, res, next) => {
     }
     next();
 };
-
-const requireAdmin = requireRole(['admin']);
 const requireSeller = requireRole(['seller', 'admin']);
 const requireBuyer = requireRole(['buyer']);
 const requireAnyRole = requireRole(['admin', 'seller', 'buyer']);
-
-const validateTicketCreation = [body('paymentMethod').trim().notEmpty().isIn(['PayPal', 'Crypto', 'Credit Card', 'Bank Transfer', 'Google Pay', 'Apple Pay', 'CashApp', 'Gag Pets', 'Secret Brainrots'])];
-const validateTicketMessage = [body('message').trim().notEmpty().isLength({ min: 1, max: 1000 }).escape()];
 
 // =================================================================
 // --- API ROUTES ---
@@ -197,25 +150,17 @@ apiRouter.post('/login', verifyTurnstile, async (req, res) => {
     }
 });
 
-// ===== THIS ENDPOINT IS UPDATED FOR AUTO-LOGIN =====
 apiRouter.post('/register', verifyTurnstile, async (req, res) => {
     const { username, password } = req.body;
-    if (!username || !password || username.length < 3) {
-        return res.status(400).json({ message: 'Invalid username or password.' });
-    }
+    if (!username || !password || username.length < 3) return res.status(400).json({ message: 'Invalid username or password.' });
     try {
         const [existing] = await dbPool.query("SELECT id FROM adminusers WHERE username = ?", [username]);
-        if (existing.length > 0) {
-            return res.status(409).json({ message: 'Username already taken.' });
-        }
+        if (existing.length > 0) return res.status(409).json({ message: 'Username already taken.' });
         const hashedPassword = await bcrypt.hash(password, 12);
         const [result] = await dbPool.query("INSERT INTO adminusers (username, password_hash, role) VALUES (?, ?, 'buyer')", [username, hashedPassword]);
-        
-        // NEW: Automatically create a login token and send it back
         const newUserId = result.insertId;
         const payload = { id: newUserId, username: username, role: 'buyer' };
         const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '8h' });
-
         res.status(201).json({ 
             success: true, 
             message: 'User created successfully.',
@@ -224,43 +169,58 @@ apiRouter.post('/register', verifyTurnstile, async (req, res) => {
             role: 'buyer'
         });
     } catch (error) {
-        console.error('Registration error:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 });
 
+apiRouter.get('/auth/discord', (req, res) => {
+    const discordAuthUrl = 'https://discord.com/api/oauth2/authorize';
+    const params = new URLSearchParams({
+        client_id: process.env.DISCORD_CLIENT_ID,
+        redirect_uri: 'https://eps1llon.win/api/auth/discord/callback',
+        response_type: 'code',
+        scope: 'identify email'
+    });
+    res.redirect(`${discordAuthUrl}?${params.toString()}`);
+});
+
+apiRouter.get('/auth/discord/callback', async (req, res) => {
+    const code = req.query.code;
+    if (!code) return res.status(400).send('Error: Missing Discord authorization code.');
+    try {
+        const tokenResponse = await axios.post('https://discord.com/api/oauth2/token', new URLSearchParams({
+            client_id: process.env.DISCORD_CLIENT_ID,
+            client_secret: process.env.DISCORD_CLIENT_SECRET,
+            grant_type: 'authorization_code',
+            code: code,
+            redirect_uri: 'https://eps1llon.win/api/auth/discord/callback'
+        }), {
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+        });
+        const accessToken = tokenResponse.data.access_token;
+        const userResponse = await axios.get('https://discord.com/api/users/@me', {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+        const { id: discordId, username, avatar } = userResponse.data;
+        let [users] = await dbPool.query("SELECT * FROM adminusers WHERE discord_id = ?", [discordId]);
+        let user = users[0];
+        if (!user) {
+            const [result] = await dbPool.query(
+                "INSERT INTO adminusers (username, role, discord_id, discord_avatar) VALUES (?, 'buyer', ?, ?)",
+                [username, discordId, avatar]
+            );
+            user = { id: result.insertId, username, role: 'buyer' };
+        }
+        const payload = { id: user.id, username: user.username, role: user.role };
+        const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '8h' });
+        res.redirect(`/#token=${token}`);
+    } catch (error) {
+        console.error("Discord OAuth Error:", error.response ? error.response.data : error.message);
+        res.status(500).send('An error occurred during Discord authentication.');
+    }
+});
 
 // --- TICKET ROUTES ---
-apiRouter.post('/tickets', verifyTurnstile, verifyToken, requireBuyer, validateTicketCreation, async (req, res) => {
-    const { paymentMethod } = req.body;
-    try {
-        const [existing] = await dbPool.query("SELECT id FROM tickets WHERE user_id = ? AND status != 'completed'", [req.user.id]);
-        if (existing.length > 0) return res.status(400).json({ message: 'You already have an open ticket.' });
-        const [result] = await dbPool.query("INSERT INTO tickets (user_id, payment_method) VALUES (?, ?)", [req.user.id, paymentMethod]);
-        const ticketId = result.insertId;
-        await dbPool.query("INSERT INTO ticket_messages (ticket_id, sender, message) VALUES (?, 'seller', ?)", [ticketId, `Welcome! A seller will be with you shortly to help you purchase with ${paymentMethod}.`]);
-        const [tickets] = await dbPool.query(`SELECT t.*, u.username as buyer_name FROM tickets t JOIN adminusers u ON t.user_id = u.id WHERE t.id = ?`, [ticketId]);
-        const [messages] = await dbPool.query("SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC", [ticketId]);
-        tickets[0].messages = messages;
-        res.status(201).json(tickets[0]);
-    } catch (error) {
-        res.status(500).json({ message: 'Failed to create ticket' });
-    }
-});
-
-apiRouter.get('/tickets/my', verifyToken, requireBuyer, async (req, res) => {
-    try {
-        const [tickets] = await dbPool.query(`SELECT t.*, u.username as buyer_name FROM tickets t JOIN adminusers u ON t.user_id = u.id WHERE t.user_id = ? ORDER BY t.updated_at DESC`, [req.user.id]);
-        for (let ticket of tickets) {
-            const [messages] = await dbPool.query("SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC", [ticket.id]);
-            ticket.messages = messages;
-        }
-        res.json(tickets);
-    } catch (error) {
-        res.status(500).json({ message: 'Failed to fetch tickets' });
-    }
-});
-
 apiRouter.get('/tickets/all', verifyToken, requireSeller, async (req, res) => {
     try {
         const query = `
@@ -285,7 +245,50 @@ apiRouter.get('/tickets/all', verifyToken, requireSeller, async (req, res) => {
         res.status(500).json({ message: 'Failed to fetch all tickets' });
     }
 });
-
+apiRouter.post('/tickets/:id/claim', verifyToken, requireSeller, async (req, res) => {
+    const { id } = req.params;
+    const sellerId = req.user.id;
+    try {
+        const [tickets] = await dbPool.query("SELECT * FROM tickets WHERE id = ? FOR UPDATE", [id]);
+        if (tickets.length === 0) return res.status(404).json({ message: 'Ticket not found.' });
+        if (tickets[0].claimed_by) return res.status(409).json({ message: 'Ticket has already been claimed.' });
+        await dbPool.query("UPDATE tickets SET claimed_by = ?, status = 'processing', updated_at = CURRENT_TIMESTAMP WHERE id = ?", [sellerId, id]);
+        const sellerUsername = req.user.username;
+        await dbPool.query("INSERT INTO ticket_messages (ticket_id, sender, message) VALUES (?, 'seller', ?)", [id, `${sellerUsername} has joined the chat and will assist you.`]);
+        res.json({ success: true, message: `You have claimed ticket #${id}` });
+    } catch (error) {
+        console.error('Error claiming ticket:', error);
+        res.status(500).json({ message: 'Failed to claim ticket' });
+    }
+});
+apiRouter.post('/tickets', verifyToken, requireBuyer, async (req, res) => {
+    const { paymentMethod } = req.body;
+    try {
+        const [existing] = await dbPool.query("SELECT id FROM tickets WHERE user_id = ? AND status != 'completed'", [req.user.id]);
+        if (existing.length > 0) return res.status(400).json({ message: 'You already have an open ticket.' });
+        const [result] = await dbPool.query("INSERT INTO tickets (user_id, payment_method) VALUES (?, ?)", [req.user.id, paymentMethod]);
+        const ticketId = result.insertId;
+        await dbPool.query("INSERT INTO ticket_messages (ticket_id, sender, message) VALUES (?, 'seller', ?)", [ticketId, `Welcome! A seller will be with you shortly to help you purchase with ${paymentMethod}.`]);
+        const [tickets] = await dbPool.query(`SELECT t.*, u.username as buyer_name FROM tickets t JOIN adminusers u ON t.user_id = u.id WHERE t.id = ?`, [ticketId]);
+        const [messages] = await dbPool.query("SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC", [ticketId]);
+        tickets[0].messages = messages;
+        res.status(201).json(tickets[0]);
+    } catch (error) {
+        res.status(500).json({ message: 'Failed to create ticket' });
+    }
+});
+apiRouter.get('/tickets/my', verifyToken, requireBuyer, async (req, res) => {
+    try {
+        const [tickets] = await dbPool.query(`SELECT t.*, u.username as buyer_name FROM tickets t JOIN adminusers u ON t.user_id = u.id WHERE t.user_id = ? ORDER BY t.updated_at DESC`, [req.user.id]);
+        for (let ticket of tickets) {
+            const [messages] = await dbPool.query("SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC", [ticket.id]);
+            ticket.messages = messages;
+        }
+        res.json(tickets);
+    } catch (error) {
+        res.status(500).json({ message: 'Failed to fetch tickets' });
+    }
+});
 apiRouter.post('/tickets/:id/messages', verifyToken, requireAnyRole, async (req, res) => {
     const { id } = req.params;
     const { message } = req.body;
@@ -309,58 +312,35 @@ apiRouter.post('/tickets/:id/messages', verifyToken, requireAnyRole, async (req,
         res.status(500).json({ message: 'Failed to add message' });
     }
 });
-
-apiRouter.post('/tickets/:id/claim', verifyToken, requireSeller, async (req, res) => {
-    const { id } = req.params;
-    const sellerId = req.user.id;
-    try {
-        const [tickets] = await dbPool.query("SELECT * FROM tickets WHERE id = ? FOR UPDATE", [id]);
-        if (tickets.length === 0) return res.status(404).json({ message: 'Ticket not found.' });
-        if (tickets[0].claimed_by) return res.status(409).json({ message: 'Ticket has already been claimed.' });
-        await dbPool.query("UPDATE tickets SET claimed_by = ?, status = 'processing', updated_at = CURRENT_TIMESTAMP WHERE id = ?", [sellerId, id]);
-        const sellerUsername = req.user.username;
-        await dbPool.query("INSERT INTO ticket_messages (ticket_id, sender, message) VALUES (?, 'seller', ?)", [id, `${sellerUsername} has joined the chat and will assist you.`]);
-        res.json({ success: true, message: `You have claimed ticket #${id}` });
-    } catch (error) {
-        console.error('Error claiming ticket:', error);
-        res.status(500).json({ message: 'Failed to claim ticket' });
-    }
-});
-
 apiRouter.post('/tickets/:id/complete', verifyToken, requireSeller, async (req, res) => {
     const { id } = req.params;
     const { licenseKey } = req.body;
     if (!licenseKey || licenseKey.trim() === '') {
-        return res.status(400).json({ message: 'License key is required to complete a ticket.' });
+        return res.status(400).json({ message: 'License key is required.' });
     }
     try {
-        await dbPool.query( "UPDATE tickets SET status = 'completed', license_key = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", [licenseKey.trim(), id]);
+        await dbPool.query("UPDATE tickets SET status = 'completed', license_key = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", [licenseKey.trim(), id]);
         await dbPool.query("INSERT INTO ticket_messages (ticket_id, sender, message) VALUES (?, 'seller', ?)", [id, `Your purchase is complete! Your license key is: ${licenseKey.trim()}`]);
         const [updatedTickets] = await dbPool.query(`SELECT t.*, u.username as buyer_name FROM tickets t JOIN adminusers u ON t.user_id = u.id WHERE t.id = ?`, [id]);
         const [messages] = await dbPool.query("SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC", [id]);
         updatedTickets[0].messages = messages;
         res.json(updatedTickets[0]);
     } catch (error) {
-        console.error('Error completing ticket:', error);
         res.status(500).json({ message: 'Failed to complete ticket' });
     }
 });
-
 apiRouter.delete('/tickets/:id', verifyToken, requireSeller, async (req, res) => {
     const { id } = req.params;
     try {
         await dbPool.query("DELETE FROM ticket_messages WHERE ticket_id = ?", [id]);
         await dbPool.query("DELETE FROM tickets WHERE id = ?", [id]);
-        res.json({ success: true, message: `Ticket #${id} has been permanently deleted.` });
+        res.json({ success: true, message: `Ticket #${id} deleted.` });
     } catch (error) {
-        console.error('Error deleting ticket:', error);
         res.status(500).json({ message: 'Failed to delete ticket' });
     }
 });
 
-// --- OTHER ADMIN ROUTES ---
 apiRouter.get('/health', (req, res) => res.status(200).json({ status: 'ok' }));
-
 app.use('/api', apiRouter);
 
 // --- FRONTEND ROUTE HANDLER ---
@@ -371,7 +351,7 @@ app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// --- GLOBAL ERROR HANDLING MIDDLEWARE ---
+// --- GLOBAL ERROR HANDLING ---
 app.use((err, req, res, next) => {
     console.error('Unhandled error:', err);
     res.status(500).json({ error: 'Internal server error' });
