@@ -1,29 +1,53 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  />
   <title>Eps1llon Hub Premium - The Ultimate Advantage</title>
+
+  <!-- Tailwind CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <!-- Icons & Fonts -->
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+  />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link
+    rel="preconnect"
+    href="https://fonts.gstatic.com"
+    crossorigin
+  />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap"
+    rel="stylesheet"
+  />
+
   <!-- Cloudflare Turnstile (public/site key required) -->
-  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileLoad" async defer></script>
+  <script
+    src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileLoad"
+    async
+    defer
+  ></script>
+
   <style>
     :root {
-      --bg-dark: #0A0C10;
-      --bg-light: #1A1D25;
-      --primary: #00A8FF;
+      --bg-dark: #0a0c10;
+      --bg-light: #1a1d25;
+      --primary: #00a8ff;
       --secondary: #ffc107;
       --tertiary: #1f2a40;
       --glow-primary: 0 0 35px rgba(0, 168, 255, 0.7);
-      --text-light: #E0E6F0;
-      --text-muted: #9BA4B5;
+      --text-light: #e0e6f0;
+      --text-muted: #9ba4b5;
       --border-color: rgba(255, 255, 255, 0.08);
       --success: #28a745;
     }
+
     html { scroll-behavior: smooth; }
     body {
       font-family: 'Poppins', sans-serif;
@@ -33,79 +57,142 @@
       overflow-x: hidden;
       position: relative;
     }
-    @keyframes move-stars { from {transform: translateY(0)} to {transform: translateY(-1000px)} }
-    .stars{position:fixed;top:0;left:0;right:0;width:100%;height:200%;display:block;z-index:-2;background-repeat:repeat;animation:move-stars linear infinite}
-    #stars1{background-image:radial-gradient(1px 1px at 20px 30px,#eee,transparent),radial-gradient(1px 1px at 90px 60px,#fff,transparent),radial-gradient(1px 1px at 150px 180px,#ddd,transparent);background-size:200px 200px;animation-duration:120s}
-    #stars2{background-image:radial-gradient(1.5px 1.5px at 50px 100px,#fff,transparent),radial-gradient(1.5px 1.5px at 120px 40px,#ddd,transparent),radial-gradient(2px 2px at 180px 150px,#fff,transparent);background-size:300px 300px;animation-duration:90s}
-    #stars3{background-image:radial-gradient(2px 2px at 10px 160px,#ddd,transparent),radial-gradient(2.5px 2.5px at 100px 80px,#fff,transparent);background-size:400px 400px;animation-duration:60s}
-    .ripple{position:absolute;border-radius:50%;background-color:rgba(255,255,255,.3);transform:scale(0);animation:ripple-effect .6s linear;pointer-events:none}
-    @keyframes ripple-effect{to{transform:scale(4);opacity:0}}
-    .has-ripple{position:relative;overflow:hidden}
-    .logo-glow{filter:drop-shadow(0 0 20px rgba(255,255,255,.8)) drop-shadow(0 0 40px rgba(255,255,255,.5))}
-    .text-gradient-primary{background:linear-gradient(45deg,var(--primary),#00c6ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-    body.chat-active #main-website, body.chat-active #main-footer { display:none }
-    #ticket-system{display:none}
-    body.chat-active #ticket-system{display:block}
-    [data-animate]{opacity:0;transform:translateY(30px);transition:opacity .6s ease-out,transform .6s ease-out}
-    [data-animate].is-visible{opacity:1;transform:translateY(0)}
-    .btn-primary{background-color:var(--primary);box-shadow:var(--glow-primary);transition:all .3s ease;border:1px solid rgba(0,168,255,.3)}
-    .btn-primary:hover:not(:disabled){background-color:#0095e0;box-shadow:0 0 45px rgba(0,168,255,.8);transform:translateY(-3px)}
-    .btn-primary:active:not(:disabled){transform:translateY(1px)}
-    #payment-methods{position:relative}
-    .card{background:linear-gradient(145deg,rgba(26,29,37,.8),rgba(31,42,64,.8));border:1px solid var(--border-color);box-shadow:0 5px 20px rgba(0,0,0,.2);transition:all .3s ease-in-out;transform:translateZ(0);backdrop-filter:blur(5px);position:relative}
-    .card::before{content:'';position:absolute;left:var(--mouse-x, -100%);top:var(--mouse-y, -100%);width:250px;height:250px;background:radial-gradient(circle at center,rgba(0,168,255,.1),transparent 70%);transform:translate(-50%,-50%);opacity:0;transition:opacity .3s ease,left .1s linear,top .1s linear;pointer-events:none;z-index:1}
-    .card:hover{transform:translateY(-5px) scale(1.02) translateZ(0);border-color:var(--primary);background:linear-gradient(145deg,hsl(222 22% 18%),hsl(220 37% 15%));box-shadow:0 8px 30px rgba(0,0,0,.4)}
-    .card:hover::before{opacity:1}
-    .card-special::before{background:radial-gradient(circle at center,rgba(255,193,7,.1),transparent 70%)}
-    .card-special:hover{border-color:var(--secondary)}
-    .modal-backdrop{background-color:rgba(0,0,0,.8);backdrop-filter:blur(12px);opacity:0;transition:opacity .3s ease-in-out}
-    .modal-backdrop.visible{opacity:1}
-    .modal-content{background-color:var(--bg-light);border:1px solid var(--border-color);box-shadow:0 10px 40px rgba(0,0,0,.4);transform:translateY(20px) scale(.98);opacity:0;transition:transform .3s cubic-bezier(.175,.885,.32,1.275),opacity .3s ease-in-out}
-    .modal-backdrop.visible .modal-content{transform:translateY(0) scale(1);opacity:1}
-    .form-input{background-color:var(--bg-dark);border:1px solid var(--border-color);color:var(--text-light);transition:all .3s ease}
-    .form-input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(0,168,255,.3);outline:none}
-    .floating{animation:floating 3s ease-in-out infinite}
-    @keyframes floating{0%{transform:translateY(0)}50%{transform:translateY(-10px)}100%{transform:translateY(0)}}
-    #toast-notification{position:fixed;top:20px;right:20px;background-color:var(--tertiary);color:white;padding:12px 20px;border-radius:8px;box-shadow:0 5px 15px rgba(0,0,0,.3);opacity:0;transform:translateY(-20px);transition:opacity .3s,transform .3s;z-index:9999}
-    #toast-notification.show{opacity:1;transform:translateY(0)}
-    #ticket-system{position:fixed;inset:0;z-index:100;background-color:var(--bg-dark)}
-    .ticket-app-container{display:flex;height:100vh}
-    .ticket-sidebar{width:320px;background:var(--bg-dark);border-right:1px solid var(--border-color);display:flex;flex-direction:column;flex-shrink:0}
-    .sidebar-header{padding:1.25rem;border-bottom:1px solid var(--border-color);flex-shrink:0}
-    .sidebar-content{overflow-y:auto;padding:.75rem;flex:1}
-    .ticket-main{flex:1;display:flex;flex-direction:column;height:100%}
-    .chat-header{display:flex;align-items:center;padding:1rem 1.5rem;border-bottom:1px solid var(--border-color);background-color:rgba(26,29,37,.7);flex-shrink:0}
-    .chat-container{flex:1;display:flex;flex-direction:column;overflow:hidden}
-    .chat-messages{flex:1;padding:1.5rem;overflow-y:auto;display:flex;flex-direction:column;gap:1.5rem}
-    .chat-input-area{padding:1rem 1.5rem;border-top:1px solid var(--border-color);background:rgba(26,29,37,.8)}
-    #new-ticket-btn:disabled{cursor:not-allowed;opacity:1}
-    #new-ticket-btn[data-status="in-progress"]{background-color:var(--tertiary);color:var(--primary);border:1px solid var(--primary);box-shadow:0 0 20px rgba(0,168,255,.4);animation:pulse-glow 2s ease-in-out infinite}
-    @keyframes pulse-glow{0%{box-shadow:0 0 20px rgba(0,168,255,.4)}50%{box-shadow:0 0 30px rgba(0,168,255,.7)}100%{box-shadow:0 0 20px rgba(0,168,255,.4)}}
-    .ticket-item{padding:1rem;border-radius:10px;margin-bottom:.5rem;cursor:pointer;transition:all .2s ease;border:1px solid transparent}
-    .ticket-item:hover{background:var(--bg-light);transform:translateX(4px)}
-    .ticket-item.active{background:var(--tertiary);border-color:var(--primary);box-shadow:inset 0 0 15px rgba(0,168,255,.2),0 0 15px rgba(0,168,255,.1)}
-    .ticket-item-preview{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:.875rem;color:var(--text-muted)}
-    .empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:2rem;text-align:center}
-    .empty-state i{font-size:3rem;color:var(--tertiary);margin-bottom:1rem}
-    .online-indicator{width:10px;height:10px;background-color:var(--success);border-radius:50%;box-shadow:0 0 8px var(--success)}
-    .chat-bubble{padding:.75rem 1.25rem;border-radius:1.25rem;max-width:80%;animation:bubbleAppear .3s ease-out;word-wrap:break-word;line-height:1.5}
-    .chat-bubble-user{background-color:var(--primary);color:white;border-bottom-right-radius:.25rem}
-    .chat-bubble-seller{background-color:var(--tertiary);color:var(--text-light);border-bottom-left-radius:.25rem}
-    @keyframes bubbleAppear{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
-    .payment-method-option{display:flex;align-items:center;padding:1rem;border-radius:.5rem;border:1px solid var(--border-color);margin-bottom:.75rem;cursor:pointer;transition:all .2s ease}
-    .payment-method-option:hover{background-color:var(--bg-light);border-color:var(--primary)}
-    .payment-method-option.selected{background-color:var(--tertiary);border-color:var(--primary);box-shadow:0 0 15px rgba(0,168,255,.3)}
-    .payment-method-option i{font-size:1.75rem;margin-right:1.25rem;width:35px;text-align:center}
-    .payment-method-option .method-name{font-weight:600;font-size:1.1rem;color:var(--text-light)}
-    .ticket-payment-badge{display:inline-flex;align-items:center;gap:.5rem;background-color:var(--bg-dark);padding:.25rem .75rem;border-radius:1rem;font-size:.75rem;color:var(--text-light);border:1px solid var(--border-color)}
-    .ticket-payment-badge i{font-size:.875rem}
-    #completed-view{text-align:center}
-    .license-key-wrapper{background:var(--bg-dark);border:1px solid var(--border-color);padding:1rem;border-radius:.5rem;margin-top:2rem}
-    #license-key{font-family:monospace;font-size:1.25rem;color:var(--primary);word-break:break-all}
-    @media (max-width: 768px){
-      .ticket-app-container.mobile-chat-view .ticket-sidebar{display:none}
-      .ticket-app-container:not(.mobile-chat-view) .ticket-main{display:none}
-      .ticket-sidebar{width:100%;border-right:none}
+
+    /* Utility classes to work with Tailwind-style names you used */
+    .text-primary { color: var(--primary) !important; }
+    .text-text-light { color: var(--text-light) !important; }
+    .text-text-muted { color: var(--text-muted) !important; }
+    .bg-tertiary { background-color: var(--tertiary) !important; }
+    .bg-bg-dark { background-color: var(--bg-dark) !important; }
+    .bg-bg-light { background-color: var(--bg-light) !important; }
+    .border-border-color { border-color: var(--border-color) !important; }
+    .bg-primary\/20 { background-color: rgba(0, 168, 255, 0.20) !important; }
+    .bg-primary\/30 { background-color: rgba(0, 168, 255, 0.30) !important; }
+    .text-green-400 { color: #34d399 !important; }
+
+    @keyframes move-stars { from { transform: translateY(0) } to { transform: translateY(-1000px) } }
+    .stars { position: fixed; top: 0; left: 0; right: 0; width: 100%; height: 200%; display: block; z-index: -2; background-repeat: repeat; animation: move-stars linear infinite }
+    #stars1 { background-image: radial-gradient(1px 1px at 20px 30px, #eee, transparent), radial-gradient(1px 1px at 90px 60px, #fff, transparent), radial-gradient(1px 1px at 150px 180px, #ddd, transparent); background-size: 200px 200px; animation-duration: 120s }
+    #stars2 { background-image: radial-gradient(1.5px 1.5px at 50px 100px, #fff, transparent), radial-gradient(1.5px 1.5px at 120px 40px, #ddd, transparent), radial-gradient(2px 2px at 180px 150px, #fff, transparent); background-size: 300px 300px; animation-duration: 90s }
+    #stars3 { background-image: radial-gradient(2px 2px at 10px 160px, #ddd, transparent), radial-gradient(2.5px 2.5px at 100px 80px, #fff, transparent); background-size: 400px 400px; animation-duration: 60s }
+
+    .ripple { position: absolute; border-radius: 50%; background-color: rgba(255,255,255,.3); transform: scale(0); animation: ripple-effect .6s linear; pointer-events: none }
+    @keyframes ripple-effect { to { transform: scale(4); opacity: 0 } }
+    .has-ripple { position: relative; overflow: hidden }
+
+    .logo-glow { filter: drop-shadow(0 0 20px rgba(255,255,255,.8)) drop-shadow(0 0 40px rgba(255,255,255,.5)) }
+    .text-gradient-primary { background: linear-gradient(45deg, var(--primary), #00c6ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent }
+
+    body.chat-active #main-website,
+    body.chat-active #main-footer { display: none; }
+    #ticket-system { display: none; }
+    body.chat-active #ticket-system { display: block; }
+
+    [data-animate] { opacity: 0; transform: translateY(30px); transition: opacity .6s ease-out, transform .6s ease-out; }
+    [data-animate].is-visible { opacity: 1; transform: translateY(0); }
+
+    .btn-primary {
+      background-color: var(--primary);
+      box-shadow: var(--glow-primary);
+      transition: all .3s ease;
+      border: 1px solid rgba(0,168,255,.3)
+    }
+    .btn-primary:hover:not(:disabled) { background-color: #0095e0; box-shadow: 0 0 45px rgba(0,168,255,.8); transform: translateY(-3px) }
+    .btn-primary:active:not(:disabled) { transform: translateY(1px) }
+
+    #payment-methods { position: relative; }
+    .card {
+      background: linear-gradient(145deg, rgba(26,29,37,.8), rgba(31,42,64,.8));
+      border: 1px solid var(--border-color);
+      box-shadow: 0 5px 20px rgba(0,0,0,.2);
+      transition: all .3s ease-in-out;
+      transform: translateZ(0);
+      backdrop-filter: blur(5px);
+      position: relative;
+    }
+    .card::before {
+      content: '';
+      position: absolute;
+      left: var(--mouse-x, -100%);
+      top: var(--mouse-y, -100%);
+      width: 250px; height: 250px;
+      background: radial-gradient(circle at center, rgba(0,168,255,.1), transparent 70%);
+      transform: translate(-50%, -50%);
+      opacity: 0;
+      transition: opacity .3s ease, left .1s linear, top .1s linear;
+      pointer-events: none; z-index: 1;
+    }
+    .card:hover {
+      transform: translateY(-5px) scale(1.02) translateZ(0);
+      border-color: var(--primary);
+      background: linear-gradient(145deg, hsl(222 22% 18%), hsl(220 37% 15%));
+      box-shadow: 0 8px 30px rgba(0,0,0,.4);
+    }
+    .card:hover::before { opacity: 1; }
+    .card-special::before { background: radial-gradient(circle at center, rgba(255,193,7,.1), transparent 70%); }
+    .card-special:hover { border-color: var(--secondary); }
+
+    .modal-backdrop { background-color: rgba(0,0,0,.8); backdrop-filter: blur(12px); opacity: 0; transition: opacity .3s ease-in-out; }
+    .modal-backdrop.visible { opacity: 1; }
+    .modal-content {
+      background-color: var(--bg-light);
+      border: 1px solid var(--border-color);
+      box-shadow: 0 10px 40px rgba(0,0,0,.4);
+      transform: translateY(20px) scale(.98);
+      opacity: 0;
+      transition: transform .3s cubic-bezier(.175,.885,.32,1.275), opacity .3s ease-in-out;
+      position: relative;
+    }
+    .modal-backdrop.visible .modal-content { transform: translateY(0) scale(1); opacity: 1; }
+
+    .form-input { background-color: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-light); transition: all .3s ease; }
+    .form-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(0,168,255,.3); outline: none; }
+
+    .floating { animation: floating 3s ease-in-out infinite; }
+    @keyframes floating { 0% { transform: translateY(0) } 50% { transform: translateY(-10px) } 100% { transform: translateY(0) } }
+
+    #toast-notification { position: fixed; top: 20px; right: 20px; background-color: var(--tertiary); color: white; padding: 12px 20px; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,.3); opacity: 0; transform: translateY(-20px); transition: opacity .3s, transform .3s; z-index: 9999; }
+    #toast-notification.show { opacity: 1; transform: translateY(0); }
+
+    #ticket-system { position: fixed; inset: 0; z-index: 100; background-color: var(--bg-dark); }
+    .ticket-app-container { display: flex; height: 100vh; }
+    .ticket-sidebar { width: 320px; background: var(--bg-dark); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; flex-shrink: 0; }
+    .sidebar-header { padding: 1.25rem; border-bottom: 1px solid var(--border-color); flex-shrink: 0; }
+    .sidebar-content { overflow-y: auto; padding: .75rem; flex: 1; }
+    .ticket-main { flex: 1; display: flex; flex-direction: column; height: 100%; }
+    .chat-header { display: flex; align-items: center; padding: 1rem 1.5rem; border-bottom: 1px solid var(--border-color); background-color: rgba(26,29,37,.7); flex-shrink: 0; }
+    .chat-container { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .chat-messages { flex: 1; padding: 1.5rem; overflow-y: auto; display: flex; flex-direction: column; gap: 1.5rem; }
+    .chat-input-area { padding: 1rem 1.5rem; border-top: 1px solid var(--border-color); background: rgba(26,29,37,.8); }
+    #new-ticket-btn:disabled { cursor: not-allowed; opacity: 1; }
+    #new-ticket-btn[data-status="in-progress"] { background-color: var(--tertiary); color: var(--primary); border: 1px solid var(--primary); box-shadow: 0 0 20px rgba(0,168,255,.4); animation: pulse-glow 2s ease-in-out infinite; }
+    @keyframes pulse-glow { 0% { box-shadow: 0 0 20px rgba(0,168,255,.4) } 50% { box-shadow: 0 0 30px rgba(0,168,255,.7) } 100% { box-shadow: 0 0 20px rgba(0,168,255,.4) } }
+    .ticket-item { padding: 1rem; border-radius: 10px; margin-bottom: .5rem; cursor: pointer; transition: all .2s ease; border: 1px solid transparent; }
+    .ticket-item:hover { background: var(--bg-light); transform: translateX(4px); }
+    .ticket-item.active { background: var(--tertiary); border-color: var(--primary); box-shadow: inset 0 0 15px rgba(0,168,255,.2), 0 0 15px rgba(0,168,255,.1); }
+    .ticket-item-preview { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: .875rem; color: var(--text-muted); }
+    .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 2rem; text-align: center; }
+    .empty-state i { font-size: 3rem; color: var(--tertiary); margin-bottom: 1rem; }
+    .online-indicator { width: 10px; height: 10px; background-color: var(--success); border-radius: 50%; box-shadow: 0 0 8px var(--success); }
+    .chat-bubble { padding: .75rem 1.25rem; border-radius: 1.25rem; max-width: 80%; animation: bubbleAppear .3s ease-out; word-wrap: break-word; line-height: 1.5; }
+    .chat-bubble-user { background-color: var(--primary); color: white; border-bottom-right-radius: .25rem; }
+    .chat-bubble-seller { background-color: var(--tertiary); color: var(--text-light); border-bottom-left-radius: .25rem; }
+    @keyframes bubbleAppear { from { opacity: 0; transform: translateY(10px) scale(.98) } to { opacity: 1; transform: translateY(0) scale(1) } }
+    .payment-method-option { display: flex; align-items: center; padding: 1rem; border-radius: .5rem; border: 1px solid var(--border-color); margin-bottom: .75rem; cursor: pointer; transition: all .2s ease; }
+    .payment-method-option:hover { background-color: var(--bg-light); border-color: var(--primary); }
+    .payment-method-option.selected { background-color: var(--tertiary); border-color: var(--primary); box-shadow: 0 0 15px rgba(0,168,255,.3); }
+    .payment-method-option i { font-size: 1.75rem; margin-right: 1.25rem; width: 35px; text-align: center; }
+    .payment-method-option .method-name { font-weight: 600; font-size: 1.1rem; color: var(--text-light); }
+    .ticket-payment-badge { display: inline-flex; align-items: center; gap: .5rem; background-color: var(--bg-dark); padding: .25rem .75rem; border-radius: 1rem; font-size: .75rem; color: var(--text-light); border: 1px solid var(--border-color); }
+    .ticket-payment-badge i { font-size: .875rem; }
+    #completed-view { text-align: center; }
+    .license-key-wrapper { background: var(--bg-dark); border: 1px solid var(--border-color); padding: 1rem; border-radius: .5rem; margin-top: 2rem; }
+    #license-key { font-family: monospace; font-size: 1.25rem; color: var(--primary); word-break: break-all; }
+
+    @media (max-width: 768px) {
+      .ticket-app-container.mobile-chat-view .ticket-sidebar { display: none; }
+      .ticket-app-container:not(.mobile-chat-view) .ticket-main { display: none; }
+      .ticket-sidebar { width: 100%; border-right: none; }
     }
   </style>
 </head>
@@ -117,9 +204,14 @@
   <div id="main-website">
     <header class="py-4 px-8 flex justify-between items-center bg-black/30 backdrop-blur-md sticky top-0 z-40 border-b border-gray-800">
       <h1 class="text-3xl font-extrabold text-white flex items-center">
-        <img src="https://i.imgur.com/4LQlJ9V.png" alt="Script Logo" class="h-10 w-10 mr-3 object-contain rounded-full shadow-lg logo-glow">
+        <img
+          src="https://i.imgur.com/4LQlJ9V.png"
+          alt="Script Logo"
+          class="h-10 w-10 mr-3 object-contain rounded-full shadow-lg logo-glow"
+        />
         Eps<span class="text-primary">1</span>llon Hub
       </h1>
+
       <nav id="nav-menu" class="hidden md:flex items-center space-x-8">
         <a href="#features" class="text-text-light hover:text-primary transition-colors text-lg font-medium relative group has-ripple">
           Features
@@ -130,6 +222,7 @@
           <span class="absolute bottom-0 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span>
         </a>
       </nav>
+
       <div class="hidden md:flex items-center space-x-4">
         <div id="auth-links">
           <button id="login-nav-btn" class="bg-primary/20 text-primary py-2 px-5 rounded-full hover:bg-primary/30 transition duration-300 font-semibold has-ripple">Login / Sign Up</button>
@@ -139,13 +232,14 @@
           <button id="logout-button" class="bg-red-500/20 text-red-400 py-2 px-4 rounded-full hover:bg-red-500/30 transition duration-300 text-sm font-semibold has-ripple">Logout</button>
         </div>
       </div>
+
       <button id="mobile-menu-btn" class="md:hidden text-text-light text-2xl has-ripple"><i class="fas fa-bars"></i></button>
     </header>
 
     <main class="relative z-10">
       <section id="hero-section" class="text-center py-28 md:py-40 px-4 relative overflow-hidden">
         <div class="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none">
-          <img src="https://i.imgur.com/4LQlJ9V.png" alt="Script Logo Background" class="h-64 w-64 md:h-96 md:w-96 object-contain animate-pulse">
+          <img src="https://i.imgur.com/4LQlJ9V.png" alt="Script Logo Background" class="h-64 w-64 md:h-96 md:w-96 object-contain animate-pulse" />
         </div>
         <div class="relative z-10">
           <h2 class="text-6xl md:text-8xl font-black text-white leading-tight mb-4 tracking-tighter" data-animate>
@@ -174,6 +268,7 @@
           <p class="text-lg md:text-xl max-w-3xl mx-auto mb-16 text-text-muted" data-animate style="transition-delay:100ms;">
             We support a vast array of secure payment options. Your premium access is just a click away.
           </p>
+
           <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6" data-animate style="transition-delay:200ms;">
             <div class="card has-ripple flex flex-col items-center justify-center p-6 text-center aspect-square rounded-2xl">
               <i class="fab fa-paypal text-5xl mb-4 text-blue-600"></i>
@@ -261,22 +356,30 @@
         <form id="signup-form">
           <div class="mb-5">
             <label for="signup-username" class="block mb-2 text-sm font-medium text-text-light">Username</label>
-            <input type="text" id="signup-username" class="form-input w-full p-3 rounded-lg" placeholder="Choose a unique username" required>
+            <input type="text" id="signup-username" class="form-input w-full p-3 rounded-lg" placeholder="Choose a unique username" required />
           </div>
           <div class="mb-4">
             <label for="signup-password" class="block mb-2 text-sm font-medium text-text-light">Password</label>
-            <input type="password" id="signup-password" class="form-input w-full p-3 rounded-lg" placeholder="Secure password" required>
+            <input type="password" id="signup-password" class="form-input w-full p-3 rounded-lg" placeholder="Secure password" required />
           </div>
 
           <!-- Turnstile widget -->
           <div class="mt-4 mb-6">
-            <!-- Replace data-sitekey with your public site key -->
-            <div id="turnstile-signup" class="cf-turnstile" data-sitekey="YOUR_TURNSTILE_SITE_KEY" data-theme="dark"></div>
+            <!-- Replace data-sitekey with your public/site key -->
+            <div
+              id="turnstile-signup"
+              class="cf-turnstile"
+              data-sitekey="YOUR_TURNSTILE_SITE_KEY"
+              data-theme="dark"
+            ></div>
           </div>
 
           <button type="submit" class="w-full text-white font-bold py-3 px-6 rounded-lg btn-primary text-lg has-ripple">Sign Up</button>
         </form>
-        <p class="text-center mt-6 text-text-muted">Already have an account? <a href="#" id="show-login" class="text-primary hover:underline font-medium">Log In</a></p>
+        <p class="text-center mt-6 text-text-muted">
+          Already have an account?
+          <a href="#" id="show-login" class="text-primary hover:underline font-medium">Log In</a>
+        </p>
       </div>
 
       <!-- Login -->
@@ -286,15 +389,18 @@
         <form id="login-form">
           <div class="mb-5">
             <label for="login-username" class="block mb-2 text-sm font-medium text-text-light">Username</label>
-            <input type="text" id="login-username" class="form-input w-full p-3 rounded-lg" placeholder="Your username" required>
+            <input type="text" id="login-username" class="form-input w-full p-3 rounded-lg" placeholder="Your username" required />
           </div>
           <div class="mb-7">
             <label for="login-password" class="block mb-2 text-sm font-medium text-text-light">Password</label>
-            <input type="password" id="login-password" class="form-input w-full p-3 rounded-lg" placeholder="Your password" required>
+            <input type="password" id="login-password" class="form-input w-full p-3 rounded-lg" placeholder="Your password" required />
           </div>
           <button type="submit" class="w-full text-white font-bold py-3 px-6 rounded-lg btn-primary text-lg has-ripple">Log In</button>
         </form>
-        <p class="text-center mt-6 text-text-muted">Don't have an account? <a href="#" id="show-signup" class="text-primary hover:underline font-medium">Sign Up</a></p>
+        <p class="text-center mt-6 text-text-muted">
+          Don't have an account?
+          <a href="#" id="show-signup" class="text-primary hover:underline font-medium">Sign Up</a>
+        </p>
       </div>
     </div>
   </div>
@@ -305,6 +411,7 @@
       <button id="close-payment-modal-btn" class="absolute top-4 right-4 text-text-muted hover:text-white text-2xl has-ripple">&times;</button>
       <h3 class="text-3xl font-bold text-white mb-3 text-center">Payment Method</h3>
       <p class="text-center mb-8 text-text-muted">How would you like to pay?</p>
+
       <div class="payment-method-option has-ripple" data-method="PayPal">
         <i class="fab fa-paypal text-blue-600"></i>
         <div class="method-name">PayPal</div>
@@ -341,7 +448,10 @@
         <i class="fas fa-brain text-pink-500"></i>
         <div class="method-name">Secret Brainrots</div>
       </div>
-      <button id="confirm-payment-btn" class="w-full mt-6 text-white font-bold py-3 px-6 rounded-lg btn-primary text-lg opacity-50 cursor-not-allowed has-ripple" disabled>Create Purchase Ticket</button>
+
+      <button id="confirm-payment-btn" class="w-full mt-6 text-white font-bold py-3 px-6 rounded-lg btn-primary text-lg opacity-50 cursor-not-allowed has-ripple" disabled>
+        Create Purchase Ticket
+      </button>
     </div>
   </div>
 
@@ -388,7 +498,7 @@
             <div id="chat-messages" class="chat-messages"></div>
             <div class="chat-input-area">
               <form id="chat-form" class="flex items-center gap-4">
-                <input type="text" id="chat-input" class="form-input flex-1 p-3 rounded-full bg-tertiary" placeholder="Type your message..." autocomplete="off" required>
+                <input type="text" id="chat-input" class="form-input flex-1 p-3 rounded-full bg-tertiary" placeholder="Type your message..." autocomplete="off" required />
                 <button type="submit" class="w-12 h-12 text-white font-bold rounded-full btn-primary text-lg flex items-center justify-center flex-shrink-0 has-ripple">
                   <i class="fas fa-paper-plane"></i>
                 </button>
@@ -427,28 +537,30 @@
     <p id="toast-message"></p>
   </div>
 
-  <audio id="notification-sound" src="data:audio/mpeg;base64,SUQzBAAAAAABEVRYWFgAAAAtAAADY29tbWVudABCaW5nIENTUkFQX1NGQkxXU0ZPQUNPMwAAAAAAAExodTEAAAAAADISAWAAAZGfk34pEEYp9+BY0TE3aJgl9xW8EaB/zP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/..."></audio>
+  <!-- tiny silent bleep for new seller message -->
+  <audio id="notification-sound" src="data:audio/mpeg;base64,//uQZAAAAAAAAAAAAAAAAAAAA"></audio>
 
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const API_BASE_URL = 'https://eps1llon.win';
+    // Turnstile globals
+    let turnstileWidgetId = null;
+    let turnstileToken = null;
+    window.onTurnstileLoad = function () {
+      const el = document.getElementById('turnstile-signup');
+      if (el && window.turnstile) {
+        turnstileWidgetId = turnstile.render(el, {
+          sitekey: el.dataset.sitekey,
+          theme: 'dark',
+          callback: function(token) { turnstileToken = token; },
+          'error-callback': function(){ turnstileToken = null; },
+          'expired-callback': function(){ turnstileToken = null; }
+        });
+      }
+    };
 
-      // Turnstile globals
-      let turnstileWidgetId = null;
-      let turnstileToken = null;
-      window.onTurnstileLoad = function () {
-        // If the widget div exists, render it (keeps working when modal opens later)
-        const el = document.getElementById('turnstile-signup');
-        if (el) {
-          turnstileWidgetId = turnstile.render(el, {
-            sitekey: el.dataset.sitekey,
-            theme: 'dark',
-            callback: function(token) { turnstileToken = token; },
-            'error-callback': function(){ turnstileToken = null; },
-            'expired-callback': function(){ turnstileToken = null; }
-          });
-        }
-      };
+    document.addEventListener('DOMContentLoaded', () => {
+      // Use same-origin by default to avoid CORS headaches.
+      // If you must hardcode, set to 'https://eps1llon.win'
+      const API_BASE_URL = '';
 
       const App = {
         state: {
@@ -549,19 +661,18 @@
           try {
             const response = await fetch(`${API_BASE_URL}${endpoint}`, { ...options, headers });
             if (response.status === 401 || response.status === 403) {
-              // Show more specific message for Turnstile failures
               if (endpoint === '/register') {
                 this.showToast('Verification failed. Please complete the challenge and try again.');
               } else {
                 this.logout();
-                this.showToast("Your session has expired. Please log in again.");
+                this.showToast('Your session has expired. Please log in again.');
               }
               return null;
             }
             return response;
           } catch (error) {
             console.error(`API call to ${endpoint} failed:`, error);
-            this.showToast("A network error occurred.");
+            this.showToast('A network error occurred.');
             return null;
           }
         },
@@ -645,13 +756,13 @@
 
         createRipple(e) {
           const el = e.currentTarget;
-          const ripple = document.createElement("span");
+          const ripple = document.createElement('span');
           const rect = el.getBoundingClientRect();
           const size = Math.max(rect.width, rect.height);
           ripple.style.width = ripple.style.height = `${size}px`;
           ripple.style.left = `${e.clientX - rect.left - size / 2}px`;
           ripple.style.top = `${e.clientY - rect.top - size / 2}px`;
-          ripple.classList.add("ripple");
+          ripple.classList.add('ripple');
           el.appendChild(ripple);
           setTimeout(() => ripple.remove(), 600);
         },
@@ -705,7 +816,6 @@
           this.elements.authModal.classList.add('flex');
           setTimeout(() => this.elements.authModal.classList.add('visible'), 10);
 
-          // Re-render Turnstile when opening modal (in case script loaded earlier)
           if (window.turnstile && document.getElementById('turnstile-signup') && !turnstileWidgetId) {
             turnstileWidgetId = turnstile.render('#turnstile-signup', {
               sitekey: document.getElementById('turnstile-signup').dataset.sitekey,
@@ -737,9 +847,7 @@
 
           if (!username || !password) return this.showToast('Please fill in all fields');
 
-          // Ensure Turnstile token exists
           if (!turnstileToken) {
-            // Try to read hidden input as fallback
             const hidden = document.querySelector('input[name="cf-turnstile-response"]');
             if (hidden && hidden.value) turnstileToken = hidden.value;
           }
@@ -750,24 +858,25 @@
 
           const response = await this.apiCall('/register', {
             method: 'POST',
+            headers: {
+              'x-turnstile-token': turnstileToken   // extra path; backend also reads body
+            },
             body: JSON.stringify({ username, password, turnstileToken })
           });
 
+          // Reset widget either way (fresh token next time)
+          try { if (window.turnstile && turnstileWidgetId) turnstile.reset(turnstileWidgetId); } catch {}
+          turnstileToken = null;
+
           if (response && response.ok) {
             this.showToast('Account created! Please log in.');
-            // Reset token so users must pass again if they re-open
-            try { if (window.turnstile && turnstileWidgetId) turnstile.reset(turnstileWidgetId); } catch {}
-            turnstileToken = null;
             this.toggleAuthView(true);
-          } else {
+          } else if (response) {
             try {
               const data = await response.json();
               this.showToast(data.message || 'Signup failed.');
-            } catch (err) {
+            } catch {
               this.showToast('Signup failed.');
-            } finally {
-              try { if (window.turnstile && turnstileWidgetId) turnstile.reset(turnstileWidgetId); } catch {}
-              turnstileToken = null;
             }
           }
         },
@@ -795,11 +904,11 @@
               await this.loadTickets();
               this.openTicketSystem();
             }
-          } else {
+          } else if (response) {
             try {
               const data = await response.json();
               this.showToast(data.message || 'Login failed.');
-            } catch (err) {
+            } catch {
               this.showToast('Login failed.');
             }
           }
@@ -849,11 +958,11 @@
             this.state.tickets.unshift(newTicket);
             this.updateUI();
             this.openTicket(newTicket.id);
-          } else {
+          } else if (response) {
             try {
               const data = await response.json();
               this.showToast(data.message || 'Failed to create ticket.');
-            } catch (e) {
+            } catch {
               this.showToast('Failed to create ticket.');
             }
           }
