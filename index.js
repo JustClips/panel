@@ -15,15 +15,11 @@ require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const CLIENT_TIMEOUT_MS = 30000; // Increased timeout to 30 seconds
-const SNAPSHOT_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
 // --- SERVE FRONTEND STATIC FILES ---
-// This tells Express to serve any files in the 'public' folder.
 app.use(express.static(path.join(__dirname, 'public')));
 
 // --- TRUST PROXY FOR RAILWAY ---
-// This is important for correctly identifying the client's IP address when behind a proxy like Railway's.
 app.set('trust proxy', 1);
 
 // --- SECURITY & CORE MIDDLEWARE ---
@@ -35,12 +31,11 @@ app.use(helmet({
             "style-src": ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com", "https://fonts.googleapis.com"],
             "font-src": ["'self'", "https://cdnjs.cloudflare.com", "https://fonts.gstatic.com"],
             "img-src": ["'self'", "data:", "https://i.imgur.com"],
-            "frame-src": ["'self'", "https://challenges.cloudflare.com"] // Required for Turnstile widget
+            "frame-src": ["'self'", "https://challenges.cloudflare.com"]
         }
     }
 }));
 
-// Define allowed origins for CORS. Add your frontend domains here.
 const allowedOrigins = [
   'https://eps1llon.win',
   'https://www.eps1llon.win'
@@ -60,16 +55,14 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions)); // Pre-flight request handling
+app.options('*', cors(corsOptions));
 
 app.use(bodyParser.json({ limit: '100kb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '100kb' }));
 
 // --- FILE UPLOAD & STATIC SERVING ---
 const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir);
-}
+if (!fs.existsSync(uploadDir)) { fs.mkdirSync(uploadDir); }
 app.use('/uploads', express.static(uploadDir));
 
 const storage = multer.diskStorage({
@@ -90,9 +83,6 @@ const upload = multer({
         }
     }
 });
-
-let clients = new Map();
-let pendingCommands = new Map();
 
 // --- MYSQL DATABASE SETUP ---
 const dbPool = mysql.createPool({
@@ -118,12 +108,30 @@ async function initializeDatabase() {
 }
 
 // --- MIDDLEWARE ---
+
+// ===== SESSION VALIDATION LOGIC IMPROVED =====
 const verifyToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
-    if (!token) return res.status(401).json({ message: 'Unauthorized' });
+    if (!token) {
+        return res.status(401).json({ message: 'Unauthorized: No token provided.' });
+    }
+
+    if (!process.env.JWT_SECRET) {
+        console.error("CRITICAL: JWT_SECRET environment variable is not set on the server.");
+        return res.status(500).json({ message: "Server configuration error." });
+    }
+
     jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-        if (err) return res.status(403).json({ message: 'Forbidden' });
+        if (err) {
+            // Log the specific error on the server for easier debugging
+            if (err.name === 'TokenExpiredError') {
+                console.log('Token validation failed: Token has expired.');
+                return res.status(403).json({ message: 'Forbidden: Session has expired.' });
+            }
+            console.error('Token validation error:', err.message);
+            return res.status(403).json({ message: 'Forbidden: Invalid session token.' });
+        }
         req.user = user;
         next();
     });
@@ -279,30 +287,23 @@ apiRouter.post('/tickets/:id/messages', verifyToken, requireAnyRole, validateTic
     }
 });
 
-// ===== THIS IS THE CORRECTED ENDPOINT FOR THE SELLER PANEL =====
 apiRouter.post('/tickets/:id/complete', verifyToken, requireSeller, async (req, res) => {
     const { id } = req.params;
     const { licenseKey } = req.body;
-
     if (!licenseKey || licenseKey.trim() === '') {
         return res.status(400).json({ message: 'License key is required to complete a ticket.' });
     }
-
     try {
         const [tickets] = await dbPool.query("SELECT * FROM tickets WHERE id = ?", [id]);
         if (tickets.length === 0) return res.status(404).json({ message: 'Ticket not found.' });
-
         await dbPool.query(
             "UPDATE tickets SET status = 'completed', license_key = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", 
             [licenseKey.trim(), id]
         );
-        
         await dbPool.query("INSERT INTO ticket_messages (ticket_id, sender, message) VALUES (?, 'seller', ?)", [id, `Your purchase is complete! Your license key is: ${licenseKey.trim()}`]);
-
         const [updatedTickets] = await dbPool.query(`SELECT t.*, u.username as buyer_name FROM tickets t JOIN adminusers u ON t.user_id = u.id WHERE t.id = ?`, [id]);
         const [messages] = await dbPool.query("SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC", [id]);
         updatedTickets[0].messages = messages;
-        
         res.json(updatedTickets[0]);
     } catch (error) {
         console.error('Error completing ticket:', error);
@@ -330,11 +331,9 @@ app.use('/api', apiRouter);
 
 
 // --- FRONTEND ROUTE HANDLER ---
-// This ensures that navigating to /seller will serve seller.html
 app.get('/seller', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'seller.html'));
 });
-// This is the catch-all for the main site SPA. It must come AFTER specific routes like /seller.
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
