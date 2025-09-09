@@ -365,11 +365,11 @@
 
           <!-- Turnstile widget -->
           <div class="mt-4 mb-6">
-            <!-- IMPORTANT: Replace with your REAL site key before going live -->
+            <!-- IMPORTANT: Replace with your REAL site key from Cloudflare before going live -->
             <div
               id="turnstile-signup"
               class="cf-turnstile"
-              data-sitekey="3x00000000000000000000FF"
+              data-sitekey="0x4AAAAAAB0Iouzfa4mvlHXl" 
               data-theme="dark"
             ></div>
           </div>
@@ -544,8 +544,10 @@
     // Turnstile globals
     let turnstileWidgetId = null;
     let turnstileToken = null;
-    // The Turnstile script is loaded, but we will render the widget on-demand
-    // when the modal is opened. This function can be left empty.
+    
+    // THIS IS THE FIX: This function is now empty.
+    // It confirms the Cloudflare script has loaded, but we will only RENDER the widget
+    // when the user opens the modal. This prevents two widgets from appearing.
     window.onTurnstileLoad = function () {};
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -983,209 +985,4 @@
         closeTicketSystem() {
           this.elements.body.classList.remove('chat-active');
           this.updateUI();
-        },
-
-        getActiveTicket() {
-          return this.state.tickets.find(t => t.status === 'awaiting' || t.status === 'processing');
-        },
-
-        openTicket(ticketId) {
-          const ticket = this.state.tickets.find(t => t.id === ticketId);
-          if (!ticket) {
-            this.elements.ticketViewContent.classList.add('hidden');
-            this.elements.ticketPlaceholder.classList.remove('hidden');
-            return;
-          }
-
-          this.elements.ticketPlaceholder.classList.add('hidden');
-          this.elements.ticketViewContent.classList.remove('hidden');
-          this.elements.ticketViewContent.classList.add('flex');
-          this.state.currentTicketId = ticketId;
-          this.renderSidebar();
-          this.renderTicketView(ticket);
-        },
-
-        getPaymentMethodIcon(method) {
-          const icons = {
-            'PayPal': 'fab fa-paypal text-blue-600',
-            'Crypto': 'fab fa-bitcoin text-yellow-500',
-            'Credit Card': 'fas fa-credit-card text-indigo-400',
-            'Bank Transfer': 'fas fa-university text-gray-400',
-            'Google Pay': 'fab fa-google-pay text-blue-500',
-            'Apple Pay': 'fab fa-apple-pay text-gray-300',
-            'CashApp': 'fas fa-dollar-sign text-green-500',
-            'Gag Pets': 'fas fa-paw text-orange-400',
-            'Secret Brainrots': 'fas fa-brain text-pink-500'
-          };
-          return icons[method] || 'fas fa-credit-card text-indigo-400';
-        },
-
-        renderSidebar() {
-          const activeTicket = this.getActiveTicket();
-          const newTicketBtn = this.elements.newTicketBtn;
-
-          newTicketBtn.className = 'w-full font-semibold py-3 px-4 rounded-lg transition-colors flex items-center justify-center has-ripple';
-          newTicketBtn.removeAttribute('data-status');
-
-          if (activeTicket) {
-            newTicketBtn.disabled = true;
-            newTicketBtn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i> Purchase in Progress`;
-            newTicketBtn.dataset.status = 'in-progress';
-          } else {
-            newTicketBtn.disabled = false;
-            newTicketBtn.innerHTML = '<i class="fas fa-plus mr-2"></i> New Purchase';
-            newTicketBtn.dataset.status = 'new';
-            newTicketBtn.classList.add('bg-primary/20', 'text-primary', 'hover:bg-primary/30');
-          }
-
-          this.elements.ticketList.innerHTML = '';
-
-          if (this.state.tickets.length === 0) {
-            this.elements.ticketList.innerHTML = `
-              <div class="empty-state">
-                <i class="fas fa-inbox"></i>
-                <h4 class="text-white font-bold text-lg">No Purchases Yet</h4>
-                <p class="text-text-muted text-sm">Click "New Purchase" to begin.</p>
-              </div>
-            `;
-            return;
-          }
-
-          const sortedTickets = [...this.state.tickets].sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
-
-          sortedTickets.forEach(ticket => {
-            const ticketElement = document.createElement('div');
-            ticketElement.className = `ticket-item has-ripple ${ticket.id === this.state.currentTicketId ? 'active' : ''}`;
-            ticketElement.dataset.id = ticket.id;
-
-            const date = new Date(ticket.updated_at).toLocaleDateString();
-            const lastMessage = ticket.messages?.length ? ticket.messages[ticket.messages.length - 1] : { sender: 'seller', message: 'Ticket created.' };
-
-            const paymentMethodBadge = ticket.payment_method ?
-              `<span class="ticket-payment-badge">
-                <i class="${this.getPaymentMethodIcon(ticket.payment_method)}"></i> 
-                ${ticket.payment_method}
-              </span>` : '';
-
-            ticketElement.innerHTML = `
-              <div class="flex justify-between items-center mb-1">
-                <h4 class="font-bold text-white truncate">
-                  ${ticket.payment_method ? ticket.payment_method + ' Purchase' : 'Ticket #' + String(ticket.id).padStart(5, '0')}
-                </h4>
-                <p class="text-xs text-text-muted flex-shrink-0 ml-2">${date}</p>
-              </div>
-              ${paymentMethodBadge}
-              <p class="ticket-item-preview mt-2">
-                ${lastMessage.sender === 'user' ? 'You: ' : ''}${lastMessage.message}
-              </p>
-            `;
-
-            ticketElement.addEventListener('click', () => {
-              this.openTicket(ticket.id);
-              this.elements.ticketAppContainer.classList.add('mobile-chat-view');
-            });
-
-            this.elements.ticketList.appendChild(ticketElement);
-          });
-        },
-
-        renderTicketView(ticket) {
-          const isCompleted = ticket.status === 'completed';
-
-          this.elements.chatContainer.classList.toggle('hidden', isCompleted);
-          this.elements.completedView.classList.toggle('hidden', !isCompleted);
-
-          if (isCompleted) {
-            this.elements.licenseKey.textContent = ticket.license_key;
-            this.elements.ticketTitle.textContent = `Order Completed`;
-            this.elements.ticketStatusText.innerHTML = `<span class="text-green-400">License Delivered</span>`;
-          } else {
-            let statusText, statusClass;
-            switch (ticket.status) {
-              case 'awaiting': statusText = 'Awaiting Payment'; statusClass = 'text-yellow-400'; break;
-              case 'processing': statusText = 'Processing Payment'; statusClass = 'text-blue-400'; break;
-              default: statusText = 'Active'; statusClass = 'text-green-400';
-            }
-
-            this.elements.ticketTitle.textContent = ticket.payment_method
-              ? `${ticket.payment_method} Purchase`
-              : `Ticket #${String(ticket.id).padStart(5, '0')}`;
-
-            this.elements.ticketStatusText.innerHTML = `<span class="${statusClass}">${statusText}</span>`;
-            this.populateMessages(ticket.messages || []);
-          }
-        },
-
-        populateMessages(messages) {
-          this.elements.chatMessages.innerHTML = '';
-          messages.forEach(message => this.appendMessage(message));
-          this.elements.chatMessages.scrollTop = this.elements.chatMessages.scrollHeight;
-        },
-
-        appendMessage(message) {
-          const messageElement = document.createElement('div');
-          const timeString = new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-          messageElement.className = `flex flex-col ${message.sender === 'user' ? 'items-end' : 'items-start'}`;
-          messageElement.innerHTML = `
-            <div class="chat-bubble ${message.sender === 'user' ? 'chat-bubble-user' : 'chat-bubble-seller'}">
-              ${message.message}
-            </div>
-            <div class="text-xs text-text-muted mt-1 px-2">${timeString}</div>
-          `;
-
-          this.elements.chatMessages.appendChild(messageElement);
-          this.elements.chatMessages.scrollTop = this.elements.chatMessages.scrollHeight;
-        },
-
-        async handleChatMessage(e) {
-          e.preventDefault();
-          const messageText = this.elements.chatInput.value.trim();
-          const ticket = this.state.tickets.find(t => t.id === this.state.currentTicketId);
-
-          if (!messageText || !ticket || ticket.status === 'completed') return;
-
-          const userMessage = { sender: 'user', message: messageText, created_at: new Date().toISOString() };
-
-          ticket.messages.push(userMessage);
-          this.appendMessage(userMessage);
-          this.renderSidebar();
-          this.elements.chatInput.value = '';
-          this.elements.chatForm.querySelector('button').disabled = true;
-
-          const response = await this.apiCall(`/tickets/${ticket.id}/messages`, {
-            method: 'POST',
-            body: JSON.stringify({ message: messageText })
-          });
-
-          if (response && response.ok) {
-            const updatedTicket = await response.json();
-            const ticketIndex = this.state.tickets.findIndex(t => t.id === updatedTicket.id);
-            if (ticketIndex !== -1) this.state.tickets[ticketIndex] = updatedTicket;
-            this.renderSidebar();
-            this.renderTicketView(updatedTicket);
-          } else {
-            this.showToast('Failed to send message.');
-            ticket.messages.pop();
-            this.renderTicketView(ticket);
-          }
-
-          this.elements.chatForm.querySelector('button').disabled = false;
-        },
-
-        copyLicenseKey() {
-          const key = this.elements.licenseKey.textContent;
-          navigator.clipboard.writeText(key).then(() => {
-            this.elements.copyKeyBtn.innerHTML = '<i class="fas fa-check mr-2"></i> Copied!';
-            setTimeout(() => {
-              this.elements.copyKeyBtn.innerHTML = '<i class="fas fa-copy mr-2"></i> Copy to Clipboard';
-            }, 2000);
-          });
-        }
-      };
-
-      App.init();
-    });
-  </script>
-</body>
-</html>
+        
