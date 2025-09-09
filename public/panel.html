@@ -872,7 +872,8 @@
                                       <h2 id="chat-header-id"></h2>
                                   </div>
                                   <div style="display: flex; gap: 0.5rem;">
-                                      <button id="close-ticket-btn" class="btn btn-warning btn-sm"><i class="fas fa-times-circle"></i> Close Ticket</button>
+                                      <!-- ===== BUTTON TEXT CHANGED ===== -->
+                                      <button id="complete-ticket-btn" class="btn btn-success btn-sm"><i class="fas fa-check-circle"></i> Complete Ticket</button>
                                       <button id="delete-ticket-btn" class="btn btn-danger btn-sm"><i class="fas fa-trash-alt"></i> Delete Ticket</button>
                                   </div>
                               </div>
@@ -921,7 +922,9 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const SERVER_URL = ''; // Auto-detects backend URL by using a relative path
+            // ===== API URL UPDATED =====
+            const SERVER_URL = 'https://eps1llon.win';
+            
             const loginContainer = document.getElementById('login-container');
             const appContainer = document.getElementById('app-container');
             const loginForm = document.getElementById('login-form');
@@ -999,6 +1002,7 @@
             }
 
             function initApp() {
+                // ===== API ENDPOINTS UPDATED =====
                 const API = {
                     health: `${SERVER_URL}/api/health`,
                     clients: `${SERVER_URL}/api/clients`,
@@ -1008,8 +1012,7 @@
                     salesLog: `${SERVER_URL}/api/seller/sales-log`,
                     redeemKey: `${SERVER_URL}/api/seller/redeem`,
                     chats: `${SERVER_URL}/tickets/all`,
-                    closeTicket: `${SERVER_URL}/api/tickets`,
-                    deleteTicket: `${SERVER_URL}/api/tickets`
+                    manageTicket: `${SERVER_URL}/api/tickets` // Base path for ticket actions
                 };
                 
                 let chartInstances = {};
@@ -1295,13 +1298,17 @@
                     const iconClass = getPaymentMethodIcon(chat.payment_method);
                     document.getElementById('chat-header-id').innerHTML = `<i class="${iconClass}"></i> Chat with ${escapeHTML(chat.buyer_name)}`;
                     
-                    const closeBtn = document.getElementById('close-ticket-btn');
+                    const completeBtn = document.getElementById('complete-ticket-btn');
                     const deleteBtn = document.getElementById('delete-ticket-btn');
-                    closeBtn.dataset.ticketId = chat.id;
+                    completeBtn.dataset.ticketId = chat.id;
                     deleteBtn.dataset.ticketId = chat.id;
+                    
+                    // ===== CHAT REPLY FIX =====
+                    // Set the chat ID on the form so the submit handler knows which chat to reply to.
+                    document.getElementById('chat-reply-form').dataset.chatId = chat.id;
 
                     const isCompleted = chat.status === 'completed';
-                    closeBtn.style.display = isCompleted ? 'none' : 'inline-flex';
+                    completeBtn.style.display = isCompleted ? 'none' : 'inline-flex';
                     deleteBtn.style.display = isCompleted ? 'inline-flex' : 'none';
 
                     document.getElementById('chat-reply-input').disabled = isCompleted;
@@ -1366,15 +1373,26 @@
                 }
                 function hideConfirmationModal() { document.getElementById('confirmation-modal').classList.remove('show'); }
                 
-                document.getElementById('close-ticket-btn').addEventListener('click', function(e) {
+                // ===== TICKET COMPLETION LOGIC UPDATED =====
+                document.getElementById('complete-ticket-btn').addEventListener('click', function(e) {
                     const ticketId = e.currentTarget.dataset.ticketId;
                     if (!ticketId) return;
-                    showConfirmationModal('Confirm Closure', `Are you sure you want to close ticket #${ticketId}? This cannot be undone.`, async () => {
+
+                    const licenseKey = prompt(`Please enter the license key to complete Ticket #${ticketId}:`);
+                    if (!licenseKey || licenseKey.trim() === '') {
+                        showNotification('License key cannot be empty.', 'error');
+                        return;
+                    }
+                    
+                    showConfirmationModal('Confirm Completion', `Complete Ticket #${ticketId} with key: "${licenseKey.trim()}"? This is final.`, async () => {
                         try {
-                            const response = await authFetch(`${API.closeTicket}/${ticketId}/close`, { method: 'POST' });
-                            if (!response.ok) { const err = await response.json(); throw new Error(err.message || 'Failed to close ticket.'); }
+                            const response = await authFetch(`${API.manageTicket}/${ticketId}/complete`, { 
+                                method: 'POST',
+                                body: JSON.stringify({ licenseKey: licenseKey.trim() })
+                             });
+                            if (!response.ok) { const err = await response.json(); throw new Error(err.message || 'Failed to complete ticket.'); }
                             const updatedTicket = await response.json();
-                            showNotification(`Ticket #${ticketId} has been closed.`, 'success');
+                            showNotification(`Ticket #${ticketId} has been completed.`, 'success');
                             await loadChats();
                             displayChatDetails(updatedTicket.id);
                         } catch (error) {
@@ -1388,7 +1406,7 @@
                     if (!ticketId) return;
                     showConfirmationModal('Confirm Deletion', `Are you sure you want to permanently DELETE ticket #${ticketId}? This is irreversible.`, async () => {
                         try {
-                            const response = await authFetch(`${API.deleteTicket}/${ticketId}`, { method: 'DELETE' });
+                            const response = await authFetch(`${API.manageTicket}/${ticketId}`, { method: 'DELETE' });
                             if (!response.ok) { const err = await response.json(); throw new Error(err.message || 'Failed to delete ticket.'); }
                             showNotification(`Ticket #${ticketId} has been deleted.`, 'success');
                             await loadChats();
@@ -1445,4 +1463,3 @@
     </script>
 </body>
 </html>
-
