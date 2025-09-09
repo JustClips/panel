@@ -636,7 +636,8 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const SERVER_URL = 'https://eps1llon.win';
+            // Using a relative path for the API URL is best practice
+            const API_BASE_URL = '/api';
             
             const loginContainer = document.getElementById('login-container');
             const appContainer = document.getElementById('app-container');
@@ -651,7 +652,8 @@
                 const username = document.getElementById('username').value.trim();
                 const password = document.getElementById('password').value.trim();
                 try {
-                    const response = await fetch(`${SERVER_URL}/login`, {
+                    // UPDATED: Using the correct /api/login endpoint
+                    const response = await fetch(`${API_BASE_URL}/login`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ username, password })
@@ -715,9 +717,10 @@
             }
 
             function initApp() {
+                // UPDATED: All API endpoints now use the consistent /api base URL
                 const API = {
-                    chats: `${SERVER_URL}/tickets/all`,
-                    manageTicket: `${SERVER_URL}/api/tickets`
+                    chats: `${API_BASE_URL}/tickets/all`,
+                    manageTicket: `${API_BASE_URL}/tickets`
                 };
                 
                 let chatCache = [];
@@ -899,6 +902,7 @@
                     
                     showConfirmationModal('Confirm Completion', `Complete Ticket #${ticketId} with key: "${licenseKey.trim()}"?`, async () => {
                         try {
+                            // UPDATED: Using the correct /complete endpoint
                             const response = await authFetch(`${API.manageTicket}/${ticketId}/complete`, { 
                                 method: 'POST',
                                 body: JSON.stringify({ licenseKey: licenseKey.trim() })
