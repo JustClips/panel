@@ -31,10 +31,11 @@ app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             ...helmet.contentSecurityPolicy.getDefaultDirectives(),
-            "script-src": ["'self'", "'unsafe-inline'", "https://cdn.tailwindcss.com"], // 'unsafe-inline' for inline script in HTML
+            "script-src": ["'self'", "'unsafe-inline'", "https://cdn.tailwindcss.com", "https://challenges.cloudflare.com"], // 'unsafe-inline' for inline script, added cloudflare
             "style-src": ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com", "https://fonts.googleapis.com"],
             "font-src": ["'self'", "https://cdnjs.cloudflare.com", "https://fonts.gstatic.com"],
-            "img-src": ["'self'", "data:", "https://i.imgur.com"]
+            "img-src": ["'self'", "data:", "https://i.imgur.com"],
+            "frame-src": ["'self'", "https://challenges.cloudflare.com"] // Required for Turnstile widget
         }
     }
 }));
@@ -169,6 +170,53 @@ const verifyToken = (req, res, next) => {
     });
 };
 
+// --- NEW CLOUDFLARE TURNSTILE MIDDLEWARE ---
+const verifyTurnstile = async (req, res, next) => {
+    const secretKey = process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY;
+    if (!secretKey) {
+        // This is a server configuration error, so we should log it and proceed without verification in a dev environment.
+        // In production, you might want this to fail hard.
+        console.error("CRITICAL: CLOUDFLARE_TURNSTILE_SECRET_KEY is not set. Skipping CAPTCHA verification.");
+        return next();
+    }
+
+    const token = req.body.turnstileToken;
+    if (!token) {
+        return res.status(400).json({ message: 'CAPTCHA verification token is required.' });
+    }
+
+    try {
+        const formData = new URLSearchParams();
+        formData.append('secret', secretKey);
+        formData.append('response', token);
+        // Optionally pass the user's IP address for better security
+        const userIp = req.ip;
+        if (userIp) {
+            formData.append('remoteip', userIp);
+        }
+
+        const response = await axios.post(
+            'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+            formData,
+            {
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            }
+        );
+
+        const data = response.data;
+        if (data.success) {
+            next(); // Verification successful, proceed to the next middleware/route handler
+        } else {
+            console.warn('Turnstile verification failed:', data['error-codes']);
+            res.status(403).json({ message: 'Failed CAPTCHA verification. Please try again.' });
+        }
+    } catch (error) {
+        console.error('An error occurred while verifying Turnstile token:', error.message);
+        res.status(500).json({ message: 'Server error during CAPTCHA verification.' });
+    }
+};
+
+
 // --- ROLE-BASED AUTHORIZATION MIDDLEWARE ---
 const requireRole = (roles) => {
     return (req, res, next) => {
@@ -196,10 +244,10 @@ const validateKeyRedemption = [body('discordUsername').trim().isLength({ min: 17
 const apiRouter = express.Router();
 
 
-// --- AUTHENTICATION ENDPOINTS ---
-apiRouter.post('/register', async (req, res) => {
+// --- AUTHENTICATION ENDPOINTS (NOW PROTECTED BY TURNSTILE) ---
+apiRouter.post('/register', verifyTurnstile, async (req, res) => {
     const { username, password } = req.body;
-    if (!username || !password || username.length < 3 || password.length > 30 || password.length < 6 || password.length > 100) {
+    if (!username || !password || username.length < 3 || username.length > 30 || password.length < 6 || password.length > 100) {
         return res.status(400).json({ message: 'Invalid username or password length.' });
     }
     try {
@@ -216,7 +264,7 @@ apiRouter.post('/register', async (req, res) => {
     }
 });
 
-apiRouter.post('/login', async (req, res) => {
+apiRouter.post('/login', verifyTurnstile, async (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) {
         return res.status(400).json({ message: 'Invalid request.' });
@@ -248,7 +296,7 @@ apiRouter.post('/logout', (req, res) => {
     res.json({ success: true });
 });
 
-// --- TICKET ENDPOINTS ---
+// --- TICKET ENDPOINTS (CREATION NOW PROTECTED BY TURNSTILE) ---
 apiRouter.get('/tickets/my', verifyToken, requireAnyRole, async (req, res) => {
     try {
         const [tickets] = await dbPool.query(`SELECT t.*, u.username as buyer_name FROM tickets t JOIN adminusers u ON t.user_id = u.id WHERE t.user_id = ? ORDER BY t.updated_at DESC`, [req.user.id]);
@@ -277,7 +325,7 @@ apiRouter.get('/tickets/all', verifyToken, requireSeller, async (req, res) => {
     }
 });
 
-apiRouter.post('/tickets', verifyToken, requireBuyer, validateTicketCreation, async (req, res) => {
+apiRouter.post('/tickets', verifyTurnstile, verifyToken, requireBuyer, validateTicketCreation, async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ message: 'Validation failed', errors: errors.array().map(e => e.msg) });
@@ -368,7 +416,7 @@ apiRouter.delete('/tickets/:id', verifyToken, requireSeller, async (req, res) =>
 });
 
 // --- GAME CLIENT ENDPOINTS ---
-// These are not prefixed because they are hit by an external client, not the frontend website
+// These are not prefixed with /api because they are hit by an external client
 app.post('/connect', async (req, res) => {
     const { id, username, gameName, serverInfo, playerCount, userId, city, country, executorName, executorVersion } = req.body;
     if (!id || !username) return res.status(400).json({ error: "Missing required fields." });
