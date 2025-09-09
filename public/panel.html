@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,7 +8,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     <style>
         :root {
@@ -27,321 +25,162 @@
             --panel-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
             --warning: #ffc107;
         }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Poppins', sans-serif;
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
         body {
             background-color: var(--bg-dark);
             background-image: radial-gradient(circle at 20% 20%, rgba(0, 168, 255, 0.08), transparent 30%);
-            color: var(--text-light);
-            display: flex;
-            min-height: 100vh;
-            overflow-x: hidden;
+            color: var(--text-light); display: flex; min-height: 100vh; overflow-x: hidden;
         }
-
-        #login-container {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            width: 100%;
-        }
-
+        #login-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; width: 100%; }
         .login-box {
-            background: var(--bg-light);
-            border: 1px solid var(--border-color);
-            padding: 2.5rem;
-            border-radius: 12px;
-            width: 100%;
-            max-width: 400px;
-            text-align: center;
-            box-shadow: var(--panel-shadow);
+            background: var(--bg-light); border: 1px solid var(--border-color); padding: 2.5rem;
+            border-radius: 12px; width: 100%; max-width: 400px; text-align: center; box-shadow: var(--panel-shadow);
         }
-
         .login-box h2 {
-            color: var(--text-light);
-            margin-bottom: 0.5rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            font-size: 1.5rem;
+            color: var(--text-light); margin-bottom: 0.5rem; display: flex; align-items: center;
+            justify-content: center; gap: 10px; font-size: 1.5rem;
         }
-
         .login-box p { margin-bottom: 2rem; color: var(--text-muted); }
         .input-group { margin-bottom: 1.5rem; text-align: left; }
         .login-box .form-control { width: 100%; }
         .login-box .btn { width: 100%; }
-
-        #login-error {
-            color: var(--danger);
-            margin-top: 1rem;
-            display: none;
-        }
-
+        #login-error { color: var(--danger); margin-top: 1rem; display: none; }
         .login-box.shake { animation: shake 0.5s ease; }
         @keyframes shake {
-            10%, 90% { transform: translateX(-1px); }
-            20%, 80% { transform: translateX(2px); }
-            30%, 50%, 70% { transform: translateX(-4px); }
-            40%, 60% { transform: translateX(4px); }
+            10%, 90% { transform: translateX(-1px); } 20%, 80% { transform: translateX(2px); }
+            30%, 50%, 70% { transform: translateX(-4px); } 40%, 60% { transform: translateX(4px); }
         }
-
-        #app-container {
-            display: none;
-            width: 100%;
-        }
-
+        #app-container { display: none; width: 100%; }
         .sidebar {
-            width: 260px;
-            background: var(--bg-light);
-            border-right: 1px solid var(--border-color);
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            position: fixed;
-            z-index: 100;
+            width: 260px; background: var(--bg-light); border-right: 1px solid var(--border-color);
+            display: flex; flex-direction: column; height: 100vh; position: fixed; z-index: 100;
             transition: width 0.3s ease;
         }
-
-        .logo {
-            padding: 1.5rem 2rem;
-            margin-bottom: 1rem;
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        .logo i {
-            font-size: 1.75rem;
-            color: var(--primary);
-            text-shadow: var(--primary-glow-text);
-        }
-
-        .logo h1 {
-            color: var(--text-light);
-            font-size: 1.25rem;
-            font-weight: 600;
-        }
-
-        .nav-links {
-            list-style: none;
-            padding: 0 1rem;
-            flex-grow: 1;
-        }
-        
+        .logo { padding: 1.5rem 2rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 1rem; }
+        .logo i { font-size: 1.75rem; color: var(--primary); text-shadow: var(--primary-glow-text); }
+        .logo h1 { color: var(--text-light); font-size: 1.25rem; font-weight: 600; }
+        .nav-links { list-style: none; padding: 0 1rem; flex-grow: 1; }
         .nav-category {
-            padding: 1.5rem 1rem 0.5rem;
-            font-size: 0.75rem;
-            font-weight: 600;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 1px;
+            padding: 1.5rem 1rem 0.5rem; font-size: 0.75rem; font-weight: 600; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 1px;
         }
-
         .nav-links a {
-            display: flex;
-            align-items: center;
-            padding: 1rem;
-            color: var(--text-muted);
-            text-decoration: none;
-            border-radius: 8px;
-            transition: all 0.2s ease-in-out;
-            font-weight: 500;
-            margin-bottom: 0.25rem;
+            display: flex; align-items: center; padding: 1rem; color: var(--text-muted); text-decoration: none;
+            border-radius: 8px; transition: all 0.2s ease-in-out; font-weight: 500; margin-bottom: 0.25rem;
         }
-
-        .nav-links a:hover {
-            background: rgba(255, 255, 255, 0.05);
-            color: var(--text-light);
-        }
-
-        .nav-links a.active {
-            background-color: var(--primary);
-            color: var(--text-light);
-            box-shadow: var(--primary-glow-box);
-        }
-
-        .nav-links a i {
-            margin-right: 1rem;
-            width: 20px;
-            text-align: center;
-            font-size: 1rem;
-        }
-
-        .logout-link {
-            margin-top: auto;
-            padding: 1rem;
-        }
-
-        .main-content {
-            flex: 1;
-            margin-left: 260px;
-            padding: 2rem 3rem;
-            transition: margin-left 0.3s ease;
-        }
-
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 2rem;
-        }
-
-        header h1 {
-            font-size: 2rem;
-            color: var(--text-light);
-            font-weight: 600;
-        }
-
+        .nav-links a:hover { background: rgba(255, 255, 255, 0.05); color: var(--text-light); }
+        .nav-links a.active { background-color: var(--primary); color: var(--text-light); box-shadow: var(--primary-glow-box); }
+        .nav-links a i { margin-right: 1rem; width: 20px; text-align: center; font-size: 1rem; }
+        .logout-link { margin-top: auto; padding: 1rem; }
+        .main-content { flex: 1; margin-left: 260px; padding: 2rem 3rem; transition: margin-left 0.3s ease; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+        header h1 { font-size: 2rem; color: var(--text-light); font-weight: 600; }
         .content-panel { display: none; animation: fadeIn 0.5s ease-out; }
         .content-panel.active { display: block; }
-        .panel-grid { display: grid; grid-template-columns: 1fr; gap: 1.5rem; }
-
+        .panel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; }
         .panel-wrapper {
-            background: var(--bg-light);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            box-shadow: var(--panel-shadow);
-            display: flex;
-            flex-direction: column;
+            background: var(--bg-light); border: 1px solid var(--border-color); border-radius: 12px;
+            box-shadow: var(--panel-shadow); display: flex; flex-direction: column;
         }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .panel-header {
-            padding: 1.5rem;
-            border-bottom: 1px solid var(--border-color);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .panel-header h2 {
-            font-size: 1.25rem;
-            color: var(--text-light);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-weight: 600;
-        }
-        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .panel-header { padding: 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+        .panel-header h2 { font-size: 1.25rem; color: var(--text-light); display: flex; align-items: center; gap: 10px; font-weight: 600; }
         .panel-body { padding: 1.5rem; flex-grow: 1; }
-        
+        .stat-card { text-align: center; }
+        .stat-card .stat-number { font-size: 2.5rem; font-weight: 700; color: var(--primary); text-shadow: var(--primary-glow-text); }
+        .stat-card .stat-label { font-size: 1rem; color: var(--text-muted); }
         .form-control {
-            width: 100%;
-            padding: 12px 15px;
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            font-size: 1rem;
-            background: var(--bg-dark);
-            color: var(--text-light);
-            transition: all 0.3s;
+            width: 100%; padding: 12px 15px; border: 1px solid var(--border-color); border-radius: 8px;
+            font-size: 1rem; background: var(--bg-dark); color: var(--text-light); transition: all 0.3s;
         }
         .form-control:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(0, 168, 255, 0.3); outline: none; }
         textarea.form-control { min-height: 140px; resize: vertical; }
-
         .btn {
-            padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer;
-            font-weight: 600; transition: all 0.3s; display: inline-flex;
-            align-items: center; justify-content: center; gap: 8px; font-size: 0.9rem;
+            padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;
+            transition: all 0.3s; display: inline-flex; align-items: center; justify-content: center;
+            gap: 8px; font-size: 0.9rem;
         }
         .btn:disabled { cursor: not-allowed; opacity: 0.7; }
         .btn-sm { padding: 6px 12px; font-size: 0.8rem; }
         .btn-primary { background-color: var(--primary); color: var(--text-light); box-shadow: var(--primary-glow-box); }
         .btn-danger { background: var(--danger); color: white; }
         .btn-success { background: var(--success); color: white; }
-
+        .btn-secondary { background: #6c757d; color: white; }
         .notification {
-            position: fixed; bottom: 20px; right: 20px; padding: 15px 25px;
-            border-radius: 8px; color: white; font-weight: 500; background: var(--bg-light);
-            border: 1px solid var(--border-color); box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-            transform: translateX(120%); transition: transform 0.4s ease-in-out; z-index: 1000;
+            position: fixed; bottom: 20px; right: 20px; padding: 15px 25px; border-radius: 8px;
+            color: white; font-weight: 500; background: var(--bg-light); border: 1px solid var(--border-color);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); transform: translateX(120%);
+            transition: transform 0.4s ease-in-out; z-index: 1000;
         }
         .notification.show { transform: translateX(0); }
         .notification.success { border-left: 4px solid var(--success); }
         .notification.error { border-left: 4px solid var(--danger); }
-        
         .modal-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.7); display: none; align-items: center;
-            justify-content: center; z-index: 2000; opacity: 0;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7);
+            display: none; align-items: center; justify-content: center; z-index: 2000; opacity: 0;
             pointer-events: none; transition: opacity 0.3s ease;
         }
         .modal-overlay.show { display: flex; opacity: 1; pointer-events: auto; }
         .modal-box {
-            background: var(--bg-light); padding: 2rem; border-radius: 12px;
-            border: 1px solid var(--border-color); text-align: center; width: 90%;
-            max-width: 450px; transform: scale(0.95); transition: transform 0.3s ease;
+            background: var(--bg-light); padding: 2rem; border-radius: 12px; border: 1px solid var(--border-color);
+            text-align: center; width: 90%; max-width: 450px; transform: scale(0.95); transition: transform 0.3s ease;
         }
         .modal-overlay.show .modal-box { transform: scale(1); }
         .modal-box h3 { color: var(--text-light); margin-bottom: 1rem; }
         .modal-box p { margin-bottom: 2rem; color: var(--text-muted); }
         .modal-buttons { display: flex; justify-content: center; gap: 1rem; }
-
-        #chats-grid {
-            display: grid;
-            grid-template-columns: 350px 1fr;
-            gap: 1.5rem;
-            height: calc(100vh - 12rem);
+        #chats-grid { display: grid; grid-template-columns: 350px 1fr; gap: 1.5rem; height: calc(100vh - 12rem); }
+        #chat-list-container { overflow-y: auto; }
+        .chat-list-header {
+            font-size: 0.8rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase;
+            padding: 1rem 1rem 0.5rem; letter-spacing: 1px;
         }
-        #chat-list-container {
-            overflow-y: auto;
-        }
-        #chat-list {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-        .chat-item { 
-            padding: 1rem; border: 1px solid var(--border-color); border-radius: 12px; cursor: pointer; 
-            transition: all 0.2s ease; background: var(--bg-dark); display: flex; gap: 1rem; align-items: center;
+        .chat-item {
+            padding: 1rem; border: 1px solid var(--border-color); border-radius: 12px; cursor: pointer;
+            transition: all 0.2s ease; background: var(--bg-dark); display: flex; gap: 1rem;
+            align-items: center; margin: 0 1rem 0.5rem; position: relative;
         }
         .chat-item:hover { background: rgba(0, 168, 255, 0.1); border-color: var(--primary); }
         .chat-item.active { background: var(--primary); border-color: var(--primary); box-shadow: var(--primary-glow-box); }
-        .chat-item.active .chat-user,
-        .chat-item.active .chat-payment,
-        .chat-item.active .chat-date { color: white; }
+        .chat-item.active .chat-user, .chat-item.active .chat-payment, .chat-item.active .chat-date { color: white; }
         .chat-item-icon {
             font-size: 1.75rem; width: 40px; height: 40px; display: flex; align-items: center;
             justify-content: center; flex-shrink: 0; border-radius: 8px; background-color: var(--bg-light);
+        }
+        .unread-dot {
+            position: absolute; top: 12px; right: 12px; width: 10px; height: 10px; background-color: var(--primary);
+            border-radius: 50%; border: 2px solid var(--bg-dark); box-shadow: var(--primary-glow-box);
         }
         .chat-item-details { flex-grow: 1; overflow: hidden; }
         .chat-user { font-weight: 600; color: var(--text-light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .chat-payment { font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .chat-info { display: flex; justify-content: space-between; align-items: center; margin-top: 0.25rem; }
         .chat-date { font-size: 0.8rem; color: var(--text-muted); }
-        
         .status-badge { padding: 4px 10px; border-radius: 50px; font-size: 0.75rem; font-weight: 600; text-transform: capitalize; }
         .status-awaiting { background-color: var(--warning); color: var(--bg-dark); }
         .status-processing { background-color: var(--primary); color: var(--text-light); }
         .status-completed { background-color: var(--success); color: var(--text-light); }
-
         #chat-view { display: flex; flex-direction: column; height: 100%; }
         #chat-view.hidden { display: none; }
         #chat-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; }
         #chat-placeholder i { font-size: 3rem; margin-bottom: 1rem; color: var(--text-muted); opacity: 0.5; }
-        
-        #chat-messages { flex-grow: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 1rem; background: var(--bg-dark); border-radius: 8px; margin-bottom: 1rem; }
+        #chat-header-info { display: flex; flex-direction: column; gap: 4px; }
+        #chat-header-info small { color: var(--text-muted); font-size: 0.8rem; }
+        #chat-messages {
+            flex-grow: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column;
+            gap: 1rem; background: var(--bg-dark); border-radius: 8px; margin-bottom: 1rem;
+        }
         .message-bubble { padding: 0.75rem 1rem; border-radius: 12px; max-width: 80%; word-wrap: break-word; }
         .message-bubble.seller { background-color: var(--primary); color: var(--text-light); border-bottom-right-radius: 2px; align-self: flex-end; }
         .message-bubble.user { background-color: var(--bg-light); border: 1px solid var(--border-color); border-bottom-left-radius: 2px; align-self: flex-start; }
         .message-sender { font-weight: 600; font-size: 0.8rem; margin-bottom: 0.25rem; text-transform: capitalize; }
         .message-time { font-size: 0.75rem; opacity: 0.7; display: block; text-align: right; margin-top: 0.25rem; }
-
         #chat-reply-form { display: flex; gap: 1rem; }
         #chat-reply-input { flex-grow: 1; resize: none; height: 50px; }
     </style>
 </head>
 <body>
+    <audio id="notification-sound" src="data:audio/mpeg;base64,SUQzBAAAAAABEVRYWFgAAAAtAAADY29tbWVudABCaW5nIENTUkFQX1NGQkxXU0ZPQUNPMwAAAAAAAExodTEAAAAAADISAWAAAZGfk34pEEYp9+BY0TE3aJgl9xW8EaB/zP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/......"></audio>
     <div id="login-container">
         <div class="login-box">
             <h2><i class="fa-solid fa-atom"></i> Eps1llon Seller Hub</h2>
@@ -353,7 +192,7 @@
                 <div class="input-group">
                     <input type="password" id="password" class="form-control" placeholder="Password" required>
                 </div>
-                <div class="cf-turnstile mb-4" data-sitekey="0x4AAAAAAB0PeEmSeY6uJ3nN" data-theme="dark"></div>
+                <div class="cf-turnstile" data-sitekey="0x4AAAAAAB0PeEmSeY6uJ3nN" data-theme="dark" style="margin-bottom: 1.5rem;"></div>
                 <button type="submit" class="btn btn-primary">Login</button>
                 <p id="login-error">Invalid username or password.</p>
             </form>
@@ -380,10 +219,24 @@
             </header>
 
             <section class="content-panel active" id="dashboard-tab">
-                <div class="panel-wrapper">
-                    <div class="panel-header"><h2><i class="fas fa-info-circle"></i> Welcome</h2></div>
-                    <div class="panel-body">
-                        <p>Welcome to the Seller Hub. Use the navigation on the left to manage buyer chats and view sales information.</p>
+                <div class="panel-grid">
+                    <div class="panel-wrapper stat-card">
+                        <div class="panel-body">
+                            <div id="stat-awaiting" class="stat-number">0</div>
+                            <div class="stat-label">Tickets Awaiting Claim</div>
+                        </div>
+                    </div>
+                    <div class="panel-wrapper stat-card">
+                        <div class="panel-body">
+                            <div id="stat-active" class="stat-number">0</div>
+                            <div class="stat-label">Your Active Tickets</div>
+                        </div>
+                    </div>
+                    <div class="panel-wrapper stat-card">
+                         <div class="panel-body">
+                            <div id="stat-completed" class="stat-number">0</div>
+                            <div class="stat-label">Total Completed</div>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -392,15 +245,23 @@
                 <div id="chats-grid">
                     <div class="panel-wrapper">
                          <div class="panel-header"><h2><i class="fas fa-inbox"></i> Inbox</h2></div>
-                         <div class="panel-body" id="chat-list-container"><div id="chat-list"></div></div>
+                         <div class="panel-body" id="chat-list-container">
+                            <div id="chat-list-awaiting"></div>
+                            <div id="chat-list-active"></div>
+                            <div id="chat-list-completed"></div>
+                         </div>
                     </div>
                     <div class="panel-wrapper">
                          <div id="chat-view" class="hidden">
                               <div class="panel-header">
-                                  <h2 id="chat-header-id"></h2>
+                                  <div id="chat-header-info">
+                                    <h2 id="chat-header-title"></h2>
+                                    <small id="chat-header-details"></small>
+                                  </div>
                                   <div style="display: flex; gap: 0.5rem;">
-                                      <button id="complete-ticket-btn" class="btn btn-success btn-sm"><i class="fas fa-check-circle"></i> Complete Ticket</button>
-                                      <button id="delete-ticket-btn" class="btn btn-danger btn-sm"><i class="fas fa-trash-alt"></i> Delete Ticket</button>
+                                      <button id="claim-ticket-btn" class="btn btn-success btn-sm"><i class="fas fa-check"></i> Claim Ticket</button>
+                                      <button id="complete-ticket-btn" class="btn btn-primary btn-sm"><i class="fas fa-check-circle"></i> Complete</button>
+                                      <button id="delete-ticket-btn" class="btn btn-danger btn-sm"><i class="fas fa-trash-alt"></i> Delete</button>
                                   </div>
                               </div>
                               <div class="panel-body" style="display:flex; flex-direction:column; height: 100%;">
@@ -426,9 +287,25 @@
             <h3 id="confirmation-title">Are you sure?</h3>
             <p id="confirmation-message">This action cannot be undone.</p>
             <div class="modal-buttons">
+                <button id="cancel-action-btn" class="btn btn-secondary">Cancel</button>
                 <button id="confirm-action-btn" class="btn btn-danger">Confirm</button>
-                <button id="cancel-action-btn" class="btn">Cancel</button>
             </div>
+        </div>
+    </div>
+
+    <div id="complete-ticket-modal" class="modal-overlay">
+        <div class="modal-box">
+            <form id="complete-ticket-form">
+                <h3>Complete Ticket</h3>
+                <p>Enter the license key to complete this ticket. The buyer will receive this key in the chat.</p>
+                <div class="input-group">
+                    <input type="text" id="license-key-input" class="form-control" placeholder="Enter license key" required>
+                </div>
+                <div class="modal-buttons">
+                    <button type="button" id="cancel-complete-btn" class="btn btn-secondary">Cancel</button>
+                    <button type="submit" class="btn btn-success">Complete Purchase</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -438,70 +315,57 @@
         document.addEventListener('DOMContentLoaded', () => {
             const API_BASE_URL = '/api';
             
-            const loginContainer = document.getElementById('login-container');
-            const appContainer = document.getElementById('app-container');
-            const loginForm = document.getElementById('login-form');
-            const logoutBtn = document.getElementById('logout-btn');
+            const state = {
+                user: null,
+                tickets: [],
+                currentTicketId: null,
+                pollingInterval: null
+            };
 
-            loginForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const loginError = document.getElementById('login-error');
-                const loginBox = document.querySelector('.login-box');
-                loginError.style.display = 'none';
-                const username = document.getElementById('username').value.trim();
-                const password = document.getElementById('password').value.trim();
-                
-                // NEW: Get Turnstile token from the login form
-                const turnstileToken = loginForm.querySelector('[name="cf-turnstile-response"]')?.value;
-                if (!turnstileToken) {
-                    loginError.textContent = 'Please complete the security check.';
-                    loginError.style.display = 'block';
-                    return;
-                }
+            const selectors = {
+                loginContainer: document.getElementById('login-container'),
+                appContainer: document.getElementById('app-container'),
+                loginForm: document.getElementById('login-form'),
+                logoutBtn: document.getElementById('logout-btn'),
+                chatListAwaiting: document.getElementById('chat-list-awaiting'),
+                chatListActive: document.getElementById('chat-list-active'),
+                chatListCompleted: document.getElementById('chat-list-completed'),
+                chatView: document.getElementById('chat-view'),
+                chatPlaceholder: document.getElementById('chat-placeholder'),
+                chatHeaderTitle: document.getElementById('chat-header-title'),
+                chatHeaderDetails: document.getElementById('chat-header-details'),
+                chatMessages: document.getElementById('chat-messages'),
+                chatReplyForm: document.getElementById('chat-reply-form'),
+                claimBtn: document.getElementById('claim-ticket-btn'),
+                completeBtn: document.getElementById('complete-ticket-btn'),
+                deleteBtn: document.getElementById('delete-ticket-btn'),
+                notificationSound: document.getElementById('notification-sound'),
+                statAwaiting: document.getElementById('stat-awaiting'),
+                statActive: document.getElementById('stat-active'),
+                statCompleted: document.getElementById('stat-completed'),
+                completeModal: document.getElementById('complete-ticket-modal'),
+                completeForm: document.getElementById('complete-ticket-form'),
+                cancelCompleteBtn: document.getElementById('cancel-complete-btn'),
+                licenseKeyInput: document.getElementById('license-key-input'),
+                confirmationModal: document.getElementById('confirmation-modal'),
+                confirmBtn: document.getElementById('confirm-action-btn'),
+                cancelBtn: document.getElementById('cancel-action-btn'),
+            };
 
-                try {
-                    const response = await fetch(`${API_BASE_URL}/login`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        // NEW: Send the turnstileToken along with credentials
-                        body: JSON.stringify({ username, password, turnstileToken })
-                    });
-                    const data = await response.json();
-                    if (response.ok && (data.role === 'seller' || data.role === 'admin')) {
-                        localStorage.setItem('token', data.token);
-                        showApp();
-                    } else {
-                        throw new Error(data.message || 'Invalid credentials or insufficient permissions.');
-                    }
-                } catch (error) {
-                    loginError.textContent = error.message;
-                    loginError.style.display = 'block';
-                    loginBox.classList.add('shake');
-                    setTimeout(() => loginBox.classList.remove('shake'), 500);
-                } finally {
-                    // NEW: Reset the Turnstile widget after a login attempt
-                    turnstile.reset(loginForm.querySelector('.cf-turnstile'));
-                }
-            });
+            const showNotification = (message, type = 'success') => {
+                const notification = document.getElementById('notification');
+                notification.textContent = message;
+                notification.className = `notification ${type} show`;
+                setTimeout(() => notification.classList.remove('show'), 4000);
+            };
 
-            logoutBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                localStorage.removeItem('token');
-                hideApp();
-            });
-
-            if (localStorage.getItem('token')) {
-                showApp();
-            }
-
-            async function authFetch(url, options = {}) {
+            const authFetch = async (url, options = {}) => {
                 const token = localStorage.getItem('token');
                 if (!token) {
                     hideApp();
                     throw new Error('No token found.');
                 }
-                const headers = { ...options.headers };
-                headers['Authorization'] = `Bearer ${token}`;
+                const headers = { ...options.headers, 'Authorization': `Bearer ${token}` };
                 if (!(options.body instanceof FormData) && !headers['Content-Type']) {
                     headers['Content-Type'] = 'application/json';
                 }
@@ -512,246 +376,342 @@
                     throw new Error('Session expired. Please log in again.');
                 }
                 return response;
-            }
+            };
 
-            function showApp() {
-                loginContainer.style.display = 'none';
-                appContainer.style.display = 'flex';
+            const handleLogin = async (e) => {
+                e.preventDefault();
+                const loginError = document.getElementById('login-error');
+                const loginBox = document.querySelector('.login-box');
+                loginError.style.display = 'none';
+                const username = document.getElementById('username').value.trim();
+                const password = document.getElementById('password').value.trim();
+                const turnstileToken = selectors.loginForm.querySelector('[name="cf-turnstile-response"]')?.value;
+
+                if (!turnstileToken) {
+                    loginError.textContent = 'Please complete the security check.';
+                    loginError.style.display = 'block';
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`${API_BASE_URL}/login`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username, password, turnstileToken })
+                    });
+                    const data = await response.json();
+                    if (response.ok && (data.role === 'seller' || data.role === 'admin')) {
+                        localStorage.setItem('token', data.token);
+                        const payload = JSON.parse(atob(data.token.split('.')[1]));
+                        state.user = { id: payload.id, username: payload.username };
+                        showApp();
+                    } else {
+                        throw new Error(data.message || 'Invalid credentials or insufficient permissions.');
+                    }
+                } catch (error) {
+                    loginError.textContent = error.message;
+                    loginError.style.display = 'block';
+                    loginBox.classList.add('shake');
+                    setTimeout(() => loginBox.classList.remove('shake'), 500);
+                } finally {
+                    turnstile.reset(selectors.loginForm.querySelector('.cf-turnstile'));
+                }
+            };
+
+            const showApp = () => {
+                selectors.loginContainer.style.display = 'none';
+                selectors.appContainer.style.display = 'flex';
                 initApp();
-            }
+            };
 
-            function hideApp() {
-                appContainer.style.display = 'none';
-                loginContainer.style.display = 'flex';
+            const hideApp = () => {
+                selectors.appContainer.style.display = 'none';
+                selectors.loginContainer.style.display = 'flex';
                 document.getElementById('username').value = '';
                 document.getElementById('password').value = '';
-            }
+                if (state.pollingInterval) clearInterval(state.pollingInterval);
+            };
 
-            function initApp() {
-                const API = {
-                    chats: `${API_BASE_URL}/tickets/all`,
-                    manageTicket: `${API_BASE_URL}/tickets`
+            const getPaymentMethodIcon = (method) => {
+                const icons = {
+                    'PayPal': 'fab fa-paypal', 'Crypto': 'fab fa-bitcoin', 'Credit Card': 'fas fa-credit-card',
+                    'Bank Transfer': 'fas fa-university', 'Google Pay': 'fab fa-google-pay', 'Apple Pay': 'fab fa-apple-pay',
+                    'CashApp': 'fas fa-dollar-sign', 'Gag Pets': 'fas fa-paw', 'Secret Brainrots': 'fas fa-brain'
                 };
-                
-                let chatCache = [];
-                
-                const showNotification = (message, type = 'success') => {
-                    const notification = document.getElementById('notification');
-                    notification.textContent = message;
-                    notification.className = `notification ${type} show`;
-                    setTimeout(() => notification.classList.remove('show'), 4000);
-                };
+                return icons[method] || 'fas fa-receipt';
+            };
 
-                const escapeHTML = str => str ? str.toString().replace(/[&<>"']/g, tag => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[tag])) : '';
+            const renderChatList = (tickets, container, isUnreadLogic) => {
+                container.innerHTML = `<h2 class="chat-list-header">${container.id.split('-').slice(2).join(' ')} (${tickets.length})</h2>`;
+                if (tickets.length === 0) return;
+                
+                tickets.forEach(chat => {
+                    const item = document.createElement('div');
+                    item.className = 'chat-item';
+                    if (state.currentTicketId === chat.id) item.classList.add('active');
+                    item.dataset.chatId = chat.id;
+                    const iconClass = getPaymentMethodIcon(chat.payment_method);
+                    const isUnread = isUnreadLogic && chat.last_message_sender === 'user';
 
-                document.querySelectorAll('.nav-links a:not(#logout-btn)').forEach(el => {
-                    el.addEventListener('click', e => {
-                        e.preventDefault();
-                        switchTab(el.dataset.tab);
-                    });
+                    item.innerHTML = `
+                        ${isUnread ? '<div class="unread-dot"></div>' : ''}
+                        <div class="chat-item-icon"><i class="${iconClass}"></i></div>
+                        <div class="chat-item-details">
+                            <div class="chat-user">Buyer: ${escapeHTML(chat.buyer_name)}</div>
+                            <div class="chat-payment">${escapeHTML(chat.payment_method)}</div>
+                            <div class="chat-info">
+                                <span class="chat-date">${new Date(chat.updated_at).toLocaleDateString()}</span>
+                                <span class="status-badge status-${chat.status}">${chat.status}</span>
+                            </div>
+                        </div>`;
+                    item.addEventListener('click', () => displayChatDetails(chat.id));
+                    container.appendChild(item);
                 });
+            };
+            
+            const updateDashboard = (tickets) => {
+                 const awaiting = tickets.filter(t => !t.claimed_by && t.status !== 'completed');
+                 const active = tickets.filter(t => t.claimed_by === state.user.id && t.status !== 'completed');
+                 selectors.statAwaiting.textContent = awaiting.length;
+                 selectors.statActive.textContent = active.length;
+                 selectors.statCompleted.textContent = tickets.filter(t => t.status === 'completed').length;
+            };
 
-                function switchTab(tabName) {
-                    document.querySelectorAll('.nav-links a').forEach(link => link.classList.toggle('active', link.dataset.tab === tabName));
-                    document.querySelectorAll('.content-panel').forEach(content => content.classList.toggle('active', content.id === `${tabName}-tab`));
-                    const linkText = document.querySelector(`.nav-links a[data-tab="${tabName}"] span`).textContent;
-                    document.getElementById('header-title').textContent = linkText;
-
-                    if (tabName === 'chats') {
-                        loadChats();
-                    }
-                }
-                
-                const getPaymentMethodIcon = (method) => {
-                    const icons = {
-                        'PayPal': 'fab fa-paypal', 'Crypto': 'fab fa-bitcoin', 'Credit Card': 'fas fa-credit-card',
-                        'Bank Transfer': 'fas fa-university', 'Google Pay': 'fab fa-google-pay', 'Apple Pay': 'fab fa-apple-pay',
-                        'CashApp': 'fas fa-dollar-sign', 'Gag Pets': 'fas fa-paw', 'Secret Brainrots': 'fas fa-brain'
-                    };
-                    return icons[method] || 'fas fa-receipt';
-                };
-
-                async function loadChats() {
-                    try {
-                        const response = await authFetch(API.chats);
-                        if (!response.ok) throw new Error("Couldn't load chats.");
-                        chatCache = await response.json();
-                        const chatList = document.getElementById('chat-list');
-                        chatList.innerHTML = '';
-                        if (chatCache.length === 0) {
-                            chatList.innerHTML = '<p style="text-align: center; padding: 1rem; color: var(--text-muted);">Inbox is empty.</p>';
-                            return;
-                        }
-                        chatCache.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
-                        chatCache.forEach(chat => {
-                            const item = document.createElement('div');
-                            item.className = 'chat-item';
-                            item.dataset.chatId = chat.id;
-                            const iconClass = getPaymentMethodIcon(chat.payment_method);
-                            item.innerHTML = `
-                                <div class="chat-item-icon"><i class="${iconClass}"></i></div>
-                                <div class="chat-item-details">
-                                    <div class="chat-user">Buyer: ${escapeHTML(chat.buyer_name)}</div>
-                                    <div class="chat-payment">${escapeHTML(chat.payment_method)}</div>
-                                    <div class="chat-info">
-                                         <span class="chat-date">${new Date(chat.updated_at).toLocaleDateString()}</span>
-                                         <span class="status-badge status-${chat.status}">${chat.status}</span>
-                                    </div>
-                                </div>`;
-                            item.addEventListener('click', () => displayChatDetails(chat.id));
-                            chatList.appendChild(item);
-                        });
-                    } catch (error) { showNotification(error.message, 'error'); }
-                }
-                
-                function resetChatView() {
-                    document.getElementById('chat-view').classList.add('hidden');
-                    document.getElementById('chat-placeholder').style.display = 'flex';
-                    document.querySelectorAll('.chat-item').forEach(item => item.classList.remove('active'));
-                }
-
-                function displayChatDetails(chatId) {
-                    const chat = chatCache.find(t => t.id === chatId);
-                    if (!chat) return resetChatView();
+            const loadChats = async () => {
+                try {
+                    const response = await authFetch(`${API_BASE_URL}/tickets/all`);
+                    if (!response.ok) throw new Error("Couldn't load chats.");
+                    const newTickets = await response.json();
                     
+                    if (JSON.stringify(newTickets) !== JSON.stringify(state.tickets)) {
+                        if (state.tickets.length > 0 && newTickets.length > state.tickets.length) {
+                           selectors.notificationSound.play().catch(e => console.error("Audio play failed:", e));
+                        }
+                        state.tickets = newTickets;
+                        
+                        const awaiting = state.tickets.filter(t => !t.claimed_by && t.status !== 'completed');
+                        const active = state.tickets.filter(t => t.claimed_by === state.user.id && t.status !== 'completed');
+                        const completed = state.tickets.filter(t => t.status === 'completed');
+
+                        renderChatList(awaiting, selectors.chatListAwaiting, true);
+                        renderChatList(active, selectors.chatListActive, true);
+                        renderChatList(completed, selectors.chatListCompleted, false);
+
+                        updateDashboard(state.tickets);
+                        
+                        if (state.currentTicketId) {
+                            displayChatDetails(state.currentTicketId, true); // Re-render without changing view
+                        }
+                    }
+                } catch (error) {
+                    showNotification(error.message, 'error');
+                    clearInterval(state.pollingInterval); // Stop polling on error
+                }
+            };
+            
+            const displayChatDetails = (chatId, isRefresh = false) => {
+                const chat = state.tickets.find(t => t.id === chatId);
+                if (!chat) return resetChatView();
+                
+                if (!isRefresh) {
+                    state.currentTicketId = chatId;
                     document.querySelectorAll('.chat-item').forEach(item => {
                         item.classList.toggle('active', parseInt(item.dataset.chatId) === chatId);
                     });
-
-                    document.getElementById('chat-placeholder').style.display = 'none';
-                    document.getElementById('chat-view').classList.remove('hidden');
-
-                    const iconClass = getPaymentMethodIcon(chat.payment_method);
-                    document.getElementById('chat-header-id').innerHTML = `<i class="${iconClass}"></i> Chat with ${escapeHTML(chat.buyer_name)}`;
-                    
-                    const completeBtn = document.getElementById('complete-ticket-btn');
-                    const deleteBtn = document.getElementById('delete-ticket-btn');
-                    completeBtn.dataset.ticketId = chat.id;
-                    deleteBtn.dataset.ticketId = chat.id;
-                    
-                    document.getElementById('chat-reply-form').dataset.chatId = chat.id;
-
-                    const isCompleted = chat.status === 'completed';
-                    completeBtn.style.display = isCompleted ? 'none' : 'inline-flex';
-                    deleteBtn.style.display = isCompleted ? 'inline-flex' : 'none';
-                    document.getElementById('chat-reply-input').disabled = isCompleted;
-                    document.getElementById('chat-reply-form').querySelector('button').disabled = isCompleted;
-
-                    const messagesContainer = document.getElementById('chat-messages');
-                    messagesContainer.innerHTML = '';
-                    (chat.messages || []).forEach(msg => {
-                        const bubble = document.createElement('div');
-                        bubble.className = `message-bubble ${msg.sender}`;
-                        const senderName = msg.sender === 'user' ? escapeHTML(chat.buyer_name) : 'You (Seller)';
-                        bubble.innerHTML = `<div class="message-sender">${senderName}</div><p>${escapeHTML(msg.message)}</p><span class="message-time">${new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>`;
-                        messagesContainer.appendChild(bubble);
-                    });
-                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
                 }
                 
-                document.getElementById('chat-reply-form').addEventListener('submit', async function(e) {
+                selectors.chatPlaceholder.style.display = 'none';
+                selectors.chatView.classList.remove('hidden');
+
+                const iconClass = getPaymentMethodIcon(chat.payment_method);
+                selectors.chatHeaderTitle.innerHTML = `<i class="${iconClass}"></i> Chat with ${escapeHTML(chat.buyer_name)}`;
+                selectors.chatHeaderDetails.textContent = `Status: ${chat.status} | Claimed by: ${chat.claimed_by_name || 'None'}`;
+                
+                selectors.claimBtn.style.display = (!chat.claimed_by && chat.status !== 'completed') ? 'inline-flex' : 'none';
+                selectors.completeBtn.style.display = (chat.claimed_by === state.user.id && chat.status !== 'completed') ? 'inline-flex' : 'none';
+                selectors.deleteBtn.style.display = chat.status === 'completed' ? 'inline-flex' : 'none';
+
+                const isChatLocked = chat.status === 'completed' || (chat.claimed_by && chat.claimed_by !== state.user.id);
+                selectors.chatReplyForm.querySelector('textarea').disabled = isChatLocked;
+                selectors.chatReplyForm.querySelector('button').disabled = isChatLocked;
+
+                selectors.chatMessages.innerHTML = '';
+                (chat.messages || []).forEach(msg => {
+                    const bubble = document.createElement('div');
+                    bubble.className = `message-bubble ${msg.sender}`;
+                    const senderName = msg.sender === 'user' ? escapeHTML(chat.buyer_name) : 'You (Seller)';
+                    bubble.innerHTML = `<div class="message-sender">${senderName}</div><p>${escapeHTML(msg.message)}</p><span class="message-time">${new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>`;
+                    selectors.chatMessages.appendChild(bubble);
+                });
+                if (!isRefresh) {
+                   selectors.chatMessages.scrollTop = selectors.chatMessages.scrollHeight;
+                }
+            };
+            
+            const resetChatView = () => {
+                state.currentTicketId = null;
+                selectors.chatView.classList.add('hidden');
+                selectors.chatPlaceholder.style.display = 'flex';
+                document.querySelectorAll('.chat-item').forEach(item => item.classList.remove('active'));
+            };
+
+            const showModal = (modalElement, title, message, onConfirm) => {
+                modalElement.classList.add('show');
+                if (title) modalElement.querySelector('h3').textContent = title;
+                if (message) modalElement.querySelector('p').textContent = message;
+                
+                const confirmHandler = (e) => {
                     e.preventDefault();
-                    const chatId = this.dataset.chatId;
-                    const input = document.getElementById('chat-reply-input');
-                    const message = input.value.trim();
-                    if (!message || !chatId) return;
-                    const button = this.querySelector('button');
-                    button.disabled = true;
+                    hideModal(modalElement);
+                    onConfirm(e);
+                };
+                
+                if (modalElement.id === 'confirmation-modal') {
+                    const newConfirmBtn = selectors.confirmBtn.cloneNode(true);
+                    selectors.confirmBtn.parentNode.replaceChild(newConfirmBtn, selectors.confirmBtn);
+                    newConfirmBtn.addEventListener('click', confirmHandler, { once: true });
+                } else if (modalElement.id === 'complete-ticket-modal') {
+                     selectors.completeForm.addEventListener('submit', confirmHandler, { once: true });
+                }
+            };
+
+            const hideModal = (modalElement) => {
+                 modalElement.classList.remove('show');
+                 // Clean up listeners to prevent memory leaks, especially for forms
+                 const newForm = selectors.completeForm.cloneNode(true);
+                 selectors.completeForm.parentNode.replaceChild(newForm, selectors.completeForm);
+                 selectors.completeForm = newForm;
+            };
+
+            const handleClaimTicket = async (e) => {
+                 const ticketId = state.currentTicketId;
+                 if (!ticketId) return;
+                 try {
+                     const response = await authFetch(`${API_BASE_URL}/tickets/${ticketId}/claim`, { method: 'POST' });
+                     if (!response.ok) {
+                         const err = await response.json();
+                         throw new Error(err.message || "Failed to claim ticket.");
+                     }
+                     showNotification(`Ticket #${ticketId} claimed successfully.`, 'success');
+                     await loadChats();
+                 } catch (error) {
+                     showNotification(error.message, 'error');
+                 }
+            };
+
+            const handleReply = async (e) => {
+                 e.preventDefault();
+                 const chatId = state.currentTicketId;
+                 const input = selectors.chatReplyForm.querySelector('textarea');
+                 const message = input.value.trim();
+                 if (!message || !chatId) return;
+                 const button = selectors.chatReplyForm.querySelector('button');
+                 button.disabled = true;
+                 try {
+                     const response = await authFetch(`${API_BASE_URL}/tickets/${chatId}/messages`, {
+                         method: 'POST',
+                         body: JSON.stringify({ message })
+                     });
+                     if (!response.ok) {
+                         throw new Error("Couldn't send reply.");
+                     }
+                     input.value = '';
+                     await loadChats();
+                 } catch(error) {
+                     showNotification(error.message, 'error');
+                 } finally {
+                     button.disabled = false;
+                 }
+            };
+
+            const initApp = () => {
+                const token = localStorage.getItem('token');
+                if (!token) return;
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                state.user = { id: payload.id, username: payload.username };
+
+                switchTab('dashboard');
+                loadChats(); // Initial load
+                state.pollingInterval = setInterval(loadChats, 7000); // Poll every 7 seconds
+
+                // Setup event listeners only once
+                selectors.logoutBtn.addEventListener('click', (e) => { e.preventDefault(); hideApp(); });
+                document.querySelectorAll('.nav-links a:not(#logout-btn)').forEach(el => {
+                    el.addEventListener('click', e => { e.preventDefault(); switchTab(el.dataset.tab); });
+                });
+                
+                selectors.claimBtn.addEventListener('click', handleClaimTicket);
+                selectors.chatReplyForm.addEventListener('submit', handleReply);
+
+                selectors.completeBtn.addEventListener('click', () => {
+                    selectors.licenseKeyInput.value = '';
+                    showModal(selectors.completeModal);
+                });
+                selectors.cancelCompleteBtn.addEventListener('click', () => hideModal(selectors.completeModal));
+                selectors.completeForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    hideModal(selectors.completeModal);
+                    const ticketId = state.currentTicketId;
+                    const licenseKey = selectors.licenseKeyInput.value.trim();
+                    if (!licenseKey) return showNotification('License key cannot be empty.', 'error');
+                    
                     try {
-                        const response = await authFetch(`${API.manageTicket}/${chatId}/messages`, {
-                            method: 'POST',
-                            body: JSON.stringify({ message })
+                        const response = await authFetch(`${API_BASE_URL}/tickets/${ticketId}/complete`, { 
+                            method: 'POST', body: JSON.stringify({ licenseKey })
                         });
                         if (!response.ok) {
-                            const errData = await response.json();
-                            throw new Error(errData.message || "Couldn't send reply.");
+                             const err = await response.json();
+                             throw new Error(err.message || 'Failed to complete ticket.');
                         }
-                        const updatedChat = await response.json();
-                        const index = chatCache.findIndex(t => t.id === updatedChat.id);
-                        if (index > -1) chatCache[index] = updatedChat;
-                        input.value = '';
+                        showNotification(`Ticket #${ticketId} has been completed.`, 'success');
                         await loadChats();
-                        displayChatDetails(updatedChat.id);
-                    } catch(error) {
-                        showNotification(error.message, 'error');
-                    } finally {
-                        button.disabled = false;
-                    }
+                    } catch (error) { showNotification(error.message, 'error'); }
                 });
 
-                function showConfirmationModal(title, message, onConfirm) {
-                    const modal = document.getElementById('confirmation-modal');
-                    document.getElementById('confirmation-title').textContent = title;
-                    document.getElementById('confirmation-message').textContent = message;
-                    modal.classList.add('show');
-                    const confirmBtn = document.getElementById('confirm-action-btn');
-                    const cancelBtn = document.getElementById('cancel-action-btn');
-                    
-                    const newConfirmBtn = confirmBtn.cloneNode(true);
-                    confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
-
-                    const confirmHandler = () => {
-                        hideConfirmationModal();
-                        onConfirm();
-                    };
-                    const cancelHandler = () => hideConfirmationModal();
-                    
-                    newConfirmBtn.addEventListener('click', confirmHandler, { once: true });
-                    cancelBtn.addEventListener('click', cancelHandler, { once: true });
-                }
-                function hideConfirmationModal() { document.getElementById('confirmation-modal').classList.remove('show'); }
-                
-                document.getElementById('complete-ticket-btn').addEventListener('click', function(e) {
-                    const ticketId = e.currentTarget.dataset.ticketId;
-                    if (!ticketId) return;
-
-                    const licenseKey = prompt(`Enter the license key for Ticket #${ticketId}:`);
-                    if (!licenseKey || licenseKey.trim() === '') {
-                        return showNotification('License key cannot be empty.', 'error');
-                    }
-                    
-                    showConfirmationModal('Confirm Completion', `Complete Ticket #${ticketId} with key: "${licenseKey.trim()}"?`, async () => {
-                        try {
-                            const response = await authFetch(`${API.manageTicket}/${ticketId}/complete`, { 
-                                method: 'POST',
-                                body: JSON.stringify({ licenseKey: licenseKey.trim() })
-                             });
+                selectors.deleteBtn.addEventListener('click', () => {
+                    const ticketId = state.currentTicketId;
+                    showModal(selectors.confirmationModal, 'Confirm Deletion', `Permanently DELETE ticket #${ticketId}?`, async () => {
+                         try {
+                            const response = await authFetch(`${API_BASE_URL}/tickets/${ticketId}`, { method: 'DELETE' });
                             if (!response.ok) {
-                                const err = await response.json();
-                                throw new Error(err.message || 'Failed to complete ticket.');
-                            }
-                            const updatedTicket = await response.json();
-                            showNotification(`Ticket #${ticketId} has been completed.`, 'success');
-                            await loadChats();
-                            displayChatDetails(updatedTicket.id);
-                        } catch (error) {
-                            showNotification(error.message, 'error');
-                        }
-                    });
-                });
-
-                document.getElementById('delete-ticket-btn').addEventListener('click', function(e) {
-                    const ticketId = e.currentTarget.dataset.ticketId;
-                    if (!ticketId) return;
-                    showConfirmationModal('Confirm Deletion', `Permanently DELETE ticket #${ticketId}? This is irreversible.`, async () => {
-                        try {
-                            const response = await authFetch(`${API.manageTicket}/${ticketId}`, { method: 'DELETE' });
-                            if (!response.ok) {
-                                const err = await response.json();
-                                throw new Error(err.message || 'Failed to delete ticket.');
+                                throw new Error('Failed to delete ticket.');
                             }
                             showNotification(`Ticket #${ticketId} has been deleted.`, 'success');
-                            await loadChats();
                             resetChatView();
-                        } catch (error) {
-                            showNotification(error.message, 'error');
-                        }
+                            await loadChats();
+                        } catch (error) { showNotification(error.message, 'error'); }
                     });
                 });
+                
+                selectors.cancelBtn.addEventListener('click', () => hideModal(selectors.confirmationModal));
+            };
 
-                // Set default tab to chats
-                switchTab('chats');
+            const switchTab = (tabName) => {
+                document.querySelectorAll('.nav-links a').forEach(link => link.classList.toggle('active', link.dataset.tab === tabName));
+                document.querySelectorAll('.content-panel').forEach(content => content.classList.toggle('active', content.id === `${tabName}-tab`));
+                const linkText = document.querySelector(`.nav-links a[data-tab="${tabName}"] span`).textContent;
+                document.getElementById('header-title').textContent = linkText;
+            };
+            
+            const escapeHTML = str => str ? str.toString().replace(/[&<>"']/g, tag => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[tag])) : '';
+
+            // Initial Check
+            const token = localStorage.getItem('token');
+            if (token) {
+                 try {
+                     const payload = JSON.parse(atob(token.split('.')[1]));
+                     if (payload.exp * 1000 > Date.now() && (payload.role === 'seller' || payload.role === 'admin')) {
+                         state.user = { id: payload.id, username: payload.username };
+                         showApp();
+                     } else {
+                         localStorage.removeItem('token');
+                     }
+                 } catch (e) {
+                     localStorage.removeItem('token');
+                 }
             }
+
+            selectors.loginForm.addEventListener('submit', handleLogin);
         });
     </script>
 </body>
