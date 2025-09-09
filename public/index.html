@@ -564,7 +564,8 @@
 
       async loadConfig() {
         try {
-          const response = await fetch('/api/config');
+          // This fetch call uses the API_BASE_URL set in init()
+          const response = await fetch(`${this.API_BASE_URL}/api/config`);
           if (!response.ok) {
             throw new Error(`Config endpoint failed with status: ${response.status}`);
           }
@@ -578,10 +579,13 @@
       },
 
       async init() {
-        // Use '' for same-origin API calls, which is perfect for Railway/hosted environments
-        this.API_BASE_URL = '';
+        // --- THIS IS THE CRITICAL CHANGE ---
+        // It points all API requests to your live backend URL.
+        this.API_BASE_URL = 'https://eps1llon.win';
 
         this.cacheElements();
+        // Load config *after* setting the base URL
+        await this.loadConfig();
         this.loadState();
         this.registerEventListeners();
         this.updateUI();
@@ -666,9 +670,9 @@
         if (token) headers['Authorization'] = `Bearer ${token}`;
 
         try {
+          // The base URL is now prepended to every endpoint
           const response = await fetch(`${this.API_BASE_URL}${endpoint}`, { ...options, headers });
           if (response.status === 401 || response.status === 403) {
-            // Special handling for registration failure due to Turnstile
             if (endpoint === '/register') {
                  this.showToast('Verification failed. Please try again.');
             } else if (this.state.isLoggedIn) {
@@ -1201,9 +1205,9 @@
       }
     };
 
-    // Start the application after fetching the server configuration
-    document.addEventListener('DOMContentLoaded', async () => {
-      await App.loadConfig();
+    // Start the application after the DOM is loaded.
+    // The init function will handle fetching the server config.
+    document.addEventListener('DOMContentLoaded', () => {
       App.init();
     });
   </script>
