@@ -921,7 +921,9 @@
               if (payload.exp * 1000 > Date.now()) {
                 this.state.isLoggedIn = true;
                 this.state.user = { id: payload.id, username: payload.username };
-                this.loadTickets();
+                // This line was causing the issue. We should only load tickets if the user is logged in
+                // and not on initial page load before they have a chance to do anything.
+                // We'll call loadTickets() only after a successful login.
               } else {
                 this.logout();
               }
@@ -949,7 +951,7 @@
               headers
             });
             
-            if (response.status === 401 || response.status === 403) {
+            if ((response.status === 401 || response.status === 403) && endpoint !== '/login' && endpoint !== '/register') {
               this.logout();
               this.showToast("Your session has expired. Please log in again.");
               return null;
@@ -1186,7 +1188,7 @@
               this.state.user = { username: data.username, id: JSON.parse(atob(data.token.split('.')[1])).id };
               this.closeAuthModal();
               this.updateUI();
-              await this.loadTickets();
+              await this.loadTickets(); // Now we load tickets after a successful login
               this.openTicketSystem();
             }
           } else if (response) {
