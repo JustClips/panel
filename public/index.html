@@ -2,37 +2,20 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Eps1llon Hub Premium - The Ultimate Advantage</title>
 
   <!-- Tailwind CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
 
   <!-- Icons & Fonts -->
-  <link
-    rel="stylesheet"
-    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
-  />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link
-    rel="preconnect"
-    href="https://fonts.gstatic.com"
-    crossorigin
-  />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap"
-    rel="stylesheet"
-  />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
 
   <!-- Cloudflare Turnstile (public/site key required) -->
-  <script
-    src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileLoad"
-    async
-    defer
-  ></script>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileLoad" async defer></script>
 
   <style>
     :root {
@@ -204,11 +187,7 @@
   <div id="main-website">
     <header class="py-4 px-8 flex justify-between items-center bg-black/30 backdrop-blur-md sticky top-0 z-40 border-b border-gray-800">
       <h1 class="text-3xl font-extrabold text-white flex items-center">
-        <img
-          src="https://i.imgur.com/4LQlJ9V.png"
-          alt="Script Logo"
-          class="h-10 w-10 mr-3 object-contain rounded-full shadow-lg logo-glow"
-        />
+        <img src="https://i.imgur.com/4LQlJ9V.png" alt="Script Logo" class="h-10 w-10 mr-3 object-contain rounded-full shadow-lg logo-glow" />
         Eps<span class="text-primary">1</span>llon Hub
       </h1>
 
@@ -366,12 +345,7 @@
           <!-- Turnstile widget -->
           <div class="mt-4 mb-6">
             <!-- This sitekey is intentionally left empty; it will be set dynamically by JavaScript -->
-            <div
-              id="turnstile-signup"
-              class="cf-turnstile"
-              data-sitekey=""
-              data-theme="dark"
-            ></div>
+            <div id="turnstile-signup" class="cf-turnstile" data-sitekey="" data-theme="dark"></div>
           </div>
 
           <button type="submit" class="w-full text-white font-bold py-3 px-6 rounded-lg btn-primary text-lg has-ripple">Sign Up</button>
@@ -837,9 +811,9 @@
           turnstileWidgetId = turnstile.render(turnstileElement, {
             sitekey: this.config.turnstileSiteKey, // Use fetched site key
             theme: 'dark',
-            callback: function(token) { turnstileToken = token; },
-            'error-callback': function() { turnstileToken = null; },
-            'expired-callback': function() { turnstileToken = null; }
+            callback: function(token) { turnstileToken = token; console.log("Turnstile solved, token set:", token); },
+            'error-callback': function() { turnstileToken = null; console.warn("Turnstile error callback triggered."); },
+            'expired-callback': function() { turnstileToken = null; console.warn("Turnstile expired callback triggered."); }
           });
         }
       },
@@ -862,38 +836,75 @@
         const username = this.elements.signupForm.querySelector('#signup-username').value.trim();
         const password = this.elements.signupForm.querySelector('#signup-password').value;
 
-        if (!username || !password) return this.showToast('Please fill in all fields');
-
-        if (!turnstileToken) {
-          const hidden = document.querySelector('input[name="cf-turnstile-response"]');
-          if (hidden && hidden.value) turnstileToken = hidden.value;
-        }
-        if (!turnstileToken) {
-          this.showToast('Please complete the verification challenge.');
-          return;
+        if (!username || !password) {
+            this.showToast('Please fill in all fields');
+            return; // Prevent further execution
         }
 
+        // --- Critical Fix/Debugging Part ---
+        console.log("Checking Turnstile Token before signup submission:", turnstileToken);
+
+        // 1. ONLY check the global variable set by the Turnstile callback
+        if (!turnstileToken) {
+            this.showToast('Please complete the verification challenge.');
+            // Optional: Add visual feedback to the user about the missing challenge
+            // e.g., highlight the Turnstile widget area
+            return;
+        }
+
+        // 2. Prepare the request body, including the token in the STANDARD field name
+        const requestBody = {
+            username: username,
+            password: password,
+            // --- Standard Field Name ---
+            'cf-turnstile-response': turnstileToken
+            // --- End Standard Field Name ---
+        };
+
+        // 3. Make the API call
         const response = await this.apiCall('/register', {
-          method: 'POST',
-          headers: {
-            'x-turnstile-token': turnstileToken
-          },
-          body: JSON.stringify({ username, password, 'cf-turnstile-response': turnstileToken })
+            method: 'POST',
+            // Do NOT send the token in a custom header UNLESS your backend specifically checks it
+            // headers: { 'x-turnstile-token': turnstileToken }, // <-- Removed
+            body: JSON.stringify(requestBody) // <-- Use the requestBody object
         });
 
-        try { if (window.turnstile && turnstileWidgetId) turnstile.reset(turnstileWidgetId); } catch {}
-        turnstileToken = null;
+        // 4. Reset the widget and clear the token IMMEDIATELY after the attempt
+        try {
+            if (window.turnstile && turnstileWidgetId !== null) {
+                console.log("Resetting Turnstile widget...");
+                window.turnstile.reset(turnstileWidgetId);
+            } else {
+                console.warn("Could not reset Turnstile widget: widget ID not found or turnstile not loaded.");
+            }
+        } catch (resetError) {
+            console.error("Error resetting Turnstile widget:", resetError);
+        } finally {
+            // Always clear the token variable
+            turnstileToken = null;
+            console.log("Turnstile token cleared after submission attempt.");
+        }
 
+        // 5. Handle the response
         if (response && response.ok) {
-          this.showToast('Account created! Please log in.');
-          this.toggleAuthView(true);
+            this.showToast('Account created! Please log in.');
+            this.toggleAuthView(true); // Switch to login view
         } else if (response) {
-          try {
-            const data = await response.json();
-            this.showToast(data.message || 'Signup failed.');
-          } catch {
-            this.showToast('Signup failed.');
-          }
+            // Try to get error message from backend
+            try {
+                const data = await response.json();
+                console.error("Signup failed with data:", data); // Log the error data
+                this.showToast(data.message || 'Signup failed. Please try again.'); // Show backend message or default
+            } catch (parseError) {
+                console.error("Error parsing signup failure response:", parseError);
+                this.showToast('Signup failed. Please try again.'); // Fallback message
+            }
+        } else {
+            // Handle network errors or null response (apiCall returned null due to 401/403/network)
+            // The apiCall function already shows a toast for network errors or 401/403
+            // So we might not need another one here, but it's okay to be explicit:
+            console.error("Signup request failed or was aborted.");
+            // Toast is likely already shown by apiCall
         }
       },
 
