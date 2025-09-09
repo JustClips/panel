@@ -11,30 +11,36 @@
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     <style>
         :root {
-            --bg-dark: #111319;
+            --bg-dark: #0A0C10;
             --bg-light: #1A1D25;
             --primary: #00A8FF;
             --secondary: #ffc107;
             --primary-glow-text: 0 0 10px rgba(0, 168, 255, 0.7);
-            --primary-glow-box: 0 0 15px rgba(0, 168, 255, 0.3);
-            --text-light: #FFFFFF;
-            --text-muted: #B0B8C5;
-            --border-color: rgba(255, 255, 255, 0.1);
+            --primary-glow-box: 0 0 25px rgba(0, 168, 255, 0.3);
+            --text-light: #E0E6F0;
+            --text-muted: #9BA4B5;
+            --border-color: rgba(255, 255, 255, 0.08);
             --success: #28a745;
             --danger: #dc3545;
-            --panel-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            --panel-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
             --warning: #ffc107;
+            --glass-bg: rgba(26, 29, 37, 0.7);
         }
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(0, 168, 255, 0.5); }
         body {
             background-color: var(--bg-dark);
-            background-image: radial-gradient(circle at 20% 20%, rgba(0, 168, 255, 0.08), transparent 30%);
-            color: var(--text-light); display: flex; min-height: 100vh; overflow-x: hidden;
+            background-image: radial-gradient(circle at 20% 20%, rgba(0, 168, 255, 0.05), transparent 40%), radial-gradient(circle at 80% 70%, rgba(255, 193, 7, 0.05), transparent 40%);
+            color: var(--text-light); display: flex; min-height: 100vh; overflow: hidden;
         }
         #login-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; width: 100%; }
         .login-box {
-            background: var(--bg-light); border: 1px solid var(--border-color); padding: 2.5rem;
-            border-radius: 12px; width: 100%; max-width: 400px; text-align: center; box-shadow: var(--panel-shadow);
+            background: var(--glass-bg); backdrop-filter: blur(10px); border: 1px solid var(--border-color);
+            padding: 2.5rem; border-radius: 12px; width: 100%; max-width: 400px;
+            text-align: center; box-shadow: var(--panel-shadow);
         }
         .login-box h2 {
             color: var(--text-light); margin-bottom: 0.5rem; display: flex; align-items: center;
@@ -42,24 +48,20 @@
         }
         .login-box p { margin-bottom: 2rem; color: var(--text-muted); }
         .input-group { margin-bottom: 1.5rem; text-align: left; }
-        .login-box .form-control { width: 100%; }
-        .login-box .btn { width: 100%; }
+        .login-box .form-control, .login-box .btn { width: 100%; }
         #login-error { color: var(--danger); margin-top: 1rem; display: none; }
         .login-box.shake { animation: shake 0.5s ease; }
-        @keyframes shake {
-            10%, 90% { transform: translateX(-1px); } 20%, 80% { transform: translateX(2px); }
-            30%, 50%, 70% { transform: translateX(-4px); } 40%, 60% { transform: translateX(4px); }
-        }
-        #app-container { display: none; width: 100%; }
+        @keyframes shake { 10%, 90% { transform: translateX(-1px); } 20%, 80% { transform: translateX(2px); } 30%, 50%, 70% { transform: translateX(-4px); } 40%, 60% { transform: translateX(4px); } }
+        #app-container { display: none; width: 100%; height: 100vh; }
         .sidebar {
             width: 260px; background: var(--bg-light); border-right: 1px solid var(--border-color);
-            display: flex; flex-direction: column; height: 100vh; position: fixed; z-index: 100;
+            display: flex; flex-direction: column; height: 100%; flex-shrink: 0;
             transition: width 0.3s ease;
         }
         .logo { padding: 1.5rem 2rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 1rem; }
         .logo i { font-size: 1.75rem; color: var(--primary); text-shadow: var(--primary-glow-text); }
         .logo h1 { color: var(--text-light); font-size: 1.25rem; font-weight: 600; }
-        .nav-links { list-style: none; padding: 0 1rem; flex-grow: 1; }
+        .nav-links { list-style: none; padding: 0 1rem; flex-grow: 1; overflow-y: auto; }
         .nav-category {
             padding: 1.5rem 1rem 0.5rem; font-size: 0.75rem; font-weight: 600; color: var(--text-muted);
             text-transform: uppercase; letter-spacing: 1px;
@@ -72,20 +74,20 @@
         .nav-links a.active { background-color: var(--primary); color: var(--text-light); box-shadow: var(--primary-glow-box); }
         .nav-links a i { margin-right: 1rem; width: 20px; text-align: center; font-size: 1rem; }
         .logout-link { margin-top: auto; padding: 1rem; }
-        .main-content { flex: 1; margin-left: 260px; padding: 2rem 3rem; transition: margin-left 0.3s ease; }
-        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+        .main-content { flex: 1; padding: 2rem 3rem; display: flex; flex-direction: column; height: 100%; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-shrink: 0; }
         header h1 { font-size: 2rem; color: var(--text-light); font-weight: 600; }
-        .content-panel { display: none; animation: fadeIn 0.5s ease-out; }
+        .content-panel { display: none; animation: fadeIn 0.5s ease-out; flex-grow: 1; }
         .content-panel.active { display: block; }
         .panel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; }
         .panel-wrapper {
-            background: var(--bg-light); border: 1px solid var(--border-color); border-radius: 12px;
-            box-shadow: var(--panel-shadow); display: flex; flex-direction: column;
+            background: var(--glass-bg); backdrop-filter: blur(10px); border: 1px solid var(--border-color);
+            border-radius: 12px; box-shadow: var(--panel-shadow); display: flex; flex-direction: column;
         }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        .panel-header { padding: 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+        .panel-header { padding: 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
         .panel-header h2 { font-size: 1.25rem; color: var(--text-light); display: flex; align-items: center; gap: 10px; font-weight: 600; }
-        .panel-body { padding: 1.5rem; flex-grow: 1; }
+        .panel-body { padding: 1.5rem; flex-grow: 1; overflow-y: auto; }
         .stat-card { text-align: center; }
         .stat-card .stat-number { font-size: 2.5rem; font-weight: 700; color: var(--primary); text-shadow: var(--primary-glow-text); }
         .stat-card .stat-label { font-size: 1rem; color: var(--text-muted); }
@@ -94,15 +96,16 @@
             font-size: 1rem; background: var(--bg-dark); color: var(--text-light); transition: all 0.3s;
         }
         .form-control:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(0, 168, 255, 0.3); outline: none; }
-        textarea.form-control { min-height: 140px; resize: vertical; }
         .btn {
             padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;
             transition: all 0.3s; display: inline-flex; align-items: center; justify-content: center;
             gap: 8px; font-size: 0.9rem;
         }
+        .btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
         .btn:disabled { cursor: not-allowed; opacity: 0.7; }
         .btn-sm { padding: 6px 12px; font-size: 0.8rem; }
         .btn-primary { background-color: var(--primary); color: var(--text-light); box-shadow: var(--primary-glow-box); }
+        .btn-primary:hover:not(:disabled) { background-color: #00b9ff; }
         .btn-danger { background: var(--danger); color: white; }
         .btn-success { background: var(--success); color: white; }
         .btn-secondary { background: #6c757d; color: white; }
@@ -110,38 +113,39 @@
             position: fixed; bottom: 20px; right: 20px; padding: 15px 25px; border-radius: 8px;
             color: white; font-weight: 500; background: var(--bg-light); border: 1px solid var(--border-color);
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); transform: translateX(120%);
-            transition: transform 0.4s ease-in-out; z-index: 1000;
+            transition: transform 0.4s ease-in-out; z-index: 1000; backdrop-filter: blur(5px);
         }
         .notification.show { transform: translateX(0); }
         .notification.success { border-left: 4px solid var(--success); }
         .notification.error { border-left: 4px solid var(--danger); }
         .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7);
-            display: none; align-items: center; justify-content: center; z-index: 2000; opacity: 0;
-            pointer-events: none; transition: opacity 0.3s ease;
+            backdrop-filter: blur(5px); display: none; align-items: center; justify-content: center;
+            z-index: 2000; opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
         }
         .modal-overlay.show { display: flex; opacity: 1; pointer-events: auto; }
         .modal-box {
-            background: var(--bg-light); padding: 2rem; border-radius: 12px; border: 1px solid var(--border-color);
-            text-align: center; width: 90%; max-width: 450px; transform: scale(0.95); transition: transform 0.3s ease;
+            background: var(--glass-bg); backdrop-filter: blur(10px); padding: 2rem; border-radius: 12px;
+            border: 1px solid var(--border-color); text-align: center; width: 90%; max-width: 450px;
+            transform: scale(0.95); transition: transform 0.3s ease;
         }
         .modal-overlay.show .modal-box { transform: scale(1); }
         .modal-box h3 { color: var(--text-light); margin-bottom: 1rem; }
         .modal-box p { margin-bottom: 2rem; color: var(--text-muted); }
         .modal-buttons { display: flex; justify-content: center; gap: 1rem; }
-        #chats-grid { display: grid; grid-template-columns: 350px 1fr; gap: 1.5rem; height: calc(100vh - 12rem); }
-        #chat-list-container { overflow-y: auto; }
+        #chats-grid { display: grid; grid-template-columns: 350px 1fr; gap: 1.5rem; height: 100%; }
+        #chat-list-container { display: flex; flex-direction: column; overflow-y: auto; }
         .chat-list-header {
             font-size: 0.8rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase;
-            padding: 1rem 1rem 0.5rem; letter-spacing: 1px;
+            padding: 1rem 1rem 0.5rem; letter-spacing: 1px; flex-shrink: 0;
         }
         .chat-item {
-            padding: 1rem; border: 1px solid var(--border-color); border-radius: 12px; cursor: pointer;
-            transition: all 0.2s ease; background: var(--bg-dark); display: flex; gap: 1rem;
+            padding: 1rem; border: 1px solid transparent; border-radius: 12px; cursor: pointer;
+            transition: all 0.2s ease; background: transparent; display: flex; gap: 1rem;
             align-items: center; margin: 0 1rem 0.5rem; position: relative;
         }
-        .chat-item:hover { background: rgba(0, 168, 255, 0.1); border-color: var(--primary); }
-        .chat-item.active { background: var(--primary); border-color: var(--primary); box-shadow: var(--primary-glow-box); }
+        .chat-item:hover { background: rgba(0, 168, 255, 0.1); }
+        .chat-item.active { background: var(--primary); box-shadow: var(--primary-glow-box); }
         .chat-item.active .chat-user, .chat-item.active .chat-payment, .chat-item.active .chat-date { color: white; }
         .chat-item-icon {
             font-size: 1.75rem; width: 40px; height: 40px; display: flex; align-items: center;
@@ -149,8 +153,9 @@
         }
         .unread-dot {
             position: absolute; top: 12px; right: 12px; width: 10px; height: 10px; background-color: var(--primary);
-            border-radius: 50%; border: 2px solid var(--bg-dark); box-shadow: var(--primary-glow-box);
+            border-radius: 50%; border: 2px solid var(--bg-dark); box-shadow: var(--primary-glow-box); animation: pulse 2s infinite;
         }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
         .chat-item-details { flex-grow: 1; overflow: hidden; }
         .chat-user { font-weight: 600; color: var(--text-light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .chat-payment { font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -168,15 +173,14 @@
         #chat-header-info small { color: var(--text-muted); font-size: 0.8rem; }
         #chat-messages {
             flex-grow: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column;
-            gap: 1rem; background: var(--bg-dark); border-radius: 8px; margin-bottom: 1rem;
+            gap: 1.25rem; background: var(--bg-dark); border-radius: 8px; margin-bottom: 1rem;
         }
-        .message-bubble { padding: 0.75rem 1rem; border-radius: 12px; max-width: 80%; word-wrap: break-word; }
-        .message-bubble.seller { background-color: var(--primary); color: var(--text-light); border-bottom-right-radius: 2px; align-self: flex-end; }
-        .message-bubble.user { background-color: var(--bg-light); border: 1px solid var(--border-color); border-bottom-left-radius: 2px; align-self: flex-start; }
-        .message-sender { font-weight: 600; font-size: 0.8rem; margin-bottom: 0.25rem; text-transform: capitalize; }
-        .message-time { font-size: 0.75rem; opacity: 0.7; display: block; text-align: right; margin-top: 0.25rem; }
-        #chat-reply-form { display: flex; gap: 1rem; }
-        #chat-reply-input { flex-grow: 1; resize: none; height: 50px; }
+        .message-bubble { padding: 0.75rem 1.25rem; border-radius: 18px; max-width: 80%; word-wrap: break-word; line-height: 1.5; }
+        .message-bubble.seller { background: var(--primary); color: var(--text-light); border-bottom-right-radius: 4px; align-self: flex-end; }
+        .message-bubble.user { background: var(--bg-light); border-bottom-left-radius: 4px; align-self: flex-start; }
+        .message-sender { font-weight: 600; font-size: 0.8rem; margin-bottom: 0.25rem; opacity: 0.9; }
+        #chat-reply-form { display: flex; gap: 1rem; flex-shrink: 0; }
+        #chat-reply-input { flex-grow: 1; resize: none; height: 48px; padding-top: 14px; }
     </style>
 </head>
 <body>
@@ -202,14 +206,12 @@
     <div id="app-container">
         <aside class="sidebar">
             <div class="logo"><i class="fa-solid fa-atom"></i><h1>Eps1llon</h1></div>
-            <nav>
-                <ul class="nav-links">
-                    <li class="nav-category"><span>General</span></li>
-                    <li><a href="#" class="active" data-tab="dashboard"><i class="fas fa-chart-pie"></i> <span>Dashboard</span></a></li>
-                    <li class="nav-category"><span>Sales</span></li>
-                    <li><a href="#" data-tab="chats"><i class="fas fa-comments"></i> <span>Buyer Chats</span></a></li>
-                    <li class="logout-link"><a href="#" id="logout-btn"><i class="fas fa-sign-out-alt"></i> <span>Logout</span></a></li>
-                </ul>
+            <nav class="nav-links">
+                <div class="nav-category"><span>General</span></div>
+                <a href="#" class="active" data-tab="dashboard"><i class="fas fa-chart-pie"></i> <span>Dashboard</span></a>
+                <div class="nav-category"><span>Sales</span></div>
+                <a href="#" data-tab="chats"><i class="fas fa-comments"></i> <span>Buyer Chats</span></a>
+                <div class="logout-link"><a href="#" id="logout-btn"><i class="fas fa-sign-out-alt"></i> <span>Logout</span></a></div>
             </nav>
         </aside>
 
@@ -243,9 +245,8 @@
             
             <section class="content-panel" id="chats-tab">
                 <div id="chats-grid">
-                    <div class="panel-wrapper">
-                         <div class="panel-header"><h2><i class="fas fa-inbox"></i> Inbox</h2></div>
-                         <div class="panel-body" id="chat-list-container">
+                    <div class="panel-wrapper" style="padding: 0.5rem 0;">
+                         <div id="chat-list-container">
                             <div id="chat-list-awaiting"></div>
                             <div id="chat-list-active"></div>
                             <div id="chat-list-completed"></div>
@@ -264,11 +265,11 @@
                                       <button id="delete-ticket-btn" class="btn btn-danger btn-sm"><i class="fas fa-trash-alt"></i> Delete</button>
                                   </div>
                               </div>
-                              <div class="panel-body" style="display:flex; flex-direction:column; height: 100%;">
+                              <div class="panel-body" style="display:flex; flex-direction:column; padding-bottom: 0;">
                                    <div id="chat-messages"></div>
                                    <form id="chat-reply-form">
-                                       <textarea id="chat-reply-input" class="form-control" placeholder="Type your reply..."></textarea>
-                                       <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane"></i></button>
+                                       <textarea id="chat-reply-input" class="form-control" placeholder="Type your reply... (Shift + Enter for new line)"></textarea>
+                                       <button type="submit" class="btn btn-primary" style="height: 48px;"><i class="fas fa-paper-plane"></i></button>
                                    </form>
                               </div>
                          </div>
@@ -315,12 +316,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             const API_BASE_URL = '/api';
             
-            const state = {
-                user: null,
-                tickets: [],
-                currentTicketId: null,
-                pollingInterval: null
-            };
+            const state = { user: null, tickets: [], currentTicketId: null, pollingInterval: null };
 
             const selectors = {
                 loginContainer: document.getElementById('login-container'),
@@ -336,6 +332,7 @@
                 chatHeaderDetails: document.getElementById('chat-header-details'),
                 chatMessages: document.getElementById('chat-messages'),
                 chatReplyForm: document.getElementById('chat-reply-form'),
+                chatReplyInput: document.getElementById('chat-reply-input'),
                 claimBtn: document.getElementById('claim-ticket-btn'),
                 completeBtn: document.getElementById('complete-ticket-btn'),
                 deleteBtn: document.getElementById('delete-ticket-btn'),
@@ -353,10 +350,10 @@
             };
 
             const showNotification = (message, type = 'success') => {
-                const notification = document.getElementById('notification');
-                notification.textContent = message;
-                notification.className = `notification ${type} show`;
-                setTimeout(() => notification.classList.remove('show'), 4000);
+                const el = document.getElementById('notification');
+                el.textContent = message;
+                el.className = `notification ${type} show`;
+                setTimeout(() => el.classList.remove('show'), 4000);
             };
 
             const authFetch = async (url, options = {}) => {
@@ -370,7 +367,7 @@
                     headers['Content-Type'] = 'application/json';
                 }
                 const response = await fetch(url, { ...options, headers });
-                if (response.status === 401 || response.status === 403) {
+                if ([401, 403].includes(response.status)) {
                     localStorage.removeItem('token');
                     hideApp();
                     throw new Error('Session expired. Please log in again.');
@@ -386,13 +383,11 @@
                 const username = document.getElementById('username').value.trim();
                 const password = document.getElementById('password').value.trim();
                 const turnstileToken = selectors.loginForm.querySelector('[name="cf-turnstile-response"]')?.value;
-
                 if (!turnstileToken) {
                     loginError.textContent = 'Please complete the security check.';
                     loginError.style.display = 'block';
                     return;
                 }
-
                 try {
                     const response = await fetch(`${API_BASE_URL}/login`, {
                         method: 'POST',
@@ -400,13 +395,11 @@
                         body: JSON.stringify({ username, password, turnstileToken })
                     });
                     const data = await response.json();
-                    if (response.ok && (data.role === 'seller' || data.role === 'admin')) {
+                    if (response.ok && ['seller', 'admin'].includes(data.role)) {
                         localStorage.setItem('token', data.token);
-                        const payload = JSON.parse(atob(data.token.split('.')[1]));
-                        state.user = { id: payload.id, username: payload.username };
                         showApp();
                     } else {
-                        throw new Error(data.message || 'Invalid credentials or insufficient permissions.');
+                        throw new Error(data.message || 'Invalid credentials or permissions.');
                     }
                 } catch (error) {
                     loginError.textContent = error.message;
@@ -432,30 +425,31 @@
                 if (state.pollingInterval) clearInterval(state.pollingInterval);
             };
 
-            const getPaymentMethodIcon = (method) => {
-                const icons = {
-                    'PayPal': 'fab fa-paypal', 'Crypto': 'fab fa-bitcoin', 'Credit Card': 'fas fa-credit-card',
-                    'Bank Transfer': 'fas fa-university', 'Google Pay': 'fab fa-google-pay', 'Apple Pay': 'fab fa-apple-pay',
-                    'CashApp': 'fas fa-dollar-sign', 'Gag Pets': 'fas fa-paw', 'Secret Brainrots': 'fas fa-brain'
-                };
-                return icons[method] || 'fas fa-receipt';
-            };
+            const getPaymentMethodIcon = (method) => ({
+                'PayPal': 'fab fa-paypal', 'Crypto': 'fab fa-bitcoin', 'Credit Card': 'fas fa-credit-card',
+                'Bank Transfer': 'fas fa-university', 'Google Pay': 'fab fa-google-pay', 'Apple Pay': 'fab fa-apple-pay',
+                'CashApp': 'fas fa-dollar-sign', 'Gag Pets': 'fas fa-paw', 'Secret Brainrots': 'fas fa-brain'
+            }[method] || 'fas fa-receipt');
 
             const renderChatList = (tickets, container, isUnreadLogic) => {
-                container.innerHTML = `<h2 class="chat-list-header">${container.id.split('-').slice(2).join(' ')} (${tickets.length})</h2>`;
+                const titleMap = {
+                    'chat-list-awaiting': 'Awaiting Claim',
+                    'chat-list-active': 'My Active Chats',
+                    'chat-list-completed': 'Completed'
+                };
+                container.innerHTML = `<h2 class="chat-list-header">${titleMap[container.id]} (${tickets.length})</h2>`;
                 if (tickets.length === 0) return;
                 
+                const fragment = document.createDocumentFragment();
                 tickets.forEach(chat => {
                     const item = document.createElement('div');
                     item.className = 'chat-item';
                     if (state.currentTicketId === chat.id) item.classList.add('active');
                     item.dataset.chatId = chat.id;
-                    const iconClass = getPaymentMethodIcon(chat.payment_method);
                     const isUnread = isUnreadLogic && chat.last_message_sender === 'user';
-
                     item.innerHTML = `
                         ${isUnread ? '<div class="unread-dot"></div>' : ''}
-                        <div class="chat-item-icon"><i class="${iconClass}"></i></div>
+                        <div class="chat-item-icon"><i class="${getPaymentMethodIcon(chat.payment_method)}"></i></div>
                         <div class="chat-item-details">
                             <div class="chat-user">Buyer: ${escapeHTML(chat.buyer_name)}</div>
                             <div class="chat-payment">${escapeHTML(chat.payment_method)}</div>
@@ -465,15 +459,14 @@
                             </div>
                         </div>`;
                     item.addEventListener('click', () => displayChatDetails(chat.id));
-                    container.appendChild(item);
+                    fragment.appendChild(item);
                 });
+                container.appendChild(fragment);
             };
             
             const updateDashboard = (tickets) => {
-                 const awaiting = tickets.filter(t => !t.claimed_by && t.status !== 'completed');
-                 const active = tickets.filter(t => t.claimed_by === state.user.id && t.status !== 'completed');
-                 selectors.statAwaiting.textContent = awaiting.length;
-                 selectors.statActive.textContent = active.length;
+                 selectors.statAwaiting.textContent = tickets.filter(t => !t.claimed_by && t.status !== 'completed').length;
+                 selectors.statActive.textContent = tickets.filter(t => t.claimed_by === state.user.id && t.status !== 'completed').length;
                  selectors.statCompleted.textContent = tickets.filter(t => t.status === 'completed').length;
             };
 
@@ -493,19 +486,19 @@
                         const active = state.tickets.filter(t => t.claimed_by === state.user.id && t.status !== 'completed');
                         const completed = state.tickets.filter(t => t.status === 'completed');
 
-                        renderChatList(awaiting, selectors.chatListAwaiting, true);
-                        renderChatList(active, selectors.chatListActive, true);
-                        renderChatList(completed, selectors.chatListCompleted, false);
+                        renderChatList(awaiting.sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at)), selectors.chatListAwaiting, true);
+                        renderChatList(active.sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at)), selectors.chatListActive, true);
+                        renderChatList(completed.sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at)), selectors.chatListCompleted, false);
 
                         updateDashboard(state.tickets);
                         
                         if (state.currentTicketId) {
-                            displayChatDetails(state.currentTicketId, true); // Re-render without changing view
+                            displayChatDetails(state.currentTicketId, true);
                         }
                     }
                 } catch (error) {
                     showNotification(error.message, 'error');
-                    clearInterval(state.pollingInterval); // Stop polling on error
+                    if (state.pollingInterval) clearInterval(state.pollingInterval);
                 }
             };
             
@@ -523,8 +516,7 @@
                 selectors.chatPlaceholder.style.display = 'none';
                 selectors.chatView.classList.remove('hidden');
 
-                const iconClass = getPaymentMethodIcon(chat.payment_method);
-                selectors.chatHeaderTitle.innerHTML = `<i class="${iconClass}"></i> Chat with ${escapeHTML(chat.buyer_name)}`;
+                selectors.chatHeaderTitle.innerHTML = `<i class="${getPaymentMethodIcon(chat.payment_method)}"></i> Chat with ${escapeHTML(chat.buyer_name)}`;
                 selectors.chatHeaderDetails.textContent = `Status: ${chat.status} | Claimed by: ${chat.claimed_by_name || 'None'}`;
                 
                 selectors.claimBtn.style.display = (!chat.claimed_by && chat.status !== 'completed') ? 'inline-flex' : 'none';
@@ -532,17 +524,20 @@
                 selectors.deleteBtn.style.display = chat.status === 'completed' ? 'inline-flex' : 'none';
 
                 const isChatLocked = chat.status === 'completed' || (chat.claimed_by && chat.claimed_by !== state.user.id);
-                selectors.chatReplyForm.querySelector('textarea').disabled = isChatLocked;
+                selectors.chatReplyInput.disabled = isChatLocked;
                 selectors.chatReplyForm.querySelector('button').disabled = isChatLocked;
 
                 selectors.chatMessages.innerHTML = '';
+                const fragment = document.createDocumentFragment();
                 (chat.messages || []).forEach(msg => {
                     const bubble = document.createElement('div');
                     bubble.className = `message-bubble ${msg.sender}`;
-                    const senderName = msg.sender === 'user' ? escapeHTML(chat.buyer_name) : 'You (Seller)';
-                    bubble.innerHTML = `<div class="message-sender">${senderName}</div><p>${escapeHTML(msg.message)}</p><span class="message-time">${new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>`;
-                    selectors.chatMessages.appendChild(bubble);
+                    const senderName = msg.sender === 'user' ? escapeHTML(chat.buyer_name) : 'You';
+                    bubble.innerHTML = `<div class="message-sender">${senderName}</div><p>${escapeHTML(msg.message).replace(/\n/g, '<br>')}</p>`;
+                    fragment.appendChild(bubble);
                 });
+                selectors.chatMessages.appendChild(fragment);
+
                 if (!isRefresh) {
                    selectors.chatMessages.scrollTop = selectors.chatMessages.scrollHeight;
                 }
@@ -577,62 +572,30 @@
 
             const hideModal = (modalElement) => {
                  modalElement.classList.remove('show');
-                 // Clean up listeners to prevent memory leaks, especially for forms
                  const newForm = selectors.completeForm.cloneNode(true);
                  selectors.completeForm.parentNode.replaceChild(newForm, selectors.completeForm);
                  selectors.completeForm = newForm;
             };
-
-            const handleClaimTicket = async (e) => {
-                 const ticketId = state.currentTicketId;
-                 if (!ticketId) return;
-                 try {
-                     const response = await authFetch(`${API_BASE_URL}/tickets/${ticketId}/claim`, { method: 'POST' });
-                     if (!response.ok) {
-                         const err = await response.json();
-                         throw new Error(err.message || "Failed to claim ticket.");
-                     }
-                     showNotification(`Ticket #${ticketId} claimed successfully.`, 'success');
-                     await loadChats();
-                 } catch (error) {
-                     showNotification(error.message, 'error');
-                 }
-            };
-
-            const handleReply = async (e) => {
-                 e.preventDefault();
-                 const chatId = state.currentTicketId;
-                 const input = selectors.chatReplyForm.querySelector('textarea');
-                 const message = input.value.trim();
-                 if (!message || !chatId) return;
-                 const button = selectors.chatReplyForm.querySelector('button');
-                 button.disabled = true;
-                 try {
-                     const response = await authFetch(`${API_BASE_URL}/tickets/${chatId}/messages`, {
-                         method: 'POST',
-                         body: JSON.stringify({ message })
-                     });
-                     if (!response.ok) {
-                         throw new Error("Couldn't send reply.");
-                     }
-                     input.value = '';
-                     await loadChats();
-                 } catch(error) {
-                     showNotification(error.message, 'error');
-                 } finally {
-                     button.disabled = false;
-                 }
+            
+            const handleEnterKey = (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    selectors.chatReplyForm.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+                }
             };
 
             const initApp = () => {
                 const token = localStorage.getItem('token');
                 if (!token) return;
-                const payload = JSON.parse(atob(token.split('.')[1]));
-                state.user = { id: payload.id, username: payload.username };
+                try {
+                    const payload = JSON.parse(atob(token.split('.')[1]));
+                    state.user = { id: payload.id, username: payload.username };
+                } catch(e) { return hideApp(); }
 
                 switchTab('dashboard');
-                loadChats(); // Initial load
-                state.pollingInterval = setInterval(loadChats, 7000); // Poll every 7 seconds
+                loadChats();
+                if(state.pollingInterval) clearInterval(state.pollingInterval);
+                state.pollingInterval = setInterval(loadChats, 7000);
 
                 // Setup event listeners only once
                 selectors.logoutBtn.addEventListener('click', (e) => { e.preventDefault(); hideApp(); });
@@ -640,14 +603,45 @@
                     el.addEventListener('click', e => { e.preventDefault(); switchTab(el.dataset.tab); });
                 });
                 
-                selectors.claimBtn.addEventListener('click', handleClaimTicket);
-                selectors.chatReplyForm.addEventListener('submit', handleReply);
+                selectors.chatReplyInput.addEventListener('keydown', handleEnterKey);
+                selectors.claimBtn.addEventListener('click', async () => {
+                    if (!state.currentTicketId) return;
+                    try {
+                        const response = await authFetch(`${API_BASE_URL}/tickets/${state.currentTicketId}/claim`, { method: 'POST' });
+                        if (!response.ok) throw new Error((await response.json()).message || "Failed to claim ticket.");
+                        showNotification(`Ticket #${state.currentTicketId} claimed.`, 'success');
+                        await loadChats();
+                    } catch (error) { showNotification(error.message, 'error'); }
+                });
+
+                selectors.chatReplyForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const chatId = state.currentTicketId;
+                    const message = selectors.chatReplyInput.value.trim();
+                    if (!message || !chatId) return;
+                    const button = selectors.chatReplyForm.querySelector('button');
+                    button.disabled = true;
+                    selectors.chatReplyInput.disabled = true;
+                    try {
+                        const response = await authFetch(`${API_BASE_URL}/tickets/${chatId}/messages`, {
+                            method: 'POST', body: JSON.stringify({ message })
+                        });
+                        if (!response.ok) throw new Error("Couldn't send reply.");
+                        selectors.chatReplyInput.value = '';
+                        await loadChats();
+                    } catch(error) { showNotification(error.message, 'error'); } 
+                    finally { 
+                        button.disabled = false;
+                        selectors.chatReplyInput.disabled = false;
+                        selectors.chatReplyInput.focus();
+                    }
+                });
 
                 selectors.completeBtn.addEventListener('click', () => {
                     selectors.licenseKeyInput.value = '';
                     showModal(selectors.completeModal);
                 });
-                selectors.cancelCompleteBtn.addEventListener('click', () => hideModal(selectors.completeModal));
+
                 selectors.completeForm.addEventListener('submit', async (e) => {
                     e.preventDefault();
                     hideModal(selectors.completeModal);
@@ -659,11 +653,8 @@
                         const response = await authFetch(`${API_BASE_URL}/tickets/${ticketId}/complete`, { 
                             method: 'POST', body: JSON.stringify({ licenseKey })
                         });
-                        if (!response.ok) {
-                             const err = await response.json();
-                             throw new Error(err.message || 'Failed to complete ticket.');
-                        }
-                        showNotification(`Ticket #${ticketId} has been completed.`, 'success');
+                        if (!response.ok) throw new Error((await response.json()).message || 'Failed to complete ticket.');
+                        showNotification(`Ticket #${ticketId} completed.`, 'success');
                         await loadChats();
                     } catch (error) { showNotification(error.message, 'error'); }
                 });
@@ -673,10 +664,8 @@
                     showModal(selectors.confirmationModal, 'Confirm Deletion', `Permanently DELETE ticket #${ticketId}?`, async () => {
                          try {
                             const response = await authFetch(`${API_BASE_URL}/tickets/${ticketId}`, { method: 'DELETE' });
-                            if (!response.ok) {
-                                throw new Error('Failed to delete ticket.');
-                            }
-                            showNotification(`Ticket #${ticketId} has been deleted.`, 'success');
+                            if (!response.ok) throw new Error('Failed to delete ticket.');
+                            showNotification(`Ticket #${ticketId} deleted.`, 'success');
                             resetChatView();
                             await loadChats();
                         } catch (error) { showNotification(error.message, 'error'); }
@@ -684,6 +673,7 @@
                 });
                 
                 selectors.cancelBtn.addEventListener('click', () => hideModal(selectors.confirmationModal));
+                selectors.cancelCompleteBtn.addEventListener('click', () => hideModal(selectors.completeModal));
             };
 
             const switchTab = (tabName) => {
@@ -695,23 +685,21 @@
             
             const escapeHTML = str => str ? str.toString().replace(/[&<>"']/g, tag => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[tag])) : '';
 
-            // Initial Check
-            const token = localStorage.getItem('token');
-            if (token) {
-                 try {
-                     const payload = JSON.parse(atob(token.split('.')[1]));
-                     if (payload.exp * 1000 > Date.now() && (payload.role === 'seller' || payload.role === 'admin')) {
-                         state.user = { id: payload.id, username: payload.username };
-                         showApp();
-                     } else {
-                         localStorage.removeItem('token');
-                     }
-                 } catch (e) {
-                     localStorage.removeItem('token');
-                 }
-            }
-
-            selectors.loginForm.addEventListener('submit', handleLogin);
+            // Initial Check & Login
+            (async () => {
+                const token = localStorage.getItem('token');
+                if (token) {
+                    try {
+                        const payload = JSON.parse(atob(token.split('.')[1]));
+                        if (payload.exp * 1000 > Date.now() && ['seller', 'admin'].includes(payload.role)) {
+                            showApp();
+                        } else {
+                            localStorage.removeItem('token');
+                        }
+                    } catch (e) { localStorage.removeItem('token'); }
+                }
+                selectors.loginForm.addEventListener('submit', handleLogin);
+            })();
         });
     </script>
 </body>
