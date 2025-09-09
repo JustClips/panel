@@ -44,11 +44,9 @@ const allowedOrigins = [
 const corsOptions = {
   origin: function (origin, callback) {
     try {
-      console.log('Request received from origin:', origin);
       // Allow same-origin / curl / mobile apps
       if (!origin) return callback(null, true);
       if (allowedOrigins.includes(origin)) {
-        console.log(`Allowing origin: ${origin}`);
         return callback(null, true);
       }
       console.error(`Blocking origin: ${origin}`);
@@ -71,7 +69,7 @@ app.use(bodyParser.urlencoded({ extended: true, limit: '100kb' }));
 // --- ADDITIONAL SECURITY MIDDLEWARE ---
 const validateRequest = (req, res, next) => {
   const userAgent = req.headers['user-agent'] || '';
-  const suspiciousAgents = ['bot', 'crawler', 'scanner', 'curl', 'wget'];
+  const suspiciousAgents = ['bot', 'crawler', 'scanner'];
   if (suspiciousAgents.some(a => userAgent.toLowerCase().includes(a))) {
     console.warn(`Suspicious user agent detected: ${userAgent} from ${req.ip}`);
   }
@@ -82,6 +80,21 @@ const validateRequest = (req, res, next) => {
   next();
 };
 app.use(validateRequest);
+
+// --- CONFIGURATION ENDPOINT ---
+// This endpoint serves public, non-secret environment variables to the frontend.
+app.get('/api/config', (req, res) => {
+  // IMPORTANT: ONLY include public keys here. NEVER expose secrets like JWT_SECRET, DB passwords, etc.
+  if (!process.env.TURNSTILE_SITE_KEY) {
+    console.error("FATAL: TURNSTILE_SITE_KEY is not set in the environment variables.");
+    return res.status(500).json({ error: "Server is misconfigured. Cannot provide Turnstile key." });
+  }
+
+  res.json({
+    // This is the PUBLIC key for the Cloudflare Turnstile widget
+    turnstileSiteKey: process.env.TURNSTILE_SITE_KEY
+  });
+});
 
 // --- FILE UPLOAD & STATIC SERVING ---
 const uploadDir = 'uploads';
