@@ -32,8 +32,8 @@ app.use(helmet()); // Sets various HTTP headers for security
 // Define allowed origins for CORS. Add your frontend domains here.
 const allowedOrigins = [
   'https://eps1llon.win',
-    'https://www.eps1llon.win'
-    // Add any other domains you might use for development or production
+  'https://www.eps1llon.win'
+  // Add any other domains you might use for development or production
 ];
 
 const corsOptions = {
