@@ -10,6 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     <style>
         :root {
             --bg-dark: #111319;
@@ -233,68 +234,7 @@
             font-weight: 600;
         }
         
-        .metrics-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 1.5rem;
-        }
-
-        .metric-card {
-            background: var(--bg-light);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 1.5rem;
-            box-shadow: var(--panel-shadow);
-            position: relative;
-            overflow: hidden;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            transition: all 0.3s ease;
-        }
-
-        .metric-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 15px 35px rgba(0,0,0,0.3), var(--primary-glow-box);
-        }
-
-        .metric-card h3 {
-            font-size: 1rem;
-            font-weight: 500;
-            color: var(--text-muted);
-            margin: 0;
-        }
-
-        .metric-card .metric-value {
-            font-size: 2.5rem;
-            font-weight: 700;
-            color: var(--text-light);
-            line-height: 1;
-            margin-bottom: 0.5rem;
-        }
-
-        .metric-card .metric-icon {
-            position: absolute;
-            top: 50%;
-            right: 1.5rem;
-            transform: translateY(-50%);
-            font-size: 3rem;
-            color: var(--primary);
-            opacity: 0.2;
-            transition: all 0.3s ease;
-        }
-        
-        .metric-card:hover .metric-icon {
-            opacity: 0.4;
-            transform: translateY(-50%) scale(1.1);
-        }
-
-        .metric-card .metric-icon i {
-            text-shadow: var(--primary-glow-text);
-        }
-
         .panel-body { padding: 1.5rem; flex-grow: 1; }
-        .chart-container { height: 350px; position: relative; }
         
         .form-control {
             width: 100%;
@@ -319,7 +259,6 @@
         .btn-primary { background-color: var(--primary); color: var(--text-light); box-shadow: var(--primary-glow-box); }
         .btn-danger { background: var(--danger); color: white; }
         .btn-success { background: var(--success); color: white; }
-        .btn-warning { background: var(--warning); color: var(--bg-dark); }
 
         .notification {
             position: fixed; bottom: 20px; right: 20px; padding: 15px 25px;
@@ -348,24 +287,6 @@
         .modal-box p { margin-bottom: 2rem; color: var(--text-muted); }
         .modal-buttons { display: flex; justify-content: center; gap: 1rem; }
 
-        #key-display-area {
-            background: var(--bg-dark); border: 1px solid var(--border-color); padding: 1rem;
-            border-radius: 8px; font-family: 'Courier New', Courier, monospace; font-size: 1.1rem;
-            color: var(--text-light); word-wrap: break-word; margin-bottom: 1.5rem; text-align: center;
-        }
-        
-        .timeframe-selector { display: flex; gap: 0.5rem; background: var(--bg-dark); padding: 4px; border-radius: 8px; }
-        .timeframe-btn { background: transparent; border: none; color: var(--text-muted); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 500; transition: all 0.2s ease; }
-        .timeframe-btn.active, .timeframe-btn:hover { background: var(--primary); color: var(--text-light); }
-
-        .form-group { margin-bottom: 1.5rem; }
-        .form-group label { display: block; font-weight: 500; color: var(--text-muted); margin-bottom: 0.5rem; }
-        .btn-upload { background-color: var(--bg-dark); border: 1px dashed var(--border-color); color: var(--text-muted); width: 100%; }
-        .btn-upload:hover { border-color: var(--primary); color: var(--primary); }
-        .image-preview-container { display: none; margin-top: 1rem; text-align: center; border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem; background: var(--bg-dark); }
-        #image-preview { max-width: 100%; max-height: 200px; border-radius: 6px; margin-bottom: 0.5rem; }
-        #file-name { font-style: italic; font-size: 0.9rem; color: var(--text-muted); word-break: break-all; }
-        
         #chats-grid {
             display: grid;
             grid-template-columns: 350px 1fr;
@@ -381,165 +302,43 @@
             gap: 0.5rem;
         }
         .chat-item { 
-            padding: 1rem; 
-            border: 1px solid var(--border-color); 
-            border-radius: 12px; 
-            cursor: pointer; 
-            transition: all 0.2s ease;
-            background: var(--bg-dark);
-            display: flex;
-            gap: 1rem;
-            align-items: center;
+            padding: 1rem; border: 1px solid var(--border-color); border-radius: 12px; cursor: pointer; 
+            transition: all 0.2s ease; background: var(--bg-dark); display: flex; gap: 1rem; align-items: center;
         }
-        .chat-item:hover { 
-            background: rgba(0, 168, 255, 0.1);
-            border-color: var(--primary); 
-        }
-        .chat-item.active { 
-            background: var(--primary); 
-            border-color: var(--primary); 
-            box-shadow: var(--primary-glow-box); 
-        }
+        .chat-item:hover { background: rgba(0, 168, 255, 0.1); border-color: var(--primary); }
+        .chat-item.active { background: var(--primary); border-color: var(--primary); box-shadow: var(--primary-glow-box); }
         .chat-item.active .chat-user,
         .chat-item.active .chat-payment,
-        .chat-item.active .chat-date {
-            color: white;
-        }
+        .chat-item.active .chat-date { color: white; }
         .chat-item-icon {
-            font-size: 1.75rem;
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-            border-radius: 8px;
-            background-color: var(--bg-light);
+            font-size: 1.75rem; width: 40px; height: 40px; display: flex; align-items: center;
+            justify-content: center; flex-shrink: 0; border-radius: 8px; background-color: var(--bg-light);
         }
-        .chat-item-details {
-            flex-grow: 1;
-            overflow: hidden;
-        }
-        .chat-user { 
-            font-weight: 600; 
-            color: var(--text-light);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .chat-payment {
-             font-size: 0.85rem;
-             color: var(--text-muted);
-             white-space: nowrap;
-             overflow: hidden;
-             text-overflow: ellipsis;
-        }
-        .chat-info {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 0.25rem;
-        }
-        .chat-date { 
-            font-size: 0.8rem; 
-            color: var(--text-muted); 
-        }
+        .chat-item-details { flex-grow: 1; overflow: hidden; }
+        .chat-user { font-weight: 600; color: var(--text-light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .chat-payment { font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .chat-info { display: flex; justify-content: space-between; align-items: center; margin-top: 0.25rem; }
+        .chat-date { font-size: 0.8rem; color: var(--text-muted); }
         
-        .status-badge { 
-            padding: 4px 10px; 
-            border-radius: 50px; 
-            font-size: 0.75rem; 
-            font-weight: 600; 
-            text-transform: capitalize; 
-        }
-        .status-awaiting { 
-            background-color: var(--warning); 
-            color: var(--bg-dark); 
-        }
-        .status-processing { 
-            background-color: var(--primary); 
-            color: var(--text-light); 
-        }
-        .status-completed { 
-            background-color: var(--success); 
-            color: var(--text-light); 
-        }
+        .status-badge { padding: 4px 10px; border-radius: 50px; font-size: 0.75rem; font-weight: 600; text-transform: capitalize; }
+        .status-awaiting { background-color: var(--warning); color: var(--bg-dark); }
+        .status-processing { background-color: var(--primary); color: var(--text-light); }
+        .status-completed { background-color: var(--success); color: var(--text-light); }
 
-        #chat-view { 
-            display: flex; 
-            flex-direction: column; 
-            height: 100%; 
-        }
-        #chat-view.hidden { 
-            display: none; 
-        }
-        #chat-placeholder { 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: center; 
-            height: 100%; 
-            text-align: center; 
-        }
-        #chat-placeholder i { 
-            font-size: 3rem; 
-            margin-bottom: 1rem; 
-            color: var(--text-muted); 
-            opacity: 0.5; 
-        }
+        #chat-view { display: flex; flex-direction: column; height: 100%; }
+        #chat-view.hidden { display: none; }
+        #chat-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; }
+        #chat-placeholder i { font-size: 3rem; margin-bottom: 1rem; color: var(--text-muted); opacity: 0.5; }
         
-        #chat-messages { 
-            flex-grow: 1; 
-            overflow-y: auto; 
-            padding: 1rem; 
-            display: flex; 
-            flex-direction: column; 
-            gap: 1rem; 
-            background: var(--bg-dark); 
-            border-radius: 8px; 
-            margin-bottom: 1rem;
-        }
-        .message-bubble { 
-            padding: 0.75rem 1rem; 
-            border-radius: 12px; 
-            max-width: 80%; 
-            word-wrap: break-word; 
-        }
-        .message-bubble.seller { 
-            background-color: var(--primary); 
-            color: var(--text-light); 
-            border-bottom-right-radius: 2px; 
-            align-self: flex-end; 
-        }
-        .message-bubble.user { 
-            background-color: var(--bg-light); 
-            border: 1px solid var(--border-color); 
-            border-bottom-left-radius: 2px; 
-            align-self: flex-start; 
-        }
-        .message-sender { 
-            font-weight: 600; 
-            font-size: 0.8rem; 
-            margin-bottom: 0.25rem; 
-            text-transform: capitalize;
-        }
-        .message-time { 
-            font-size: 0.75rem; 
-            opacity: 0.7; 
-            display: block; 
-            text-align: right; 
-            margin-top: 0.25rem; 
-        }
+        #chat-messages { flex-grow: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 1rem; background: var(--bg-dark); border-radius: 8px; margin-bottom: 1rem; }
+        .message-bubble { padding: 0.75rem 1rem; border-radius: 12px; max-width: 80%; word-wrap: break-word; }
+        .message-bubble.seller { background-color: var(--primary); color: var(--text-light); border-bottom-right-radius: 2px; align-self: flex-end; }
+        .message-bubble.user { background-color: var(--bg-light); border: 1px solid var(--border-color); border-bottom-left-radius: 2px; align-self: flex-start; }
+        .message-sender { font-weight: 600; font-size: 0.8rem; margin-bottom: 0.25rem; text-transform: capitalize; }
+        .message-time { font-size: 0.75rem; opacity: 0.7; display: block; text-align: right; margin-top: 0.25rem; }
 
-        #chat-reply-form { 
-            display: flex; 
-            gap: 1rem; 
-        }
-        #chat-reply-input { 
-            flex-grow: 1; 
-            resize: none; 
-            height: 50px; 
-        }
+        #chat-reply-form { display: flex; gap: 1rem; }
+        #chat-reply-input { flex-grow: 1; resize: none; height: 50px; }
     </style>
 </head>
 <body>
@@ -554,6 +353,7 @@
                 <div class="input-group">
                     <input type="password" id="password" class="form-control" placeholder="Password" required>
                 </div>
+                <div class="cf-turnstile mb-4" data-sitekey="0x4AAAAAAB0PeEmSeY6uJ3nN" data-theme="dark"></div>
                 <button type="submit" class="btn btn-primary">Login</button>
                 <p id="login-error">Invalid username or password.</p>
             </form>
@@ -636,7 +436,6 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // Using a relative path for the API URL is best practice
             const API_BASE_URL = '/api';
             
             const loginContainer = document.getElementById('login-container');
@@ -651,12 +450,21 @@
                 loginError.style.display = 'none';
                 const username = document.getElementById('username').value.trim();
                 const password = document.getElementById('password').value.trim();
+                
+                // NEW: Get Turnstile token from the login form
+                const turnstileToken = loginForm.querySelector('[name="cf-turnstile-response"]')?.value;
+                if (!turnstileToken) {
+                    loginError.textContent = 'Please complete the security check.';
+                    loginError.style.display = 'block';
+                    return;
+                }
+
                 try {
-                    // UPDATED: Using the correct /api/login endpoint
                     const response = await fetch(`${API_BASE_URL}/login`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ username, password })
+                        // NEW: Send the turnstileToken along with credentials
+                        body: JSON.stringify({ username, password, turnstileToken })
                     });
                     const data = await response.json();
                     if (response.ok && (data.role === 'seller' || data.role === 'admin')) {
@@ -670,6 +478,9 @@
                     loginError.style.display = 'block';
                     loginBox.classList.add('shake');
                     setTimeout(() => loginBox.classList.remove('shake'), 500);
+                } finally {
+                    // NEW: Reset the Turnstile widget after a login attempt
+                    turnstile.reset(loginForm.querySelector('.cf-turnstile'));
                 }
             });
 
@@ -717,7 +528,6 @@
             }
 
             function initApp() {
-                // UPDATED: All API endpoints now use the consistent /api base URL
                 const API = {
                     chats: `${API_BASE_URL}/tickets/all`,
                     manageTicket: `${API_BASE_URL}/tickets`
@@ -902,7 +712,6 @@
                     
                     showConfirmationModal('Confirm Completion', `Complete Ticket #${ticketId} with key: "${licenseKey.trim()}"?`, async () => {
                         try {
-                            // UPDATED: Using the correct /complete endpoint
                             const response = await authFetch(`${API.manageTicket}/${ticketId}/complete`, { 
                                 method: 'POST',
                                 body: JSON.stringify({ licenseKey: licenseKey.trim() })
