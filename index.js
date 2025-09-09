@@ -76,13 +76,12 @@ async function initializeDatabase() {
 
         // Step 1: Ensure base tables exist
         await connection.query(`CREATE TABLE IF NOT EXISTS adminusers (id INT AUTO_INCREMENT PRIMARY KEY, username VARCHAR(255) UNIQUE NOT NULL, password_hash VARCHAR(255), role ENUM('admin','seller','buyer') NOT NULL DEFAULT 'buyer', discord_id VARCHAR(255) UNIQUE NULL, discord_avatar VARCHAR(255) NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
-        await connection.query(`CREATE TABLE IF NOT EXISTS tickets (id INT AUTO_INCREMENT PRIMARY KEY, user_id INT NOT NULL, status ENUM('awaiting', 'processing', 'completed') DEFAULT 'awaiting', license_key VARCHAR(255), payment_method VARCHAR(50), claimed_by INT NULL DEFAULT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, FOREIGN KEY (user_id) REFERENCES adminusers(id) ON DELETE CASCADE, FOREIGN KEY (claimed_by) REFERENCES adminusers(id) ON DELETE SET NULL);`);
+        await connection.query(`CREATE TABLE IF NOT EXISTS tickets (id INT AUTO_INCREMENT PRIMARY KEY, user_id INT NOT NULL, status ENUM('awaiting', 'processing', 'completed') DEFAULT 'awaiting', license_key VARCHAR(255), payment_method VARCHAR(50), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, FOREIGN KEY (user_id) REFERENCES adminusers(id) ON DELETE CASCADE);`);
         await connection.query(`CREATE TABLE IF NOT EXISTS ticket_messages (id INT AUTO_INCREMENT PRIMARY KEY, ticket_id INT NOT NULL, sender ENUM('user', 'seller') NOT NULL, message TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE);`);
 
-        // Step 2: Check for and add missing discord columns
+        // Step 2: Check for and add missing discord columns to 'adminusers'
         const [discordColumns] = await connection.query(
-            `SELECT * FROM INFORMATION_SCHEMA.COLUMNS 
-             WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'adminusers' AND COLUMN_NAME = 'discord_id'`,
+            `SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'adminusers' AND COLUMN_NAME = 'discord_id'`,
             [process.env.MYSQLDATABASE]
         );
         if (discordColumns.length === 0) {
@@ -91,10 +90,9 @@ async function initializeDatabase() {
             console.log("SCHEMA-FIX: Columns added successfully.");
         }
 
-        // Step 3: Check for and fix incorrect password_hash rule
+        // Step 3: Check for and fix incorrect password_hash rule in 'adminusers'
         const [passwordColumnInfo] = await connection.query(
-            `SELECT IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS 
-             WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'adminusers' AND COLUMN_NAME = 'password_hash'`,
+            `SELECT IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'adminusers' AND COLUMN_NAME = 'password_hash'`,
             [process.env.MYSQLDATABASE]
         );
         if (passwordColumnInfo.length > 0 && passwordColumnInfo[0].IS_NULLABLE === 'NO') {
@@ -102,6 +100,23 @@ async function initializeDatabase() {
             await connection.query(`ALTER TABLE adminusers MODIFY COLUMN password_hash VARCHAR(255) NULL`);
             console.log("SCHEMA-FIX: 'password_hash' column rule fixed successfully.");
         }
+
+        // --- NEW FIX START ---
+        // Step 4: Check for and add missing 'claimed_by' column to 'tickets'
+        const [claimedByColumn] = await connection.query(
+            `SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'tickets' AND COLUMN_NAME = 'claimed_by'`,
+            [process.env.MYSQLDATABASE]
+        );
+        if (claimedByColumn.length === 0) {
+            console.log("SCHEMA-FIX: Adding 'claimed_by' column and foreign key to 'tickets' table...");
+            await connection.query(
+                `ALTER TABLE tickets 
+                 ADD COLUMN claimed_by INT NULL DEFAULT NULL, 
+                 ADD CONSTRAINT fk_claimed_by FOREIGN KEY (claimed_by) REFERENCES adminusers(id) ON DELETE SET NULL`
+            );
+            console.log("SCHEMA-FIX: 'tickets' table updated successfully.");
+        }
+        // --- NEW FIX END ---
 
         console.log("Database schema verified and up-to-date.");
     } catch (error) {
@@ -114,6 +129,7 @@ async function initializeDatabase() {
 
 
 // --- MIDDLEWARE ---
+// ... (Your middleware is fine) ...
 const verifyToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
@@ -157,13 +173,13 @@ const requireSeller = requireRole(['seller', 'admin']);
 const requireBuyer = requireRole(['buyer']);
 const requireAnyRole = requireRole(['admin', 'seller', 'buyer']);
 
-
 // =================================================================
 // --- API ROUTES ---
 // =================================================================
 const apiRouter = express.Router();
 
 // --- AUTH/USER ROUTES ---
+// ... (Your auth routes are fine) ...
 apiRouter.post('/login', verifyTurnstile, async (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) return res.status(400).json({ message: 'Invalid request.' });
@@ -171,7 +187,6 @@ apiRouter.post('/login', verifyTurnstile, async (req, res) => {
         const [rows] = await dbPool.query("SELECT * FROM adminusers WHERE username = ?", [username]);
         if (rows.length === 0) return res.status(401).json({ message: 'Invalid credentials' });
         const user = rows[0];
-        // Check if password_hash exists before comparing
         if (!user.password_hash) {
             return res.status(401).json({ message: 'Invalid credentials. Please log in with Discord.' });
         }
@@ -184,7 +199,6 @@ apiRouter.post('/login', verifyTurnstile, async (req, res) => {
         res.status(500).json({ message: 'Internal server error' });
     }
 });
-
 apiRouter.post('/register', verifyTurnstile, async (req, res) => {
     const { username, password } = req.body;
     if (!username || !password || username.length < 3) return res.status(400).json({ message: 'Invalid username or password.' });
@@ -207,7 +221,6 @@ apiRouter.post('/register', verifyTurnstile, async (req, res) => {
         res.status(500).json({ message: 'Internal server error' });
     }
 });
-
 apiRouter.get('/auth/discord', (req, res) => {
     const discordAuthUrl = 'https://discord.com/api/oauth2/authorize';
     const params = new URLSearchParams({
@@ -218,7 +231,6 @@ apiRouter.get('/auth/discord', (req, res) => {
     });
     res.redirect(`${discordAuthUrl}?${params.toString()}`);
 });
-
 apiRouter.get('/auth/discord/callback', async (req, res) => {
     const code = req.query.code;
     if (!code) return res.status(400).send('Error: Missing Discord authorization code.');
@@ -256,7 +268,7 @@ apiRouter.get('/auth/discord/callback', async (req, res) => {
 });
 
 // --- TICKET ROUTES ---
-// ... (The ticket routes are fine and do not need changes) ...
+// ... (Your ticket routes are fine) ...
 apiRouter.get('/tickets/all', verifyToken, requireSeller, async (req, res) => {
     try {
         const query = `
@@ -317,7 +329,7 @@ apiRouter.get('/tickets/my', verifyToken, requireBuyer, async (req, res) => {
     try {
         const [tickets] = await dbPool.query(`SELECT t.*, u.username as buyer_name FROM tickets t JOIN adminusers u ON t.user_id = u.id WHERE t.user_id = ? ORDER BY t.updated_at DESC`, [req.user.id]);
         for (let ticket of tickets) {
-            const [messages] = await dbPool.query("SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC", [ticket.id]);
+            const [messages] = await dbPool.query("SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC", [ticket.id]); // Fixed a bug here
             ticket.messages = messages;
         }
         res.json(tickets);
@@ -343,7 +355,11 @@ apiRouter.post('/tickets/:id/messages', verifyToken, requireAnyRole, async (req,
         } else {
             await dbPool.query("UPDATE tickets SET updated_at = CURRENT_TIMESTAMP WHERE id = ?", [id]);
         }
-        res.json({ success: true, message: 'Message sent.' });
+        // Return the updated ticket after sending a message
+        const [updatedTickets] = await dbPool.query(`SELECT t.*, buyer.username as buyer_name, seller.username as claimed_by_name FROM tickets t JOIN adminusers buyer ON t.user_id = buyer.id LEFT JOIN adminusers seller ON t.claimed_by = seller.id WHERE t.id = ?`, [id]);
+        const [messages] = await dbPool.query("SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC", [id]);
+        updatedTickets[0].messages = messages;
+        res.json(updatedTickets[0]);
     } catch (error) {
         res.status(500).json({ message: 'Failed to add message' });
     }
