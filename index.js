@@ -79,7 +79,6 @@ async function initializeDatabase() {
         await connection.query(`CREATE TABLE IF NOT EXISTS tickets (id INT AUTO_INCREMENT PRIMARY KEY, user_id INT NOT NULL, status ENUM('awaiting', 'processing', 'completed') DEFAULT 'awaiting', license_key VARCHAR(255), payment_method VARCHAR(50), claimed_by INT NULL DEFAULT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, FOREIGN KEY (user_id) REFERENCES adminusers(id) ON DELETE CASCADE, FOREIGN KEY (claimed_by) REFERENCES adminusers(id) ON DELETE SET NULL);`);
         await connection.query(`CREATE TABLE IF NOT EXISTS ticket_messages (id INT AUTO_INCREMENT PRIMARY KEY, ticket_id INT NOT NULL, sender ENUM('user', 'seller') NOT NULL, message TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE);`);
 
-        // --- MODIFIED SECTION START ---
         // Step 2: Check if 'adminusers' table is missing the discord_id column
         const [columns] = await connection.query(
             `SELECT * FROM INFORMATION_SCHEMA.COLUMNS 
@@ -97,8 +96,7 @@ async function initializeDatabase() {
             );
             console.log("'adminusers' table updated successfully.");
         }
-        // --- MODIFIED SECTION END ---
-
+        
         console.log("Database schema verified and up-to-date.");
     } catch (error) {
         console.error("!!! DATABASE INITIALIZATION FAILED !!!", error);
@@ -119,6 +117,8 @@ const verifyToken = (req, res, next) => {
         next();
     });
 };
+
+// ... (The rest of your middleware code is fine) ...
 
 const verifyTurnstile = async (req, res, next) => {
     const secretKey = process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY;
@@ -151,6 +151,7 @@ const requireRole = (roles) => (req, res, next) => {
 const requireSeller = requireRole(['seller', 'admin']);
 const requireBuyer = requireRole(['buyer']);
 const requireAnyRole = requireRole(['admin', 'seller', 'buyer']);
+
 
 // =================================================================
 // --- API ROUTES ---
@@ -230,10 +231,13 @@ apiRouter.get('/auth/discord/callback', async (req, res) => {
         let [users] = await dbPool.query("SELECT * FROM adminusers WHERE discord_id = ?", [discordId]);
         let user = users[0];
         if (!user) {
+            // --- MODIFIED SECTION START ---
+            // Explicitly set password_hash to NULL for new Discord users
             const [result] = await dbPool.query(
-                "INSERT INTO adminusers (username, role, discord_id, discord_avatar) VALUES (?, 'buyer', ?, ?)",
+                "INSERT INTO adminusers (username, password_hash, role, discord_id, discord_avatar) VALUES (?, NULL, 'buyer', ?, ?)",
                 [username, discordId, avatar]
             );
+            // --- MODIFIED SECTION END ---
             user = { id: result.insertId, username, role: 'buyer' };
         }
         const payload = { id: user.id, username: user.username, role: user.role };
@@ -244,6 +248,8 @@ apiRouter.get('/auth/discord/callback', async (req, res) => {
         res.status(500).send('An error occurred during Discord authentication.');
     }
 });
+
+// ... (The rest of your /tickets routes are fine) ...
 
 // --- TICKET ROUTES ---
 apiRouter.get('/tickets/all', verifyToken, requireSeller, async (req, res) => {
@@ -306,7 +312,7 @@ apiRouter.get('/tickets/my', verifyToken, requireBuyer, async (req, res) => {
     try {
         const [tickets] = await dbPool.query(`SELECT t.*, u.username as buyer_name FROM tickets t JOIN adminusers u ON t.user_id = u.id WHERE t.user_id = ? ORDER BY t.updated_at DESC`, [req.user.id]);
         for (let ticket of tickets) {
-            const [messages] = await dbPool.query("SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC", [ticketId]);
+            const [messages] = await dbPool.query("SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC", [ticket.id]);
             ticket.messages = messages;
         }
         res.json(tickets);
@@ -364,6 +370,7 @@ apiRouter.delete('/tickets/:id', verifyToken, requireSeller, async (req, res) =>
         res.status(500).json({ message: 'Failed to delete ticket' });
     }
 });
+
 
 apiRouter.get('/health', (req, res) => res.status(200).json({ status: 'ok' }));
 app.use('/api', apiRouter);
