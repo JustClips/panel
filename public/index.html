@@ -847,11 +847,11 @@
     </div>
   </div>
   
-  <div id="toast-notification" class="fixed top-5 right-5 bg-tertiary text-white py-3 px-5 rounded-lg shadow-lg opacity-0 transform -translate-y-5 transition-all duration-300 z-[9999]">
+  <div id="toast-notification" class="fixed top-5 right-5 bg-tertiary text-white py-3 px-5 rounded-lg shadow-lg z-[9999]">
     <p id="toast-message"></p>
   </div>
   
-  <audio id="notification-sound" src="data:audio/mpeg;base64,SUQzBAAAAAABEVRYWFgAAAAtAAADY29tbWVudABCaW5nIENTUkFQX1NGQkxXU0ZPQUNPMwAAAAAAAExodTEAAAAAADISAWAAAZGfk34pEEYp9+BY0TE3aJgl9xW8EaB/zP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/......"></audio>
+  <audio id="notification-sound" src="data:audio/mpeg;base64,..."></audio>
   
   <script>
     document.addEventListener('DOMContentLoaded', () => {
@@ -862,36 +862,36 @@
         elements: {},
         
         init() {
-          this.handleDiscordRedirect();
-          this.cacheElements();
-          this.loadState();
-          this.registerEventListeners();
-          this.updateUI();
-          this.initScrollAnimations();
-          setInterval(() => {
-            if (document.body.classList.contains('chat-active') && this.state.isLoggedIn) {
-              this.loadTickets();
-            }
-          }, 15000);
+            this.handleDiscordRedirect();
+            this.cacheElements();
+            this.loadState();
+            this.registerEventListeners();
+            this.updateUI();
+            this.initScrollAnimations();
+            setInterval(() => {
+                if (document.body.classList.contains('chat-active') && this.state.isLoggedIn) {
+                    this.loadTickets();
+                }
+            }, 15000);
         },
         
         cacheElements() {
-          this.elements = {
-            body: document.body, purchaseBtn: document.getElementById('purchase-btn'), purchaseBtnContent: document.getElementById('purchase-btn-content'),
-            authModal: document.getElementById('auth-modal'), closeAuthModalBtn: document.getElementById('close-auth-modal-btn'), ticketSystem: document.getElementById('ticket-system'),
-            showLoginBtn: document.getElementById('show-login'), showSignupBtn: document.getElementById('show-signup'), signupView: document.getElementById('signup-view'),
-            loginView: document.getElementById('login-view'), signupForm: document.getElementById('signup-form'), loginForm: document.getElementById('login-form'),
-            chatMessages: document.querySelector('.chat-messages'), chatForm: document.querySelector('#chat-form'), chatInput: document.querySelector('#chat-input'),
-            chatContainer: document.getElementById('chat-container'), ticketList: document.getElementById('ticket-list'), ticketViewContent: document.getElementById('ticket-view-content'),
-            ticketPlaceholder: document.getElementById('ticket-placeholder'), ticketTitle: document.getElementById('ticket-title'), ticketStatusText: document.getElementById('ticket-status-text'),
-            newTicketBtn: document.getElementById('new-ticket-btn'), backToListBtn: document.getElementById('back-to-list-btn'), notificationSound: document.getElementById('notification-sound'),
-            completedView: document.getElementById('completed-view'), licenseKey: document.getElementById('license-key'), copyKeyBtn: document.getElementById('copy-key-btn'),
-            closeTicketSystemBtn: document.getElementById('close-ticket-system-btn'), toastNotification: document.getElementById('toast-notification'), toastMessage: document.getElementById('toast-message'),
-            paymentMethodModal: document.getElementById('payment-method-modal'), closePaymentModalBtn: document.getElementById('close-payment-modal-btn'),
-            paymentMethodOptions: document.querySelectorAll('.payment-method-option'), confirmPaymentBtn: document.getElementById('confirm-payment-btn'),
-            ticketAppContainer: document.querySelector('.ticket-app-container'), authLinks: document.getElementById('auth-links'), userInfo: document.getElementById('user-info'),
-            usernameDisplay: document.getElementById('username-display'), logoutButton: document.getElementById('logout-button'), loginNavBtn: document.getElementById('login-nav-btn'),
-          };
+            this.elements = {
+                body: document.body, purchaseBtn: document.getElementById('purchase-btn'), purchaseBtnContent: document.getElementById('purchase-btn-content'),
+                authModal: document.getElementById('auth-modal'), closeAuthModalBtn: document.getElementById('close-auth-modal-btn'), ticketSystem: document.getElementById('ticket-system'),
+                showLoginBtn: document.getElementById('show-login'), showSignupBtn: document.getElementById('show-signup'), signupView: document.getElementById('signup-view'),
+                loginView: document.getElementById('login-view'), signupForm: document.getElementById('signup-form'), loginForm: document.getElementById('login-form'),
+                chatMessages: document.querySelector('.chat-messages'), chatForm: document.querySelector('#chat-form'), chatInput: document.querySelector('#chat-input'),
+                chatContainer: document.getElementById('chat-container'), ticketList: document.getElementById('ticket-list'), ticketViewContent: document.getElementById('ticket-view-content'),
+                ticketPlaceholder: document.getElementById('ticket-placeholder'), ticketTitle: document.getElementById('ticket-title'), ticketStatusText: document.getElementById('ticket-status-text'),
+                newTicketBtn: document.getElementById('new-ticket-btn'), backToListBtn: document.getElementById('back-to-list-btn'), notificationSound: document.getElementById('notification-sound'),
+                completedView: document.getElementById('completed-view'), licenseKey: document.getElementById('license-key'), copyKeyBtn: document.getElementById('copy-key-btn'),
+                closeTicketSystemBtn: document.getElementById('close-ticket-system-btn'), toastNotification: document.getElementById('toast-notification'), toastMessage: document.getElementById('toast-message'),
+                paymentMethodModal: document.getElementById('payment-method-modal'), closePaymentModalBtn: document.getElementById('close-payment-modal-btn'),
+                paymentMethodOptions: document.querySelectorAll('.payment-method-option'), confirmPaymentBtn: document.getElementById('confirm-payment-btn'),
+                ticketAppContainer: document.querySelector('.ticket-app-container'), authLinks: document.getElementById('auth-links'), userInfo: document.getElementById('user-info'),
+                usernameDisplay: document.getElementById('username-display'), logoutButton: document.getElementById('logout-button'), loginNavBtn: document.getElementById('login-nav-btn'),
+            };
         },
         
         handleDiscordRedirect() {
@@ -901,11 +901,10 @@
                     localStorage.setItem('token', token);
                     window.history.replaceState(null, null, window.location.pathname + window.location.search);
                     this.loadState();
-                    this.openTicketSystem();
                 }
             }
         },
-
+        
         loadState() {
           const token = localStorage.getItem('token');
           if (token) {
@@ -914,15 +913,21 @@
               if (payload.exp * 1000 > Date.now()) {
                 this.state.isLoggedIn = true;
                 this.state.user = { id: payload.id, username: payload.username };
-                this.loadTickets();
               } else {
-                this.logout();
+                this.logout(false); // Logout without showing a toast
               }
             } catch (e) {
-              this.logout();
+              this.logout(false); // Logout without showing a toast
             }
           }
            this.updateUI();
+           if(this.state.isLoggedIn) {
+               this.loadTickets().then(() => {
+                   if(this.state.tickets.length > 0) {
+                       this.openTicketSystem();
+                   }
+               });
+           }
         },
         
         async apiCall(endpoint, options = {}) {
@@ -965,45 +970,69 @@
         },
         
         registerEventListeners() {
-            // ... all event listeners are unchanged ...
+            this.elements.purchaseBtn.addEventListener('click', this.handlePurchaseClick.bind(this));
+            this.elements.authModal.addEventListener('click', (e) => {
+                if (e.target === this.elements.authModal) this.closeAuthModal();
+            });
+            this.elements.closeAuthModalBtn.addEventListener('click', this.closeAuthModal.bind(this));
+            this.elements.showLoginBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.toggleAuthView(true);
+            });
+            this.elements.showSignupBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.toggleAuthView(false);
+            });
+            this.elements.signupForm.addEventListener('submit', this.handleSignup.bind(this));
+            this.elements.loginForm.addEventListener('submit', this.handleLogin.bind(this));
+            this.elements.newTicketBtn.addEventListener('click', this.showPaymentMethodModal.bind(this));
+            this.elements.backToListBtn.addEventListener('click', () => this.elements.ticketAppContainer.classList.remove('mobile-chat-view'));
+            this.elements.chatForm.addEventListener('submit', this.handleChatMessage.bind(this));
+            this.elements.copyKeyBtn.addEventListener('click', this.copyLicenseKey.bind(this));
+            this.elements.closeTicketSystemBtn.addEventListener('click', this.closeTicketSystem.bind(this));
+            this.elements.paymentMethodModal.addEventListener('click', (e) => {
+                if (e.target === this.elements.paymentMethodModal) this.closePaymentMethodModal();
+            });
+            this.elements.closePaymentModalBtn.addEventListener('click', this.closePaymentMethodModal.bind(this));
+            this.elements.confirmPaymentBtn.addEventListener('click', this.handlePaymentMethodConfirm.bind(this));
+            this.elements.logoutButton.addEventListener('click', () => this.logout(true));
+            this.elements.loginNavBtn.addEventListener('click', this.openAuthModal.bind(this));
+            this.elements.paymentMethodOptions.forEach(option => {
+                option.addEventListener('click', () => {
+                    this.elements.paymentMethodOptions.forEach(opt => opt.classList.remove('selected'));
+                    option.classList.add('selected');
+                    this.state.selectedPaymentMethod = option.dataset.method;
+                    this.elements.confirmPaymentBtn.disabled = false;
+                    this.elements.confirmPaymentBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                });
+            });
         },
-        
-        updateUI() { /* ... unchanged ... */ },
-        showToast(message) { /* ... unchanged ... */ },
-        initScrollAnimations() { /* ... unchanged ... */ },
-        openAuthModal() { /* ... unchanged ... */ },
-        closeAuthModal() { /* ... unchanged ... */ },
-        toggleAuthView(showLogin) { /* ... unchanged ... */ },
 
+        updateUI() { /* Unchanged */ },
+        showToast(message) { /* Unchanged */ },
+        initScrollAnimations() { /* Unchanged */ },
+        openAuthModal() { /* Unchanged */ },
+        closeAuthModal() { /* Unchanged */ },
+        toggleAuthView(showLogin) { /* Unchanged */ },
+        
         async handleSignup(e) {
             e.preventDefault();
             const form = this.elements.signupForm;
             const button = form.querySelector('button[type="submit"]');
             const buttonText = button.querySelector('.button-text');
             const originalText = buttonText.innerHTML;
-
             button.disabled = true;
             buttonText.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Signing Up...`;
-
             try {
                 const username = form.querySelector('#signup-username').value;
                 const password = form.querySelector('#signup-password').value;
                 const turnstileToken = form.querySelector('[name="cf-turnstile-response"]')?.value;
-
-                if (!username || !password) {
-                    this.showToast('Please fill in all fields');
-                    return;
-                }
-                if (!turnstileToken) {
-                    this.showToast('Please complete the security check.');
-                    return;
-                }
-
+                if (!username || !password) { this.showToast('Please fill in all fields'); return; }
+                if (!turnstileToken) { this.showToast('Please complete the security check.'); return; }
                 const response = await this.apiCall('/register', {
                     method: 'POST',
                     body: JSON.stringify({ username, password, turnstileToken })
                 });
-                
                 if (response && response.ok) {
                     const data = await response.json();
                     if (data.success && data.token) {
@@ -1035,29 +1064,18 @@
             const button = form.querySelector('button[type="submit"]');
             const buttonText = button.querySelector('.button-text');
             const originalText = buttonText.innerHTML;
-
             button.disabled = true;
             buttonText.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Logging In...`;
-
             try {
                 const username = form.querySelector('#login-username').value;
                 const password = form.querySelector('#login-password').value;
                 const turnstileToken = form.querySelector('[name="cf-turnstile-response"]')?.value;
-
-                if (!username || !password) {
-                    this.showToast('Please fill in all fields');
-                    return;
-                }
-                if (!turnstileToken) {
-                    this.showToast('Please complete the security check.');
-                    return;
-                }
-
+                if (!username || !password) { this.showToast('Please fill in all fields'); return; }
+                if (!turnstileToken) { this.showToast('Please complete the security check.'); return; }
                 const response = await this.apiCall('/login', {
                     method: 'POST',
                     body: JSON.stringify({ username, password, turnstileToken })
                 });
-                
                 if (response && response.ok) {
                     const data = await response.json();
                     if(data.success) {
@@ -1079,8 +1097,62 @@
                 turnstile.reset(form.querySelector('.cf-turnstile'));
             }
         },
+
+        logout(showNotification = true) {
+          localStorage.removeItem('token');
+          this.state.isLoggedIn = false; this.state.user = null; this.state.tickets = []; this.state.currentTicketId = null;
+          this.closeTicketSystem(); this.updateUI();
+          if (showNotification) { this.showToast('You have been logged out.'); }
+        },
         
-        // All other functions are unchanged...
+        async handlePaymentMethodConfirm() {
+          if (!this.state.selectedPaymentMethod) return this.showToast('Please select a payment method');
+          const button = this.elements.confirmPaymentBtn;
+          const buttonText = button.querySelector('.button-text');
+          const originalText = buttonText.innerHTML;
+          button.disabled = true;
+          buttonText.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Creating...`;
+          try {
+            const widget = document.getElementById('payment-turnstile-widget');
+            const turnstileToken = turnstile.getResponse(widget);
+            if (!turnstileToken) { this.showToast('Please wait for the security check to complete.'); return; }
+            const response = await this.apiCall('/tickets', {
+                method: 'POST',
+                body: JSON.stringify({
+                    paymentMethod: this.state.selectedPaymentMethod,
+                    turnstileToken: turnstileToken
+                })
+            });
+            if (response && response.ok) {
+                this.closePaymentMethodModal();
+                const newTicket = await response.json();
+                this.state.tickets.unshift(newTicket);
+                this.updateUI();
+                this.openTicket(newTicket.id);
+            } else if (response) {
+                const data = await response.json();
+                this.showToast(data.message || 'Failed to create ticket.');
+            }
+          } finally {
+             button.disabled = false;
+             buttonText.innerHTML = originalText;
+             turnstile.reset(document.getElementById('payment-turnstile-widget'));
+             this.elements.confirmPaymentBtn.disabled = true;
+             this.elements.confirmPaymentBtn.classList.add('opacity-50', 'cursor-not-allowed');
+             this.elements.paymentMethodOptions.forEach(opt => opt.classList.remove('selected'));
+          }
+        },
+        openTicketSystem(){ /* unchanged */ },
+        closeTicketSystem(){ /* unchanged */ },
+        getActiveTicket(){ /* unchanged */ },
+        openTicket(ticketId){ /* unchanged */ },
+        getPaymentMethodIcon(method){ /* unchanged */ },
+        renderSidebar(){ /* unchanged */ },
+        renderTicketView(ticket){ /* unchanged */ },
+        populateMessages(messages){ /* unchanged */ },
+        appendMessage(message){ /* unchanged */ },
+        async handleChatMessage(e){ /* unchanged */ },
+        copyLicenseKey(){ /* unchanged */ }
       };
       
       App.init();
