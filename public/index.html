@@ -921,9 +921,7 @@
               if (payload.exp * 1000 > Date.now()) {
                 this.state.isLoggedIn = true;
                 this.state.user = { id: payload.id, username: payload.username };
-                // This line was causing the issue. We should only load tickets if the user is logged in
-                // and not on initial page load before they have a chance to do anything.
-                // We'll call loadTickets() only after a successful login.
+                this.loadTickets(); // It's okay to load tickets if a valid token is found
               } else {
                 this.logout();
               }
@@ -951,6 +949,7 @@
               headers
             });
             
+            // This is the important change to fix the "session expired" on signup/login
             if ((response.status === 401 || response.status === 403) && endpoint !== '/login' && endpoint !== '/register') {
               this.logout();
               this.showToast("Your session has expired. Please log in again.");
