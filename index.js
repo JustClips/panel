@@ -1,4 +1,4 @@
-// Rolbox Command Server - Upgraded with MySQL, File Uploads & Luarmor Integration
+// Rolbox Command Server - Upgraded with MySQL, File Uploads, Turnstile, & Luarmor Integration
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
@@ -10,14 +10,21 @@ const multer = require('multer');
 const axios = require('axios');
 const path = require('path');
 const fs = require('fs');
-const rateLimit = require('express-rate-limit');            // <— NEW
+// Safe import for express-rate-limit (won't crash if missing)
+let rateLimit;
+try {
+  rateLimit = require('express-rate-limit');
+} catch (e) {
+  console.warn('[WARN] express-rate-limit not installed — rate limiting disabled.');
+  rateLimit = () => (req, res, next) => next();
+}
 const { body, validationResult } = require('express-validator');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const CLIENT_TIMEOUT_MS = 30000; // Increased timeout to 30 seconds
-const SNAPSHOT_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+const CLIENT_TIMEOUT_MS = 30000; // 30s
+const SNAPSHOT_INTERVAL_MS = 5 * 60 * 1000; // 5 min
 
 // --- SERVE FRONTEND STATIC FILES ---
 app.use(express.static('public'));
@@ -28,6 +35,7 @@ app.set('trust proxy', 1);
 // --- SECURITY & CORE MIDDLEWARE ---
 app.use(helmet());
 
+// --- CORS ---
 const allowedOrigins = [
   'https://eps1llon.win',
   'https://www.eps1llon.win'
@@ -35,17 +43,19 @@ const allowedOrigins = [
 
 const corsOptions = {
   origin: function (origin, callback) {
-    console.log('Request received from origin:', origin);
-    if (!origin) {
-      console.log('Allowing request with no origin');
-      return callback(null, true);
-    }
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      console.log(`Allowing origin: ${origin}`);
-      callback(null, true);
-    } else {
+    try {
+      console.log('Request received from origin:', origin);
+      // Allow same-origin / curl / mobile apps
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) {
+        console.log(`Allowing origin: ${origin}`);
+        return callback(null, true);
+      }
       console.error(`Blocking origin: ${origin}`);
-      callback(new Error('Not allowed by CORS'));
+      return callback(new Error('Not allowed by CORS'));
+    } catch (e) {
+      console.error('CORS check error:', e);
+      return callback(null, true);
     }
   },
   credentials: true,
@@ -62,11 +72,11 @@ app.use(bodyParser.urlencoded({ extended: true, limit: '100kb' }));
 const validateRequest = (req, res, next) => {
   const userAgent = req.headers['user-agent'] || '';
   const suspiciousAgents = ['bot', 'crawler', 'scanner', 'curl', 'wget'];
-  if (suspiciousAgents.some(agent => userAgent.toLowerCase().includes(agent))) {
+  if (suspiciousAgents.some(a => userAgent.toLowerCase().includes(a))) {
     console.warn(`Suspicious user agent detected: ${userAgent} from ${req.ip}`);
   }
-  const contentLength = parseInt(req.headers['content-length']);
-  if (contentLength > 10 * 1024 * 1024) { // 10MB limit
+  const contentLength = parseInt(req.headers['content-length'] || 0, 10);
+  if (contentLength > 10 * 1024 * 1024) {
     return res.status(413).json({ error: 'Payload too large' });
   }
   next();
@@ -75,9 +85,7 @@ app.use(validateRequest);
 
 // --- FILE UPLOAD & STATIC SERVING ---
 const uploadDir = 'uploads';
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir);
-}
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
 app.use('/uploads', express.static('uploads'));
 
 const storage = multer.diskStorage({
@@ -89,11 +97,11 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({
-  storage: storage,
+  storage,
   limits: { fileSize: 5 * 1024 * 1024, files: 1 },
   fileFilter: (req, file, cb) => {
-    if (file.mimetype !== "image/png" || !file.originalname.match(/\.(png)$/i)) {
-      return cb(new Error("Only .png files are allowed!"), false);
+    if (file.mimetype !== 'image/png' || !file.originalname.match(/\.(png)$/i)) {
+      return cb(new Error('Only .png files are allowed!'), false);
     }
     cb(null, true);
   }
@@ -121,7 +129,7 @@ const dbPool = mysql.createPool({
 async function initializeDatabase() {
   try {
     const connection = await dbPool.getConnection();
-    console.log("Successfully connected to MySQL database.");
+    console.log('Successfully connected to MySQL database.');
 
     await connection.query(`CREATE TABLE IF NOT EXISTS connections (
       id INT AUTO_INCREMENT PRIMARY KEY, 
@@ -207,14 +215,19 @@ async function initializeDatabase() {
       INDEX idx_executor (executor_name)
     );`);
 
+    // default admins
     const [adminUsers] = await connection.query("SELECT COUNT(*) as count FROM adminusers WHERE role = 'admin'");
     if (adminUsers[0].count === 0) {
-      console.log("Creating default admin users...");
+      console.log('Creating default admin users...');
       const hashedVupxy = await bcrypt.hash('vupxydev', 10);
       const hashedMegamind = await bcrypt.hash('megaminddev', 10);
-      await connection.query("INSERT INTO adminusers (username, password_hash, role) VALUES (?, ?, 'admin'), (?, ?, 'admin')", ['vupxy', hashedVupxy, 'megamind', hashedMegamind]);
+      await connection.query(
+        "INSERT INTO adminusers (username, password_hash, role) VALUES (?, ?, 'admin'), (?, ?, 'admin')",
+        ['vupxy', hashedVupxy, 'megamind', hashedMegamind]
+      );
     }
     
+    // default sellers
     const sellerUsers = [
       { username: 'Vandelz', password: 'Vandelzseller1' },
       { username: 'zuse35', password: 'zuse35seller1' },
@@ -227,15 +240,18 @@ async function initializeDatabase() {
       if (existingUser[0].count === 0) {
         console.log(`Creating seller user: ${user.username}...`);
         const hashedPassword = await bcrypt.hash(user.password, 10);
-        await connection.query("INSERT INTO adminusers (username, password_hash, role) VALUES (?, ?, 'seller')", [user.username, hashedPassword]);
+        await connection.query(
+          "INSERT INTO adminusers (username, password_hash, role) VALUES (?, ?, 'seller')",
+          [user.username, hashedPassword]
+        );
         console.log(`User ${user.username} created.`);
       }
     }
     
     connection.release();
-    console.log("Database initialization complete.");
+    console.log('Database initialization complete.');
   } catch (error) {
-    console.error("!!! DATABASE INITIALIZATION FAILED !!!", error);
+    console.error('!!! DATABASE INITIALIZATION FAILED !!!', error);
     process.exit(1);
   }
 }
@@ -268,13 +284,22 @@ const requireBuyer = requireRole(['buyer', 'admin']);
 const requireAnyRole = requireRole(['admin', 'seller', 'buyer']);
 
 // --- TURNSTILE VERIFY MIDDLEWARE (Interactive challenge) ---
-// Expects token in body as `cf-turnstile-response` (Turnstile default) or `turnstileToken`
+// Accepts token via body, header, or query.
+// Bypass in dev with TURNSTILE_BYPASS=1
 async function verifyTurnstile(req, res, next) {
   try {
+    if (process.env.TURNSTILE_BYPASS === '1') {
+      console.warn('[Turnstile] Bypass enabled via TURNSTILE_BYPASS=1');
+      return next();
+    }
+
     const token =
       req.body['cf-turnstile-response'] ||
       req.body['turnstileToken'] ||
-      req.headers['cf-turnstile-response'];
+      req.headers['cf-turnstile-response'] ||
+      req.headers['x-turnstile-token'] ||
+      req.query['cf-turnstile-response'] ||
+      req.query['turnstileToken'];
 
     if (!process.env.TURNSTILE_SECRET) {
       console.error('TURNSTILE_SECRET not set.');
@@ -289,7 +314,6 @@ async function verifyTurnstile(req, res, next) {
     form.append('response', token);
     if (req.ip) form.append('remoteip', req.ip);
 
-    // Cloudflare Turnstile verify endpoint
     const verifyRes = await axios.post(
       'https://challenges.cloudflare.com/turnstile/v0/siteverify',
       form.toString(),
@@ -309,7 +333,6 @@ async function verifyTurnstile(req, res, next) {
 }
 
 // --- RATE LIMITERS ---
-// Strict limiter for /register: 5 attempts / 10 minutes / IP
 const registerLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
   max: 5,
@@ -317,15 +340,6 @@ const registerLimiter = rateLimit({
   legacyHeaders: false,
   message: { message: 'Too many registration attempts. Try again later.' }
 });
-
-// (Optional) generic API limiter example (commented out)
-// const apiLimiter = rateLimit({
-//   windowMs: 60 * 1000,
-//   max: 120,
-//   standardHeaders: true,
-//   legacyHeaders: false
-// });
-// app.use('/api/', apiLimiter);
 
 // --- INPUT VALIDATION MIDDLEWARE ---
 const validateTicketCreation = [
@@ -497,13 +511,13 @@ app.post('/tickets',
       if (recentTickets[0].count > 5) {
         return res.status(429).json({ message: 'Too many tickets created recently. Please try again later.' });
       }
-      const licenseKey = "PENDING-" + Date.now();
+      const licenseKey = 'PENDING-' + Date.now();
       const [result] = await dbPool.query(
         "INSERT INTO tickets (user_id, license_key, payment_method, status) VALUES (?, ?, ?, 'awaiting')", 
         [req.user.id, licenseKey, paymentMethod]
       );
       const ticketId = result.insertId;
-      let message = `Welcome! A seller will be with you shortly to help you purchase with ${paymentMethod}.`;
+      const message = `Welcome! A seller will be with you shortly to help you purchase with ${paymentMethod}.`;
       await dbPool.query("INSERT INTO ticket_messages (ticket_id, sender, message) VALUES (?, ?, ?)", [ticketId, 'seller', message]);
       const [tickets] = await dbPool.query(
         `SELECT t.*, u.username as buyer_name FROM tickets t JOIN adminusers u ON t.user_id = u.id WHERE t.id = ?`, 
@@ -630,16 +644,16 @@ app.post('/connect', async (req, res) => {
     city, country, executorName, executorVersion
   } = req.body;
   if (!id || !username) {
-    return res.status(400).json({ error: "Missing required fields." });
+    return res.status(400).json({ error: 'Missing required fields.' });
   }
   if (typeof id !== 'string' || typeof username !== 'string') {
-    return res.status(400).json({ error: "Invalid field types." });
+    return res.status(400).json({ error: 'Invalid field types.' });
   }
   if (id.length > 255 || username.length > 255) {
-    return res.status(400).json({ error: "Field values too long." });
+    return res.status(400).json({ error: 'Field values too long.' });
   }
   if (playerCount !== undefined && (isNaN(playerCount) || playerCount < 0 || playerCount > 1000000)) {
-    return res.status(400).json({ error: "Invalid player count." });
+    return res.status(400).json({ error: 'Invalid player count.' });
   }
   clients.set(id, { 
     id, username, gameName, serverInfo, playerCount, userId, 
@@ -675,7 +689,7 @@ app.post('/connect', async (req, res) => {
   } catch (error) {
     console.error(`[DB] Failed to log connection for ${username}:`, error.message);
   }
-  res.json({ message: "Successfully registered." });
+  res.json({ message: 'Successfully registered.' });
 });
 
 app.post('/heartbeat', async (req, res) => {
@@ -684,7 +698,7 @@ app.post('/heartbeat', async (req, res) => {
     city, country, executorName, executorVersion
   } = req.body;
   if (!id || !clients.has(id)) {
-    return res.status(404).json({ error: "Client not registered." });
+    return res.status(404).json({ error: 'Client not registered.' });
   }
   const client = clients.get(id);
   client.lastSeen = Date.now();
@@ -718,12 +732,12 @@ app.post('/heartbeat', async (req, res) => {
       [id, username, executorName, executorVersion || 'Unknown']
     );
   }
-  res.json({ message: "Heartbeat received." });
+  res.json({ message: 'Heartbeat received.' });
 });
 
 app.post('/poll', (req, res) => {
   const { id } = req.body;
-  if (!id || !clients.has(id)) return res.status(404).json({ error: "Client not registered." });
+  if (!id || !clients.has(id)) return res.status(404).json({ error: 'Client not registered.' });
   clients.get(id).lastSeen = Date.now();
   const commands = pendingCommands.get(id) || [];
   pendingCommands.set(id, []);
@@ -745,17 +759,17 @@ app.post('/broadcast', verifyToken, requireAdmin, async (req, res) => {
   if (commandSize > 10000) {
     return res.status(400).json({ error: 'Command too large' });
   }
-  const commandObj = { type: "execute", payload: command };
+  const commandObj = { type: 'execute', payload: command };
   let successCount = 0;
   clients.forEach((c, id) => {
     pendingCommands.get(id)?.push(commandObj);
     successCount++;
   });
   try {
-    const commandType = typeof command === "string" ? "lua_script" : "json_action";
+    const commandType = typeof command === 'string' ? 'lua_script' : 'json_action';
     await dbPool.query("INSERT INTO commands (command_type, content) VALUES (?, ?)", [commandType, JSON.stringify(command)]);
   } catch (error) { 
-    console.error("[DB] Failed to log broadcast command:", error.message); 
+    console.error('[DB] Failed to log broadcast command:', error.message); 
   }
   res.json({ message: `Command broadcasted to ${successCount}/${clients.size} clients.` });
 });
@@ -770,7 +784,7 @@ app.post('/api/command/targeted', verifyToken, requireAdmin, (req, res) => {
   if (typeof command !== 'string' && typeof command !== 'object') {
     return res.status(400).json({ error: 'Invalid command format' });
   }
-  const commandObj = { type: "execute", payload: command };
+  const commandObj = { type: 'execute', payload: command };
   let successCount = 0;
   clientIds.forEach(id => {
     if (clients.has(id) && pendingCommands.has(id)) {
@@ -784,8 +798,8 @@ app.post('/api/command/targeted', verifyToken, requireAdmin, (req, res) => {
 app.post('/kick', verifyToken, requireAdmin, (req, res) => {
   const { clientId } = req.body;
   const client = clients.get(clientId);
-  if (!client) return res.status(404).json({ error: "Client not found." });
-  pendingCommands.get(clientId)?.push({ type: "kick" });
+  if (!client) return res.status(404).json({ error: 'Client not found.' });
+  pendingCommands.get(clientId)?.push({ type: 'kick' });
   setTimeout(() => {
     clients.delete(clientId);
     pendingCommands.delete(clientId);
@@ -808,15 +822,15 @@ app.post('/api/seller/redeem',
     if (!discordUserId) return res.status(400).json({ error: 'Discord User ID is required.' });
     if (!req.file) return res.status(400).json({ error: 'Screenshot file is required.' });
     if (!process.env.LUARMOR_API_KEY || !process.env.LUARMOR_PROJECT_ID) {
-      return res.status(500).json({ error: "Luarmor API is not configured on the server." });
+      return res.status(500).json({ error: 'Luarmor API is not configured on the server.' });
     }
     if (req.file.size > 5 * 1024 * 1024) {
       if (req.file.path) fs.unlinkSync(req.file.path);
       return res.status(400).json({ error: 'File too large. Maximum 5MB allowed.' });
     }
     const url = `https://api.luarmor.net/v3/projects/${process.env.LUARMOR_PROJECT_ID}/users`;
-    const headers = { "Authorization": process.env.LUARMOR_API_KEY, "Content-Type": "application/json" };
-    const payload = { "discord_id": discordUserId, "note": `Redeemed by ${adminUsername} on ${new Date().toLocaleDateString()}` };
+    const headers = { Authorization: process.env.LUARMOR_API_KEY, 'Content-Type': 'application/json' };
+    const payload = { discord_id: discordUserId, note: `Redeemed by ${adminUsername} on ${new Date().toLocaleDateString()}` };
     try {
       const luarmorResponse = await axios.post(url, payload, { headers, timeout: 10000 });
       const data = luarmorResponse.data;
@@ -833,7 +847,7 @@ app.post('/api/seller/redeem',
       }
     } catch (error) {
       if (req.file && req.file.path) fs.unlinkSync(req.file.path);
-      console.error("Luarmor API request failed:", error.response ? error.response.data : error.message);
+      console.error('Luarmor API request failed:', error.response ? error.response.data : error.message);
       if (error.response) {
         if (error.response.status === 429) {
           return res.status(429).json({ error: 'Rate limit exceeded with key service. Please try again later.' });
@@ -880,7 +894,7 @@ app.get('/api/executions', verifyToken, requireAnyRole, async (req, res) => {
     const data = await getAggregatedData('connections', 'connected_at', 'id', req.query.period, 'COUNT');
     res.json(data);
   } catch (error) {
-    res.status(500).json({ error: "Failed to retrieve connection statistics." });
+    res.status(500).json({ error: 'Failed to retrieve connection statistics.' });
   }
 });
 
@@ -905,14 +919,14 @@ app.get('/api/seller/keys-sold', verifyToken, requireSeller, async (req, res) =>
 app.get('/api/seller/sales-log', verifyToken, requireSeller, async (req, res) => {
   try {
     const [rows] = await dbPool.query("SELECT * FROM key_redemptions ORDER BY redeemed_at DESC LIMIT 1000");
-    res.json(rows);
+  res.json(rows);
   } catch (error) {
-    console.error("Failed to retrieve sales log:", error);
+    console.error('Failed to retrieve sales log:', error);
     res.status(500).json({ error: 'Failed to retrieve sales log.' });
   }
 });
 
-// --- NEW ENDPOINTS FOR 3D EARTH VISUALIZATION ---
+// --- 3D EARTH VISUALIZATION ENDPOINTS ---
 app.get('/api/locations', verifyToken, requireAnyRole, async (req, res) => {
   try {
     const [locations] = await dbPool.query(`
@@ -984,7 +998,7 @@ setInterval(async () => {
     try {
       await dbPool.query("INSERT INTO player_snapshots (player_count) VALUES (?)", [clients.size]);
     } catch (error) {
-      console.error("[DB] Failed to log player snapshot:", error.message);
+      console.error('[DB] Failed to log player snapshot:', error.message);
     }
   }
 }, SNAPSHOT_INTERVAL_MS);
