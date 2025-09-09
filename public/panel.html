@@ -365,8 +365,10 @@
     <script>
     document.addEventListener('DOMContentLoaded', () => {
         const API_BASE_URL = '/api';
+        const POLLING_INTERVAL = 5000;
         const state = { user: null, tickets: [], currentTicketId: null, pollingInterval: null };
 
+        // Centralized DOM element references
         const selectors = {
             loginContainer: document.getElementById('login-container'),
             appContainer: document.getElementById('app-container'),
@@ -375,6 +377,7 @@
             navLinks: document.querySelectorAll('.nav-link'),
             contentPanels: document.querySelectorAll('.content-panel'),
             chatSidebar: document.getElementById('chat-sidebar'),
+            chatListContainer: document.getElementById('chat-list-container'),
             chatListAwaiting: document.getElementById('chat-list-awaiting'),
             chatListActive: document.getElementById('chat-list-active'),
             chatListCompleted: document.getElementById('chat-list-completed'),
@@ -413,7 +416,7 @@
             const token = localStorage.getItem('token');
             if (!token) {
                 hideApp();
-                throw new Error('No token found.');
+                throw new Error('No authentication token found.');
             }
             const headers = { ...options.headers, 'Authorization': `Bearer ${token}` };
             if (!(options.body instanceof FormData) && !headers['Content-Type']) {
@@ -423,7 +426,7 @@
             if ([401, 403].includes(response.status)) {
                 localStorage.removeItem('token');
                 hideApp();
-                throw new Error('Session expired.');
+                throw new Error('Your session has expired. Please log in again.');
             }
             return response;
         };
@@ -431,31 +434,24 @@
         const handleLogin = async (e) => {
             e.preventDefault();
             const loginError = document.getElementById('login-error');
-            const loginBox = document.querySelector('.login-box');
             loginError.style.display = 'none';
             const username = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value.trim();
             const turnstileToken = selectors.loginForm.querySelector('[name="cf-turnstile-response"]')?.value;
 
-            if (!turnstileToken) {
-                loginError.textContent = 'Please complete the security check.';
-                loginError.style.display = 'block';
-                return;
-            }
-
             try {
+                if (!turnstileToken) throw new Error('Please complete the security check.');
                 const response = await fetch(`${API_BASE_URL}/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username, password, turnstileToken })
                 });
                 const data = await response.json();
-                if (response.ok && ['seller', 'admin'].includes(data.role)) {
-                    localStorage.setItem('token', data.token);
-                    showApp();
-                } else {
-                    throw new Error(data.message || 'Invalid credentials.');
+                if (!response.ok || !['seller', 'admin'].includes(data.role)) {
+                    throw new Error(data.message || 'Invalid credentials or permissions.');
                 }
+                localStorage.setItem('token', data.token);
+                showApp();
             } catch (error) {
                 loginError.textContent = error.message;
                 loginError.style.display = 'block';
@@ -479,14 +475,8 @@
         const switchTab = (tabName) => {
             selectors.navLinks.forEach(link => link.classList.toggle('active', link.dataset.tab === tabName));
             selectors.contentPanels.forEach(panel => panel.classList.toggle('active', panel.id === `${tabName}-panel`));
-
-            if (tabName === 'chats') {
-                selectors.appContainer.classList.remove('dashboard-view');
-                selectors.chatSidebar.style.display = 'flex';
-            } else {
-                selectors.appContainer.classList.add('dashboard-view');
-                selectors.chatSidebar.style.display = 'none';
-            }
+            selectors.appContainer.classList.toggle('dashboard-view', tabName !== 'chats');
+            selectors.chatSidebar.style.display = tabName === 'chats' ? 'flex' : 'none';
         };
         
         const getPaymentMethodIcon = (method) => ({
@@ -494,9 +484,10 @@
         }[method] || 'fas fa-receipt');
 
         const renderChatList = () => {
-            const awaiting = state.tickets.filter(t => !t.claimed_by && t.status !== 'completed').sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at));
-            const active = state.tickets.filter(t => t.claimed_by === state.user.id && t.status !== 'completed').sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at));
-            const completed = state.tickets.filter(t => t.status === 'completed').sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at));
+            const tickets = state.tickets || [];
+            const awaiting = tickets.filter(t => !t.claimed_by && t.status !== 'completed').sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at));
+            const active = tickets.filter(t => t.claimed_by === state.user.id && t.status !== 'completed').sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at));
+            const completed = tickets.filter(t => t.status === 'completed').sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at));
 
             const createHtml = (chats, isUnreadLogic) => chats.map(chat => {
                 const isUnread = isUnreadLogic && chat.last_message_sender === 'user';
@@ -514,22 +505,19 @@
             selectors.chatListAwaiting.innerHTML = `<h3 class="chat-list-category">Awaiting Claim (${awaiting.length})</h3>` + createHtml(awaiting, true);
             selectors.chatListActive.innerHTML = `<h3 class="chat-list-category">My Active (${active.length})</h3>` + createHtml(active, true);
             selectors.chatListCompleted.innerHTML = `<h3 class="chat-list-category">Completed (${completed.length})</h3>` + createHtml(completed, false);
-            
-            document.querySelectorAll('.chat-item').forEach(item => {
-                item.addEventListener('click', () => displayChatDetails(parseInt(item.dataset.chatId)));
-            });
         };
 
         const updateDashboard = () => {
-            selectors.statAwaiting.textContent = state.tickets.filter(t => !t.claimed_by && t.status !== 'completed').length;
-            selectors.statActive.textContent = state.tickets.filter(t => t.claimed_by === state.user.id && t.status !== 'completed').length;
-            selectors.statCompleted.textContent = state.tickets.filter(t => t.status === 'completed').length;
+            const tickets = state.tickets || [];
+            selectors.statAwaiting.textContent = tickets.filter(t => !t.claimed_by && t.status !== 'completed').length;
+            selectors.statActive.textContent = tickets.filter(t => t.claimed_by === state.user.id && t.status !== 'completed').length;
+            selectors.statCompleted.textContent = tickets.filter(t => t.status === 'completed').length;
         };
 
         const loadData = async () => {
             try {
                 const response = await authFetch(`${API_BASE_URL}/tickets/all`);
-                if (!response.ok) throw new Error("Couldn't load chats.");
+                if (!response.ok) throw new Error("Could not load data.");
                 const newTickets = await response.json();
                 
                 if (JSON.stringify(newTickets) !== JSON.stringify(state.tickets)) {
@@ -545,10 +533,25 @@
                 }
             } catch (error) {
                 showNotification(error.message, 'error');
-                if (state.pollingInterval) clearInterval(state.pollingInterval);
+                stopPolling();
             }
         };
         
+        // Polling management to prevent race conditions
+        const startPolling = () => {
+            if (state.pollingInterval) clearInterval(state.pollingInterval);
+            state.pollingInterval = setInterval(loadData, POLLING_INTERVAL);
+        };
+        const stopPolling = () => {
+            if (state.pollingInterval) clearInterval(state.pollingInterval);
+        };
+        const performAction = async (action) => {
+            stopPolling();
+            await action();
+            await loadData(); // Get immediate feedback
+            startPolling();
+        };
+
         const displayChatDetails = (chatId, isRefresh = false) => {
             const chat = state.tickets.find(t => t.id === chatId);
             if (!chat) return resetChatView();
@@ -560,7 +563,6 @@
 
             selectors.chatViewPlaceholder.style.display = 'none';
             selectors.chatViewPanel.style.display = 'flex';
-
             selectors.chatHeaderTitle.textContent = `Chat with ${escapeHTML(chat.buyer_name)}`;
             selectors.chatHeaderDetails.textContent = `Status: ${chat.status} | Claimed by: ${chat.claimed_by_name || 'None'}`;
             
@@ -571,27 +573,21 @@
                 </div>
             `).join('');
 
-            if (!isRefresh) {
-               selectors.messageList.scrollTop = selectors.messageList.scrollHeight;
-            }
+            if (!isRefresh) selectors.messageList.scrollTop = selectors.messageList.scrollHeight;
 
-            // Show claim bar or reply form
-            if (!chat.claimed_by && chat.status !== 'completed') {
-                selectors.chatReplyForm.style.display = 'none';
-                selectors.claimBar.style.display = 'flex';
-                selectors.completeBtn.style.display = 'none';
-                selectors.deleteBtn.style.display = 'none';
-            } else {
-                selectors.claimBar.style.display = 'none';
-                selectors.chatReplyForm.style.display = 'flex';
-                const isChatLocked = chat.status === 'completed' || (chat.claimed_by && chat.claimed_by !== state.user.id);
-                selectors.chatReplyInput.disabled = isChatLocked;
-                selectors.chatReplyForm.querySelector('button').disabled = isChatLocked;
-                selectors.chatReplyInput.placeholder = isChatLocked ? 'This chat is locked.' : 'Type your reply...';
+            const isUnclaimed = !chat.claimed_by && chat.status !== 'completed';
+            const isMyTicket = chat.claimed_by === state.user.id && chat.status !== 'completed';
+            const isCompleted = chat.status === 'completed';
+            const isLocked = isCompleted || (chat.claimed_by && chat.claimed_by !== state.user.id);
 
-                selectors.completeBtn.style.display = (chat.claimed_by === state.user.id && chat.status !== 'completed') ? 'inline-flex' : 'none';
-                selectors.deleteBtn.style.display = chat.status === 'completed' ? 'inline-flex' : 'none';
-            }
+            selectors.claimBar.style.display = isUnclaimed ? 'flex' : 'none';
+            selectors.chatReplyForm.style.display = isUnclaimed ? 'none' : 'flex';
+            selectors.chatReplyInput.disabled = isLocked;
+            selectors.chatReplyForm.querySelector('button').disabled = isLocked;
+            selectors.chatReplyInput.placeholder = isLocked ? 'This chat is locked.' : 'Type your reply...';
+
+            selectors.completeBtn.style.display = isMyTicket ? 'inline-flex' : 'none';
+            selectors.deleteBtn.style.display = isCompleted ? 'inline-flex' : 'none';
         };
 
         const resetChatView = () => {
@@ -638,63 +634,63 @@
 
             switchTab('dashboard');
             loadData();
-            if(state.pollingInterval) clearInterval(state.pollingInterval);
-            state.pollingInterval = setInterval(loadData, 5000);
+            startPolling();
 
             // Setup event listeners once
-            if (!selectors.logoutBtn.dataset.listener) {
-                selectors.logoutBtn.dataset.listener = true;
+            if (!selectors.appContainer.dataset.listener) {
+                selectors.appContainer.dataset.listener = true;
 
                 selectors.logoutBtn.addEventListener('click', (e) => { e.preventDefault(); localStorage.removeItem('token'); hideApp(); });
                 selectors.navLinks.forEach(el => {
                     el.addEventListener('click', e => { e.preventDefault(); switchTab(el.dataset.tab); });
                 });
 
-                selectors.claimBtn.addEventListener('click', async () => {
-                    try {
-                        await authFetch(`${API_BASE_URL}/tickets/${state.currentTicketId}/claim`, { method: 'POST' });
-                        showNotification('Ticket claimed.', 'success');
-                        await loadData();
-                    } catch (error) { showNotification(error.message, 'error'); }
+                // Use event delegation for chat list
+                selectors.chatListContainer.addEventListener('click', (e) => {
+                    const chatItem = e.target.closest('.chat-item');
+                    if (chatItem && chatItem.dataset.chatId) {
+                        displayChatDetails(parseInt(chatItem.dataset.chatId));
+                    }
                 });
 
-                selectors.chatReplyForm.addEventListener('submit', async (e) => {
+                selectors.claimBtn.addEventListener('click', () => performAction(async () => {
+                    await authFetch(`${API_BASE_URL}/tickets/${state.currentTicketId}/claim`, { method: 'POST' });
+                    showNotification('Ticket claimed.', 'success');
+                }));
+
+                selectors.chatReplyForm.addEventListener('submit', (e) => {
                     e.preventDefault();
                     const message = selectors.chatReplyInput.value.trim();
                     if (!message) return;
-                    selectors.chatReplyInput.disabled = true;
-                    try {
+                    performAction(async () => {
                         await authFetch(`${API_BASE_URL}/tickets/${state.currentTicketId}/messages`, {
                             method: 'POST', body: JSON.stringify({ message })
                         });
                         selectors.chatReplyInput.value = '';
-                        await loadData();
-                    } catch(error) { showNotification(error.message, 'error'); } 
+                    });
                 });
 
                 selectors.completeBtn.addEventListener('click', () => showModal(selectors.completeModal));
                 selectors.deleteBtn.addEventListener('click', () => {
-                    showModal(selectors.confirmationModal, 'Confirm Deletion', `Permanently DELETE ticket #${state.currentTicketId}?`, async () => {
-                         try {
-                            await authFetch(`${API_BASE_URL}/tickets/${state.currentTicketId}`, { method: 'DELETE' });
-                            showNotification(`Ticket deleted.`, 'success');
-                            resetChatView();
-                            await loadData();
-                        } catch (error) { showNotification(error.message, 'error'); }
+                    showModal(selectors.confirmationModal, 'Confirm Deletion', `Permanently DELETE ticket #${state.currentTicketId}?`, () => {
+                        performAction(async () => {
+                             await authFetch(`${API_BASE_URL}/tickets/${state.currentTicketId}`, { method: 'DELETE' });
+                             showNotification(`Ticket deleted.`, 'success');
+                             resetChatView();
+                        });
                     });
                 });
                 
-                selectors.completeForm.addEventListener('submit', async (e) => {
+                selectors.completeForm.addEventListener('submit', (e) => {
                     e.preventDefault();
-                    const licenseKey = selectors.licenseKeyInput.value.trim();
+                    const licenseKey = document.getElementById('license-key-input').value.trim(); // Re-select because form is cloned
                     if (!licenseKey) return showNotification('License key is required.', 'error');
-                    try {
+                    performAction(async () => {
                         await authFetch(`${API_BASE_URL}/tickets/${state.currentTicketId}/complete`, { 
                             method: 'POST', body: JSON.stringify({ licenseKey })
                         });
                         showNotification('Ticket completed!', 'success');
-                        await loadData();
-                    } catch (error) { showNotification(error.message, 'error'); }
+                    });
                 });
 
                 selectors.cancelBtn.addEventListener('click', () => hideModal(selectors.confirmationModal));
