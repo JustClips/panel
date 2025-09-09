@@ -9,6 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
   <style>
     :root {
       --bg-dark: #0A0C10;
@@ -678,10 +679,11 @@
             <label for="signup-username" class="block mb-2 text-sm font-medium text-text-light">Username</label>
             <input type="text" id="signup-username" class="form-input w-full p-3 rounded-lg" placeholder="Choose a unique username" required>
           </div>
-          <div class="mb-7">
+          <div class="mb-5">
             <label for="signup-password" class="block mb-2 text-sm font-medium text-text-light">Password</label>
             <input type="password" id="signup-password" class="form-input w-full p-3 rounded-lg" placeholder="Secure password" required>
           </div>
+          <div class="cf-turnstile mb-4" data-sitekey="YOUR_SITE_KEY_HERE" data-theme="dark"></div>
           <button type="submit" class="w-full text-white font-bold py-3 px-6 rounded-lg btn-primary text-lg has-ripple">Sign Up</button>
         </form>
         <p class="text-center mt-6 text-text-muted">Already have an account? <a href="#" id="show-login" class="text-primary hover:underline font-medium">Log In</a></p>
@@ -698,6 +700,7 @@
             <label for="login-password" class="block mb-2 text-sm font-medium text-text-light">Password</label>
             <input type="password" id="login-password" class="form-input w-full p-3 rounded-lg" placeholder="Your password" required>
           </div>
+          <div class="cf-turnstile mb-4" data-sitekey="YOUR_SITE_KEY_HERE" data-theme="dark"></div>
           <button type="submit" class="w-full text-white font-bold py-3 px-6 rounded-lg btn-primary text-lg has-ripple">Log In</button>
         </form>
         <p class="text-center mt-6 text-text-muted">Don't have an account? <a href="#" id="show-signup" class="text-primary hover:underline font-medium">Sign Up</a></p>
@@ -746,7 +749,8 @@
         <i class="fas fa-brain text-pink-500"></i>
         <div class="method-name">Secret Brainrots</div>
       </div>
-      <button id="confirm-payment-btn" class="w-full mt-6 text-white font-bold py-3 px-6 rounded-lg btn-primary text-lg opacity-50 cursor-not-allowed has-ripple" disabled>Create Purchase Ticket</button>
+      <div id="payment-turnstile-widget" class="cf-turnstile mt-6" data-sitekey="YOUR_SITE_KEY_HERE" data-theme="dark"></div>
+      <button id="confirm-payment-btn" class="w-full mt-4 text-white font-bold py-3 px-6 rounded-lg btn-primary text-lg opacity-50 cursor-not-allowed has-ripple" disabled>Create Purchase Ticket</button>
     </div>
   </div>
   
@@ -835,8 +839,6 @@
   
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      // *** THIS IS THE ONLY CHANGE NEEDED FOR THE FRONTEND ***
-      // All API calls will now be sent to the /api prefix on the same domain.
       const API_BASE_URL = '/api';
       
       const App = {
@@ -1128,39 +1130,52 @@
         
         async handleSignup(e) {
           e.preventDefault();
-          const username = this.elements.signupForm.querySelector('#signup-username').value;
-          const password = this.elements.signupForm.querySelector('#signup-password').value;
-          
+          const form = this.elements.signupForm;
+          const username = form.querySelector('#signup-username').value;
+          const password = form.querySelector('#signup-password').value;
+          const turnstileToken = form.querySelector('[name="cf-turnstile-response"]')?.value;
+
           if (!username || !password) return this.showToast('Please fill in all fields');
-          
+          if (!turnstileToken) {
+            this.showToast('Please complete the security check.');
+            return;
+          }
+
           const response = await this.apiCall('/register', {
             method: 'POST',
-            body: JSON.stringify({ username, password })
+            body: JSON.stringify({ username, password, turnstileToken })
           });
           
           if (response && response.ok) {
             this.showToast('Account created! Please log in.');
             this.toggleAuthView(true);
-          } else {
+          } else if (response) {
             try {
               const data = await response.json();
               this.showToast(data.message || 'Signup failed.');
             } catch (err) {
-              this.showToast('Signup failed.');
+              this.showToast('Signup failed. Please try again.');
             }
           }
+          turnstile.reset(form.querySelector('.cf-turnstile'));
         },
         
         async handleLogin(e) {
           e.preventDefault();
-          const username = this.elements.loginForm.querySelector('#login-username').value;
-          const password = this.elements.loginForm.querySelector('#login-password').value;
-          
+          const form = this.elements.loginForm;
+          const username = form.querySelector('#login-username').value;
+          const password = form.querySelector('#login-password').value;
+          const turnstileToken = form.querySelector('[name="cf-turnstile-response"]')?.value;
+
           if (!username || !password) return this.showToast('Please fill in all fields');
-          
+          if (!turnstileToken) {
+            this.showToast('Please complete the security check.');
+            return;
+          }
+
           const response = await this.apiCall('/login', {
             method: 'POST',
-            body: JSON.stringify({ username, password })
+            body: JSON.stringify({ username, password, turnstileToken })
           });
           
           if (response && response.ok) {
@@ -1174,14 +1189,15 @@
               await this.loadTickets();
               this.openTicketSystem();
             }
-          } else {
+          } else if (response) {
             try {
               const data = await response.json();
               this.showToast(data.message || 'Login failed.');
             } catch(err) {
-              this.showToast('Login failed.');
+              this.showToast('Login failed. Please try again.');
             }
           }
+          turnstile.reset(form.querySelector('.cf-turnstile'));
         },
         
         logout() {
@@ -1213,11 +1229,22 @@
         async handlePaymentMethodConfirm() {
           if (!this.state.selectedPaymentMethod) return this.showToast('Please select a payment method');
           
+          const widget = document.getElementById('payment-turnstile-widget');
+          const turnstileToken = turnstile.getResponse(widget);
+
+          if (!turnstileToken) {
+            this.showToast('Please wait for the security check to complete.');
+            return;
+          }
+
           this.closePaymentMethodModal();
           
           const response = await this.apiCall('/tickets', {
             method: 'POST',
-            body: JSON.stringify({ paymentMethod: this.state.selectedPaymentMethod })
+            body: JSON.stringify({
+              paymentMethod: this.state.selectedPaymentMethod,
+              turnstileToken: turnstileToken
+            })
           });
           
           if (response && response.ok) {
@@ -1228,7 +1255,7 @@
             this.state.tickets.unshift(newTicket);
             this.updateUI();
             this.openTicket(newTicket.id);
-          } else {
+          } else if (response) {
             try {
                const data = await response.json();
                this.showToast(data.message || 'Failed to create ticket.');
@@ -1236,6 +1263,7 @@
                  this.showToast('Failed to create ticket.');
             }
           }
+          turnstile.reset(widget);
         },
         
         openTicketSystem() {
@@ -1472,4 +1500,4 @@
     });
   </script>
 </body>
-</html>
+  </html>
