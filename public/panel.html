@@ -10,255 +10,360 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     <style>
+        /* === REWORK: Foundational Variables and Base Styles === */
         :root {
-            --bg-dark: #0D1117;
-            --bg-light: #161B22;
-            --primary: #2F81F7;
-            --secondary: #ffc107;
-            --primary-glow-text: 0 0 10px rgba(47, 129, 247, 0.7);
-            --primary-glow-box: 0 0 25px rgba(47, 129, 247, 0.3);
-            --text-light: #C9D1D9;
-            --text-muted: #8B949E;
-            --border-color: rgba(255, 255, 255, 0.1);
-            --success: #238636;
-            --danger: #DA3633;
-            --panel-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-            --warning: #ffc107;
-            --glass-bg: rgba(22, 27, 34, 0.7);
+            --bg-darker: #0D1117;
+            --bg-dark: #161B22;
+            --bg-light: #21262D;
+            --border-color: #30363D;
+            --text-primary: #E6EDF3;
+            --text-secondary: #7D8590;
+            --accent-blue: #388BFD;
+            --accent-blue-hover: #58A6FF;
+            --accent-blue-faded: rgba(56, 139, 253, 0.15);
+            --accent-green: #347D39;
+            --accent-red: #DA3633;
+            --shadow-medium: 0 8px 24px rgba(0, 0, 0, 0.2);
+            --shadow-small: 0 4px 12px rgba(0, 0, 0, 0.15);
         }
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(47, 129, 247, 0.7); }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
         body {
-            background-color: var(--bg-dark);
-            background-image:
-                radial-gradient(circle at 15% 20%, rgba(47, 129, 247, 0.1), transparent 35%),
-                radial-gradient(circle at 85% 80%, rgba(255, 193, 7, 0.08), transparent 40%);
-            color: var(--text-light);
-            display: flex;
+            background-color: var(--bg-darker);
+            color: var(--text-primary);
             height: 100vh;
             overflow: hidden;
         }
-        #login-container { display: flex; align-items: center; justify-content: center; height: 100vh; width: 100%; }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
+
+        /* === REWORK: Login Page Styling === */
+        #login-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            width: 100%;
+            background-image: radial-gradient(circle at 15% 20%, rgba(56, 139, 253, 0.1), transparent 40%);
+        }
+
         .login-box {
-            background: var(--glass-bg); backdrop-filter: blur(12px); border: 1px solid var(--border-color);
-            padding: 2.5rem; border-radius: 12px; width: 100%; max-width: 400px;
-            text-align: center; box-shadow: var(--panel-shadow); animation: fadeIn 0.5s ease;
+            background: var(--bg-dark);
+            border: 1px solid var(--border-color);
+            padding: 2.5rem;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 420px;
+            text-align: center;
+            box-shadow: var(--shadow-medium);
+            animation: fadeIn 0.5s ease-out;
         }
+
         .login-box h2 {
-            color: var(--text-light); margin-bottom: 0.75rem; display: flex; align-items: center;
-            justify-content: center; gap: 12px; font-size: 1.75rem; font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            font-size: 1.75rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
         }
-        .login-box p { margin-bottom: 2rem; color: var(--text-muted); }
-        .input-group { margin-bottom: 1.5rem; text-align: left; }
-        #login-error { color: var(--danger); margin-top: 1rem; display: none; font-weight: 500; }
+
+        .login-box h2 i { color: var(--accent-blue); }
+        .login-box p { color: var(--text-secondary); margin-bottom: 2rem; }
+        .input-group { margin-bottom: 1.5rem; }
+        #login-error { color: var(--accent-red); margin-top: 1.5rem; display: none; font-weight: 500; font-size: 0.9rem; }
         .login-box.shake { animation: shake 0.5s ease; }
-        @keyframes shake { 10%, 90% { transform: translateX(-1px); } 20%, 80% { transform: translateX(2px); } 30%, 50%, 70% { transform: translateX(-4px); } 40%, 60% { transform: translateX(4px); } }
-        #app-container { display: none; width: 100%; height: 100vh; }
+        @keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* === REWORK: Main Application Layout (THE CORE FIX) === */
+        #app-container {
+            display: grid;
+            grid-template-columns: 280px 1fr; /* Fixed sidebar, fluid main content */
+            width: 100%;
+            height: 100%;
+        }
+
+        /* === REWORK: Sidebar Styling === */
         .sidebar {
-            width: 260px; background: var(--bg-light); border-right: 1px solid var(--border-color);
-            display: flex; flex-direction: column; height: 100%; flex-shrink: 0;
-            transition: width 0.3s ease;
-        }
-        .logo { padding: 1.5rem 2rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 1rem; }
-        .logo i { font-size: 2rem; color: var(--primary); text-shadow: var(--primary-glow-text); }
-        .logo h1 { color: #fff; font-size: 1.5rem; font-weight: 600; }
-        .nav-links { list-style: none; padding: 0 1rem; flex-grow: 1; overflow-y: auto; }
-        .nav-category {
-            padding: 1.5rem 1rem 0.5rem; font-size: 0.75rem; font-weight: 600; color: var(--text-muted);
-            text-transform: uppercase; letter-spacing: 1px;
-        }
-        .nav-links a {
-            display: flex; align-items: center; padding: 1rem; color: var(--text-muted); text-decoration: none;
-            border-radius: 8px; transition: all 0.2s ease-in-out; font-weight: 500; margin-bottom: 0.25rem;
-        }
-        .nav-links a:hover { background: rgba(255, 255, 255, 0.05); color: var(--text-light); }
-        .nav-links a.active { background-color: var(--primary); color: #fff; box-shadow: var(--primary-glow-box); font-weight: 600; }
-        .nav-links a i { margin-right: 1rem; width: 20px; text-align: center; font-size: 1.1rem; }
-        .logout-link { margin-top: auto; padding: 1rem; }
-        
-        .main-content {
-            flex: 1;
+            background: var(--bg-dark);
+            border-right: 1px solid var(--border-color);
             display: flex;
             flex-direction: column;
-            max-height: 100vh;
-            overflow: hidden;
-            padding: 2rem 3rem;
-            gap: 2rem;
+            padding: 1.5rem 1rem;
         }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0 1rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 1rem;
+        }
+        .logo i { font-size: 2rem; color: var(--accent-blue); }
+        .logo h1 { font-size: 1.5rem; font-weight: 600; }
+
+        .nav-links {
+            list-style: none;
+            flex-grow: 1;
+            overflow-y: auto;
+        }
+
+        .nav-category {
+            padding: 1.5rem 1rem 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .nav-links a {
+            display: flex;
+            align-items: center;
+            padding: 0.8rem 1rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+        }
+        .nav-links a:hover {
+            background: var(--bg-light);
+            color: var(--text-primary);
+        }
+        .nav-links a.active {
+            background-color: var(--accent-blue);
+            color: #fff;
+            font-weight: 600;
+        }
+        .nav-links a i {
+            width: 24px;
+            margin-right: 1rem;
+            text-align: center;
+            font-size: 1.1rem;
+        }
+
+        .logout-link { margin-top: auto; }
+
+        /* === REWORK: Main Content Area Layout === */
+        .main-content {
+            display: grid;
+            grid-template-rows: auto 1fr; /* Header takes space it needs, content panel fills the rest */
+            gap: 2rem;
+            padding: 2.5rem 3rem;
+            overflow: hidden; /* Important for grid child */
+        }
+
         header {
-            flex-shrink: 0;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
-        header h1 { font-size: 2.25rem; color: #fff; font-weight: 700; }
+        header h1 { font-size: 2rem; font-weight: 700; }
         .content-panel {
-            flex-grow: 1;
-            overflow: hidden;
             display: none;
-            animation: fadeIn 0.5s ease-out;
-            min-height: 0;
+            overflow: hidden; /* Let children handle their own scrolling */
+            animation: fadeIn 0.4s ease-out;
         }
-        .content-panel.active {
-            display: flex;
-        }
-        
-        .panel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; }
-        .panel-wrapper {
-            background: var(--glass-bg); backdrop-filter: blur(12px); border: 1px solid var(--border-color);
-            border-radius: 12px; box-shadow: var(--panel-shadow);
-            position: relative;
-        }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        .panel-header { padding: 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
-        .panel-header h2 { font-size: 1.25rem; color: var(--text-light); display: flex; align-items: center; gap: 10px; font-weight: 600; }
-        .panel-body { padding: 1.5rem; flex-grow: 1; overflow-y: auto; }
-        .stat-card { text-align: center; padding: 1rem; }
-        .stat-card .stat-number { font-size: 3rem; font-weight: 700; color: var(--primary); text-shadow: var(--primary-glow-text); line-height: 1.2; }
-        .stat-card .stat-label { font-size: 1rem; color: var(--text-muted); margin-top: 0.5rem; }
-        .form-control {
-            width: 100%; padding: 12px 15px; border: 1px solid var(--border-color); border-radius: 8px;
-            font-size: 1rem; background: var(--bg-dark); color: var(--text-light); transition: all 0.3s;
-        }
-        .form-control:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(47, 129, 247, 0.3); outline: none; }
-        .btn {
-            padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;
-            transition: all 0.2s ease; display: inline-flex; align-items: center; justify-content: center;
-            gap: 8px; font-size: 0.9rem;
-        }
-        .btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(0,0,0,0.25); }
-        .btn:disabled { cursor: not-allowed; opacity: 0.6; }
-        .btn-lg { padding: 1rem 2rem; font-size: 1.1rem; }
-        .btn-sm { padding: 8px 14px; font-size: 0.8rem; }
-        .btn-primary { background-color: var(--primary); color: #fff; box-shadow: var(--primary-glow-box); }
-        .btn-primary:hover:not(:disabled) { background-color: #3f8ff7; }
-        .btn-danger { background: var(--danger); color: white; }
-        .btn-success { background: var(--success); color: white; }
-        .btn-secondary { background: #30363d; color: white; border: 1px solid var(--border-color); }
-        .notification {
-            position: fixed; bottom: 20px; right: 20px; padding: 15px 25px; border-radius: 8px;
-            color: white; font-weight: 500; background: var(--bg-light); border: 1px solid var(--border-color);
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); transform: translateX(120%);
-            transition: transform 0.4s ease-in-out; z-index: 1000; backdrop-filter: blur(5px);
-        }
-        .notification.show { transform: translateX(0); }
-        .notification.success { border-left: 4px solid var(--success); }
-        .notification.error { border-left: 4px solid var(--danger); }
-        .modal-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(5px); display: none; align-items: center; justify-content: center;
-            z-index: 2000; opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
-        }
-        .modal-overlay.show { display: flex; opacity: 1; pointer-events: auto; }
-        .modal-box {
-            background: var(--bg-light); backdrop-filter: blur(10px); padding: 2.5rem; border-radius: 12px;
-            border: 1px solid var(--border-color); text-align: center; width: 90%; max-width: 450px;
-            transform: scale(0.95); transition: transform 0.3s ease; box-shadow: var(--panel-shadow);
-        }
-        .modal-overlay.show .modal-box { transform: scale(1); }
-        .modal-box h3 { color: #fff; margin-bottom: 1rem; font-size: 1.5rem; }
-        .modal-box p { margin-bottom: 2rem; color: var(--text-muted); line-height: 1.6; }
-        .modal-buttons { display: flex; justify-content: center; gap: 1rem; }
+        .content-panel.active { display: block; }
 
-        /* --- CHAT-SPECIFIC IMPROVEMENTS --- */
-        
-        /* === START: CHAT GRID LAYOUT FIX === */
-        #chats-grid {
+        /* === REWORK: Dashboard Panel Styling === */
+        .panel-grid {
             display: grid;
-            grid-template-columns: 350px 1fr; /* Two columns: one for the list, one for the view */
-            grid-template-rows: 1fr; /* CRITICAL: Define one row that takes all available height */
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 1.5rem;
-            height: 100%; /* Make the grid fill its parent container */
         }
-        /* === END: CHAT GRID LAYOUT FIX === */
 
-        #chat-list-container { display: flex; flex-direction: column; overflow-y: auto; padding: 0.5rem 0; height: 100%; }
-        .chat-list-header {
-            font-size: 0.8rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase;
-            padding: 1rem 1.5rem 0.5rem; letter-spacing: 1px; flex-shrink: 0;
+        .panel-wrapper {
+            background: var(--bg-dark);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            box-shadow: var(--shadow-small);
         }
-        .chat-item {
-            padding: 1rem 1.5rem; border: 1px solid transparent; cursor: pointer;
-            transition: all 0.2s ease; background: transparent; display: flex; gap: 1rem;
-            align-items: center; margin: 0 1rem 0.5rem; border-radius: 10px; position: relative;
-        }
-        .chat-item:hover { background: rgba(47, 129, 247, 0.1); }
-        .chat-item.active { background: var(--primary); box-shadow: var(--primary-glow-box); }
-        .chat-item.active .chat-user, .chat-item.active .chat-payment, .chat-item.active .chat-date { color: white; }
-        .chat-item-icon {
-            font-size: 1.75rem; width: 44px; height: 44px; display: flex; align-items: center;
-            justify-content: center; flex-shrink: 0; border-radius: 8px; background-color: var(--bg-dark);
-        }
-        
-        .unread-badge {
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            background-color: var(--danger);
-            color: white;
-            font-size: 0.7rem;
-            font-weight: 700;
-            border-radius: 50px;
-            padding: 2px 7px;
-            min-width: 20px;
+
+        .stat-card {
+            padding: 1.5rem;
             text-align: center;
-            border: 2px solid var(--bg-light);
-            box-shadow: 0 0 10px rgba(218, 54, 51, 0.5);
+        }
+        .stat-card .stat-number {
+            font-size: 3.5rem;
+            font-weight: 700;
+            color: var(--accent-blue);
             line-height: 1.1;
         }
-        
-        .chat-item-details { flex-grow: 1; overflow: hidden; }
-        .chat-user { font-weight: 600; color: var(--text-light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
-        .chat-payment { font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .chat-info { display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem; }
-        .chat-date { font-size: 0.8rem; color: var(--text-muted); }
-        .status-badge { padding: 4px 10px; border-radius: 50px; font-size: 0.75rem; font-weight: 600; text-transform: capitalize; }
-        .status-awaiting { background-color: rgba(255, 193, 7, 0.2); color: var(--warning); }
-        .status-processing { background-color: rgba(47, 129, 247, 0.2); color: var(--primary); }
-        .status-completed { background-color: rgba(35, 134, 54, 0.2); color: #23d160; }
-        
-        #chat-view { display: flex; flex-direction: column; height: 100%; }
-        #chat-view.hidden, #claim-ticket-overlay.hidden { display: none; }
+        .stat-card .stat-label {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            margin-top: 0.5rem;
+        }
 
-        #chat-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; }
-        #chat-placeholder i { font-size: 4rem; margin-bottom: 1.5rem; color: var(--text-muted); opacity: 0.3; }
-        #chat-placeholder p { font-size: 1.1rem; color: var(--text-muted); }
+        /* === REWORK: Chat Page Layout & Components === */
+        #chats-grid {
+            display: grid;
+            grid-template-columns: 380px 1fr;
+            gap: 1.5rem;
+            height: 100%;
+        }
+
+        #chat-list-container {
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            height: 100%;
+        }
+
+        .chat-list-header {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            padding: 1.5rem 1.5rem 0.5rem;
+            letter-spacing: 0.05em;
+            flex-shrink: 0;
+        }
+
+        .chat-item {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            padding: 1rem 1.5rem;
+            margin: 0.25rem 1rem;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            position: relative;
+        }
+        .chat-item:hover { background-color: var(--bg-light); }
+        .chat-item.active { background-color: var(--accent-blue); }
+        .chat-item.active .chat-user,
+        .chat-item.active .chat-payment,
+        .chat-item.active .chat-date { color: white; }
+        
+        .chat-item-icon {
+            font-size: 1.5rem;
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            border-radius: 10px;
+            background-color: var(--bg-light);
+            border: 1px solid var(--border-color);
+        }
+        .chat-item.active .chat-item-icon { background-color: rgba(255,255,255,0.1); border-color: transparent; }
+
+        .chat-item-details { flex-grow: 1; overflow: hidden; }
+        .chat-user { font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
+        .chat-payment { font-size: 0.85rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .chat-info { display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem; }
+        .chat-date { font-size: 0.8rem; color: var(--text-secondary); }
+
+        .status-badge { padding: 4px 10px; border-radius: 50px; font-size: 0.75rem; font-weight: 600; text-transform: capitalize; }
+        .status-awaiting { background-color: rgba(255, 193, 7, 0.1); color: #e3b341; }
+        .status-processing { background-color: var(--accent-blue-faded); color: var(--accent-blue-hover); }
+        .status-completed { background-color: rgba(52, 125, 57, 0.2); color: #56d364; }
+
+        .unread-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: var(--accent-red);
+            color: white;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border-radius: 50px;
+            padding: 2px 8px;
+            min-width: 22px;
+            text-align: center;
+            border: 2px solid var(--bg-dark);
+        }
+        
+        /* === REWORK: Chat View Panel === */
+        .chat-view-wrapper { display: flex; flex-direction: column; height: 100%; }
+
+        #chat-view, #claim-ticket-overlay, #chat-placeholder {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        #chat-view.hidden, #claim-ticket-overlay.hidden { display: none; }
+        
+        .panel-header {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
         #chat-header-info { display: flex; flex-direction: column; gap: 4px; }
-        #chat-header-info small { color: var(--text-muted); font-size: 0.85rem; }
+        #chat-header-info h2 { font-size: 1.25rem; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+        #chat-header-info small { color: var(--text-secondary); font-size: 0.85rem; }
         
         #chat-messages {
-            flex-grow: 1; overflow-y: auto; padding: 1.5rem;
-            display: flex; flex-direction: column; gap: 1.25rem;
-            min-height: 0;
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column-reverse; /* NEW: Shows newest messages at the bottom */
         }
-        .message-bubble { padding: 0.8rem 1.25rem; border-radius: 18px; max-width: 80%; word-wrap: break-word; line-height: 1.5; animation: fadeIn 0.3s ease; }
-        .message-bubble.seller { background: var(--primary); color: #fff; border-bottom-right-radius: 4px; align-self: flex-end; }
-        .message-bubble.user { background: var(--bg-light); border: 1px solid var(--border-color); border-bottom-left-radius: 4px; align-self: flex-start; }
-        .message-sender { font-weight: 600; font-size: 0.8rem; margin-bottom: 0.3rem; opacity: 0.9; }
-        
-        #chat-reply-form {
-            display: flex; gap: 1rem; flex-shrink: 0; padding: 1rem 1.5rem;
-            border-top: 1px solid var(--border-color); background: var(--glass-bg);
-        }
-        #chat-reply-input { flex-grow: 1; resize: none; min-height: 50px; padding-top: 14px; }
-        
-        #claim-ticket-overlay {
-            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(13, 17, 23, 0.8);
-            backdrop-filter: blur(5px);
-            display: flex; flex-direction: column;
-            align-items: center; justify-content: center;
-            text-align: center;
-            z-index: 10;
-            padding: 2rem;
-            border-radius: 12px;
+        /* Wrapper to re-reverse the content flow */
+        .message-list-wrapper { display: flex; flex-direction: column; gap: 1.25rem; }
+
+        .message-bubble {
+            padding: 0.75rem 1.25rem;
+            border-radius: 18px;
+            max-width: 80%;
+            word-wrap: break-word;
+            line-height: 1.5;
             animation: fadeIn 0.3s ease;
         }
+        .message-bubble.seller {
+            background: var(--accent-blue);
+            color: #fff;
+            border-bottom-right-radius: 4px;
+            align-self: flex-end;
+        }
+        .message-bubble.user {
+            background: var(--bg-light);
+            border: 1px solid var(--border-color);
+            border-bottom-left-radius: 4px;
+            align-self: flex-start;
+        }
+        .message-sender { font-weight: 600; font-size: 0.8rem; margin-bottom: 0.25rem; opacity: 0.8; }
+        
+        #chat-reply-form {
+            display: flex;
+            gap: 1rem;
+            flex-shrink: 0;
+            padding: 1rem 1.5rem;
+            border-top: 1px solid var(--border-color);
+            background: var(--bg-dark);
+        }
+
+        /* === REWORK: Placeholder and Overlay Styling === */
+        #chat-placeholder { align-items: center; justify-content: center; text-align: center; }
+        #chat-placeholder i { font-size: 4rem; margin-bottom: 1.5rem; color: var(--border-color); }
+        #chat-placeholder p { font-size: 1.1rem; color: var(--text-secondary); }
+        
+        #claim-ticket-overlay { align-items: center; justify-content: center; text-align: center; padding: 2rem; }
         #claim-ticket-overlay h3 { font-size: 1.5rem; margin-bottom: 0.5rem; }
-        #claim-ticket-overlay p { color: var(--text-muted); margin-bottom: 2rem; font-size: 1.1rem; }
+        #claim-ticket-overlay p { color: var(--text-secondary); margin-bottom: 2rem; font-size: 1.1rem; }
         #claim-ticket-overlay .ticket-info {
             background-color: var(--bg-light);
             padding: 1.5rem;
@@ -268,14 +373,74 @@
             display: flex;
             gap: 2rem;
         }
-        #claim-ticket-overlay .ticket-info-item { text-align: left; }
         #claim-ticket-overlay .ticket-info-item .label {
-            font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
-        #claim-ticket-overlay .ticket-info-item .value {
-            font-size: 1.1rem; font-weight: 600; color: var(--text-light);
+        #claim-ticket-overlay .ticket-info-item .value { font-size: 1.1rem; font-weight: 600; }
+        
+        /* === REWORK: Form Controls, Buttons, Modals === */
+        .form-control {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1rem;
+            background: var(--bg-darker);
+            color: var(--text-primary);
+            transition: all 0.2s ease;
+        }
+        .form-control:focus {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px var(--accent-blue-faded);
+            outline: none;
+        }
+        #chat-reply-input {
+            resize: none;
+            min-height: 50px;
+            padding-top: 14px;
         }
 
+        .btn {
+            padding: 12px 24px;
+            border: 1px solid transparent;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 0.9rem;
+        }
+        .btn:hover:not(:disabled) { transform: translateY(-1px); }
+        .btn:disabled { cursor: not-allowed; opacity: 0.6; }
+        .btn-lg { padding: 1rem 2rem; font-size: 1.1rem; }
+        .btn-sm { padding: 8px 14px; font-size: 0.8rem; }
+        .btn-primary { background-color: var(--accent-blue); color: #fff; border-color: var(--accent-blue); }
+        .btn-primary:hover:not(:disabled) { background-color: var(--accent-blue-hover); border-color: var(--accent-blue-hover); }
+        .btn-danger { background: var(--accent-red); color: white; }
+        .btn-success { background: var(--accent-green); color: white; }
+        .btn-secondary { background: var(--bg-light); color: var(--text-primary); border: 1px solid var(--border-color); }
+        .btn-secondary:hover:not(:disabled) { border-color: var(--text-secondary); }
+
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px); display: none; align-items: center; justify-content: center;
+            z-index: 2000; animation: fadeIn 0.3s ease forwards;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal-box {
+            background: var(--bg-dark); padding: 2.5rem; border-radius: 12px;
+            border: 1px solid var(--border-color); text-align: center; width: 90%; max-width: 450px;
+            box-shadow: var(--shadow-medium); animation: fadeIn 0.3s ease-out forwards;
+        }
+        .modal-box h3 { margin-bottom: 1rem; font-size: 1.5rem; }
+        .modal-box p { margin-bottom: 2rem; color: var(--text-secondary); line-height: 1.6; }
+        .modal-buttons { display: flex; justify-content: center; gap: 1rem; }
     </style>
 </head>
 <body>
@@ -298,7 +463,7 @@
         </div>
     </div>
 
-    <div id="app-container">
+    <div id="app-container" style="display: none;">
         <aside class="sidebar">
             <div class="logo"><i class="fa-solid fa-atom"></i><h1>Eps1llon</h1></div>
             <nav class="nav-links">
@@ -306,7 +471,7 @@
                 <a href="#" class="active" data-tab="dashboard"><i class="fas fa-chart-pie"></i> <span>Dashboard</span></a>
                 <div class="nav-category"><span>Sales</span></div>
                 <a href="#" data-tab="chats"><i class="fas fa-comments"></i> <span>Buyer Chats</span></a>
-                <div class="logout-link"><a href="#" id="logout-btn"><i class="fas fa-sign-out-alt"></i> <span>Logout</span></a></div>
+                <div class="logout-link"><a href="#" id="logout-btn" class="btn btn-secondary" style="width: 100%;"><i class="fas fa-sign-out-alt"></i> <span>Logout</span></a></div>
             </nav>
         </aside>
 
@@ -318,36 +483,30 @@
             <section class="content-panel active" id="dashboard-tab">
                 <div class="panel-grid">
                     <div class="panel-wrapper stat-card">
-                         <div class="panel-body">
-                            <div id="stat-awaiting" class="stat-number">0</div>
-                            <div class="stat-label">Tickets Awaiting Claim</div>
-                        </div>
+                        <div id="stat-awaiting" class="stat-number">0</div>
+                        <div class="stat-label">Tickets Awaiting Claim</div>
                     </div>
                     <div class="panel-wrapper stat-card">
-                         <div class="panel-body">
-                            <div id="stat-active" class="stat-number">0</div>
-                            <div class="stat-label">Your Active Tickets</div>
-                        </div>
+                        <div id="stat-active" class="stat-number">0</div>
+                        <div class="stat-label">Your Active Tickets</div>
                     </div>
                     <div class="panel-wrapper stat-card">
-                         <div class="panel-body">
-                            <div id="stat-completed" class="stat-number">0</div>
-                            <div class="stat-label">Total Completed</div>
-                        </div>
+                        <div id="stat-completed" class="stat-number">0</div>
+                        <div class="stat-label">Total Completed</div>
                     </div>
                 </div>
             </section>
             
             <section class="content-panel" id="chats-tab">
                 <div id="chats-grid">
-                    <div class="panel-wrapper" style="padding: 0;">
+                    <div class="panel-wrapper">
                          <div id="chat-list-container">
                             <div id="chat-list-awaiting"></div>
                             <div id="chat-list-active"></div>
                             <div id="chat-list-completed"></div>
                          </div>
                     </div>
-                    <div class="panel-wrapper">
+                    <div class="panel-wrapper chat-view-wrapper">
                          <div id="chat-view" class="hidden">
                               <div class="panel-header">
                                   <div id="chat-header-info">
@@ -384,7 +543,7 @@
                          </div>
                          <div id="chat-placeholder">
                               <i class="fas fa-envelope-open-text"></i>
-                              <p>Select a chat from the left to view messages.</p>
+                              <p>Select a chat to begin.</p>
                          </div>
                     </div>
                 </div>
@@ -423,10 +582,9 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            // NOTE: The JavaScript has been slightly modified to work with the new CSS for chat messages.
             const API_BASE_URL = '/api';
-            
             const state = { user: null, tickets: [], currentTicketId: null, pollingInterval: null };
-
             const selectors = {
                 loginContainer: document.getElementById('login-container'),
                 appContainer: document.getElementById('app-container'),
@@ -527,7 +685,7 @@
 
             const showApp = () => {
                 selectors.loginContainer.style.display = 'none';
-                selectors.appContainer.style.display = 'flex';
+                selectors.appContainer.style.display = 'grid'; // Changed for new layout
                 initApp();
             };
 
@@ -560,20 +718,16 @@
                     item.className = 'chat-item';
                     if (state.currentTicketId === chat.id) item.classList.add('active');
                     item.dataset.chatId = chat.id;
-
                     let unreadCount = 0;
                     if (container.id === 'chat-list-active' && chat.messages && Array.isArray(chat.messages)) {
                         const lastSellerMessageIndex = chat.messages.map(m => m.sender).lastIndexOf('seller');
                         if (lastSellerMessageIndex === -1) {
                             unreadCount = chat.messages.filter(m => m.sender === 'user').length;
                         } else {
-                            unreadCount = chat.messages.slice(lastSellerMessageIndex + 1)
-                                                       .filter(m => m.sender === 'user').length;
+                            unreadCount = chat.messages.slice(lastSellerMessageIndex + 1).filter(m => m.sender === 'user').length;
                         }
                     }
-                    
                     const unreadIndicator = unreadCount > 0 ? `<div class="unread-badge">${unreadCount}</div>` : '';
-
                     item.innerHTML = `
                         ${unreadIndicator}
                         <div class="chat-item-icon"><i class="${getPaymentMethodIcon(chat.payment_method)}"></i></div>
@@ -608,17 +762,13 @@
                            selectors.notificationSound.play().catch(e => console.error("Audio play failed:", e));
                         }
                         state.tickets = newTickets;
-                        
                         const awaiting = state.tickets.filter(t => !t.claimed_by && t.status !== 'completed');
                         const active = state.tickets.filter(t => t.claimed_by === state.user.id && t.status !== 'completed');
                         const completed = state.tickets.filter(t => t.status === 'completed');
-
                         renderChatList(awaiting.sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at)), selectors.chatListAwaiting);
                         renderChatList(active.sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at)), selectors.chatListActive);
                         renderChatList(completed.sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at)), selectors.chatListCompleted);
-
                         updateDashboard(state.tickets);
-                        
                         if (state.currentTicketId) {
                             displayChatDetails(state.currentTicketId, true);
                         }
@@ -635,11 +785,6 @@
                 
                 if (!isRefresh) {
                     state.currentTicketId = chatId;
-                    // When a chat is opened, we consider messages read. Re-render the list to remove the badge.
-                    if (document.querySelector(`.chat-item[data-chat-id="${chatId}"] .unread-badge`)) {
-                        const active = state.tickets.filter(t => t.claimed_by === state.user.id && t.status !== 'completed');
-                        renderChatList(active.sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at)), selectors.chatListActive);
-                    }
                     document.querySelectorAll('.chat-item').forEach(item => {
                         item.classList.toggle('active', parseInt(item.dataset.chatId) === chatId);
                     });
@@ -657,29 +802,25 @@
                 } else {
                     selectors.claimOverlay.classList.add('hidden');
                     selectors.chatView.classList.remove('hidden');
-
                     selectors.completeBtn.style.display = (chat.claimed_by === state.user.id && chat.status !== 'completed') ? 'inline-flex' : 'none';
                     selectors.deleteBtn.style.display = chat.status === 'completed' ? 'inline-flex' : 'none';
-
                     const isChatLocked = chat.status === 'completed' || (chat.claimed_by && chat.claimed_by !== state.user.id);
                     selectors.chatReplyInput.disabled = isChatLocked;
                     selectors.chatReplyForm.querySelector('button').disabled = isChatLocked;
                     selectors.chatReplyInput.placeholder = isChatLocked ? "This chat is locked." : "Type your reply... (Shift + Enter for new line)";
-
-                    selectors.chatMessages.innerHTML = '';
-                    const fragment = document.createDocumentFragment();
+                    
+                    // JS CHANGE: Re-render messages to appear in correct order
+                    selectors.chatMessages.innerHTML = ''; // Clear previous messages
+                    const messageWrapper = document.createElement('div');
+                    messageWrapper.className = 'message-list-wrapper';
                     (chat.messages || []).forEach(msg => {
                         const bubble = document.createElement('div');
                         bubble.className = `message-bubble ${msg.sender}`;
                         const senderName = msg.sender === 'user' ? escapeHTML(chat.buyer_name) : 'You';
                         bubble.innerHTML = `<div class="message-sender">${senderName}</div><p>${escapeHTML(msg.message).replace(/\n/g, '<br>')}</p>`;
-                        fragment.appendChild(bubble);
+                        messageWrapper.appendChild(bubble);
                     });
-                    selectors.chatMessages.appendChild(fragment);
-
-                    if (!isRefresh) {
-                       selectors.chatMessages.scrollTop = selectors.chatMessages.scrollHeight;
-                    }
+                    selectors.chatMessages.appendChild(messageWrapper);
                 }
             };
             
@@ -744,14 +885,11 @@
 
                 if (!selectors.logoutBtn.dataset.listener) {
                     selectors.logoutBtn.dataset.listener = true;
-
                     selectors.logoutBtn.addEventListener('click', (e) => { e.preventDefault(); localStorage.removeItem('token'); hideApp(); });
                     document.querySelectorAll('.nav-links a:not(#logout-btn)').forEach(el => {
                         el.addEventListener('click', e => { e.preventDefault(); switchTab(el.dataset.tab); });
                     });
-                    
                     selectors.chatReplyInput.addEventListener('keydown', handleEnterKey);
-                    
                     selectors.claimBtnOverlay.addEventListener('click', async () => {
                         if (!state.currentTicketId) return;
                         try {
@@ -761,7 +899,6 @@
                             await loadChats();
                         } catch (error) { showNotification(error.message, 'error'); }
                     });
-
                     selectors.chatReplyForm.addEventListener('submit', async (e) => {
                         e.preventDefault();
                         const chatId = state.currentTicketId;
@@ -788,11 +925,9 @@
                             }
                         }
                     });
-
                     selectors.completeBtn.addEventListener('click', () => {
                         showModal(selectors.completeModal);
                     });
-
                     selectors.completeForm.addEventListener('submit', async (e) => {
                         e.preventDefault();
                         const ticketId = state.currentTicketId;
@@ -808,7 +943,6 @@
                             await loadChats();
                         } catch (error) { showNotification(error.message, 'error'); }
                     });
-
                     selectors.deleteBtn.addEventListener('click', () => {
                         const ticketId = state.currentTicketId;
                         showModal(selectors.confirmationModal, 'Confirm Deletion', `Permanently DELETE ticket #${ticketId}?`, async () => {
@@ -821,7 +955,6 @@
                             } catch (error) { showNotification(error.message, 'error'); }
                         });
                     });
-                    
                     selectors.cancelBtn.addEventListener('click', () => hideModal(selectors.confirmationModal));
                     selectors.cancelCompleteBtn.addEventListener('click', () => hideModal(selectors.completeModal));
                 }
