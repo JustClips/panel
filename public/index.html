@@ -704,8 +704,7 @@
       </div>
     </div>
   </div>
-  
-  <!-- Payment Modal -->
+
   <div id="payment-method-modal" class="fixed inset-0 z-[200] modal-backdrop items-center justify-center hidden">
     <div class="modal-content w-full max-w-md p-8 rounded-2xl">
       <button id="close-payment-modal-btn" class="absolute top-4 right-4 text-text-muted hover:text-white text-2xl has-ripple">&times;</button>
@@ -836,8 +835,9 @@
   
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      // By leaving this empty, API calls will be made to the same host that serves this file.
-      const API_BASE_URL = 'https://eps1llon.win'; 
+      // *** THIS IS THE ONLY CHANGE NEEDED FOR THE FRONTEND ***
+      // All API calls will now be sent to the /api prefix on the same domain.
+      const API_BASE_URL = '/api';
       
       const App = {
         state: {
@@ -968,7 +968,6 @@
           if (response && response.ok) {
             const newTickets = await response.json();
             
-            // Check for new messages from seller
             if (this.state.currentTicketId && this.state.tickets.length > 0) {
               const oldTicket = this.state.tickets.find(t => t.id === this.state.currentTicketId);
               const newTicket = newTickets.find(t => t.id === this.state.currentTicketId);
@@ -1380,17 +1379,9 @@
           } else {
             let statusText, statusClass;
             switch(ticket.status) {
-              case 'awaiting':
-                statusText = 'Awaiting Payment';
-                statusClass = 'text-yellow-400';
-                break;
-              case 'processing':
-                statusText = 'Processing Payment';
-                statusClass = 'text-blue-400';
-                break;
-              default:
-                statusText = 'Active';
-                statusClass = 'text-green-400';
+              case 'awaiting': statusText = 'Awaiting Payment'; statusClass = 'text-yellow-400'; break;
+              case 'processing': statusText = 'Processing Payment'; statusClass = 'text-blue-400'; break;
+              default: statusText = 'Active'; statusClass = 'text-green-400'; break;
             }
             
             this.elements.ticketTitle.textContent = ticket.payment_method ? 
