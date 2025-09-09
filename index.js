@@ -108,23 +108,18 @@ async function initializeDatabase() {
 }
 
 // --- MIDDLEWARE ---
-
-// ===== SESSION VALIDATION LOGIC IMPROVED =====
 const verifyToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
     if (!token) {
         return res.status(401).json({ message: 'Unauthorized: No token provided.' });
     }
-
     if (!process.env.JWT_SECRET) {
         console.error("CRITICAL: JWT_SECRET environment variable is not set on the server.");
         return res.status(500).json({ message: "Server configuration error." });
     }
-
     jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
         if (err) {
-            // Log the specific error on the server for easier debugging
             if (err.name === 'TokenExpiredError') {
                 console.log('Token validation failed: Token has expired.');
                 return res.status(403).json({ message: 'Forbidden: Session has expired.' });
@@ -137,26 +132,35 @@ const verifyToken = (req, res, next) => {
     });
 };
 
+// ===== THIS FUNCTION IS UPDATED WITH BETTER LOGGING =====
 const verifyTurnstile = async (req, res, next) => {
     const secretKey = process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY;
     if (!secretKey) {
-        console.error("CRITICAL: CLOUDFLARE_TURNSTILE_SECRET_KEY is not set.");
+        console.error("CRITICAL: CLOUDFLARE_TURNSTILE_SECRET_KEY is not set. Skipping CAPTCHA verification.");
         return next();
     }
     const token = req.body.turnstileToken;
-    if (!token) return res.status(400).json({ message: 'CAPTCHA token is required.' });
+    if (!token) {
+        return res.status(400).json({ message: 'CAPTCHA token is required.' });
+    }
     try {
         const formData = new URLSearchParams();
         formData.append('secret', secretKey);
         formData.append('response', token);
         if (req.ip) { formData.append('remoteip', req.ip); }
+        
         const response = await axios.post('https://challenges.cloudflare.com/turnstile/v0/siteverify', formData);
-        if (response.data.success) {
-            next();
+        
+        const outcome = response.data;
+        if (outcome.success) {
+            next(); // Verification successful
         } else {
+            // NEW: Log the specific error codes from Cloudflare for debugging
+            console.error('Turnstile verification failed. Cloudflare error codes:', outcome['error-codes']);
             res.status(403).json({ message: 'Failed CAPTCHA verification.' });
         }
     } catch (error) {
+        console.error('Server error during Turnstile verification:', error.message);
         res.status(500).json({ message: 'Error verifying CAPTCHA.' });
     }
 };
@@ -182,7 +186,7 @@ const validateTicketMessage = [body('message').trim().notEmpty().isLength({ min:
 const apiRouter = express.Router();
 
 // --- AUTH/USER ROUTES ---
-apiRouter.post('/login', async (req, res) => {
+apiRouter.post('/login', verifyTurnstile, async (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) return res.status(400).json({ message: 'Invalid request.' });
     try {
