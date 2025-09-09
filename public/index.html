@@ -365,11 +365,11 @@
 
           <!-- Turnstile widget -->
           <div class="mt-4 mb-6">
-            <!-- Replace data-sitekey with your public/site key -->
+            <!-- IMPORTANT: Replace with your REAL site key before going live -->
             <div
               id="turnstile-signup"
               class="cf-turnstile"
-              data-sitekey="YOUR_TURNSTILE_SITE_KEY"
+              data-sitekey="3x00000000000000000000FF"
               data-theme="dark"
             ></div>
           </div>
@@ -544,22 +544,13 @@
     // Turnstile globals
     let turnstileWidgetId = null;
     let turnstileToken = null;
-    window.onTurnstileLoad = function () {
-      const el = document.getElementById('turnstile-signup');
-      if (el && window.turnstile) {
-        turnstileWidgetId = turnstile.render(el, {
-          sitekey: el.dataset.sitekey,
-          theme: 'dark',
-          callback: function(token) { turnstileToken = token; },
-          'error-callback': function(){ turnstileToken = null; },
-          'expired-callback': function(){ turnstileToken = null; }
-        });
-      }
-    };
+    // The Turnstile script is loaded, but we will render the widget on-demand
+    // when the modal is opened. This function can be left empty.
+    window.onTurnstileLoad = function () {};
 
     document.addEventListener('DOMContentLoaded', () => {
       // Use same-origin by default to avoid CORS headaches.
-      // If you must hardcode, set to 'https://eps1llon.win'
+      // If you must hardcode, set to e.g., 'https://api.yourdomain.com'
       const API_BASE_URL = '';
 
       const App = {
@@ -815,14 +806,18 @@
           this.elements.authModal.classList.remove('hidden');
           this.elements.authModal.classList.add('flex');
           setTimeout(() => this.elements.authModal.classList.add('visible'), 10);
-
-          if (window.turnstile && document.getElementById('turnstile-signup') && !turnstileWidgetId) {
-            turnstileWidgetId = turnstile.render('#turnstile-signup', {
-              sitekey: document.getElementById('turnstile-signup').dataset.sitekey,
+    
+          // Explicitly render Turnstile now that the modal is visible.
+          // We check if the script is loaded (window.turnstile) and if we haven't
+          // already created the widget (turnstileWidgetId).
+          const turnstileElement = document.getElementById('turnstile-signup');
+          if (turnstileElement && window.turnstile && !turnstileWidgetId) {
+            turnstileWidgetId = turnstile.render(turnstileElement, {
+              sitekey: turnstileElement.dataset.sitekey,
               theme: 'dark',
-              callback: token => { turnstileToken = token; },
-              'error-callback': () => { turnstileToken = null; },
-              'expired-callback': () => { turnstileToken = null; }
+              callback: function(token) { turnstileToken = token; },
+              'error-callback': function() { turnstileToken = null; },
+              'expired-callback': function() { turnstileToken = null; }
             });
           }
         },
@@ -859,7 +854,7 @@
           const response = await this.apiCall('/register', {
             method: 'POST',
             headers: {
-              'x-turnstile-token': turnstileToken   // extra path; backend also reads body
+              'x-turnstile-token': turnstileToken
             },
             body: JSON.stringify({ username, password, turnstileToken })
           });
