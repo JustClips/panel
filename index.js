@@ -1,4 +1,4 @@
-// Eps1llon Command Server - Upgraded with MySQL, File Uploads & Luarmor Integration
+// Rolbox Command Server - Upgraded with MySQL, File Uploads & Luarmor Integration
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
@@ -31,10 +31,8 @@ app.use(helmet()); // Sets various HTTP headers for security
 
 // Define allowed origins for CORS. Add your frontend domains here.
 const allowedOrigins = [
-    'https://eps1llon.win', // Your new primary domain
-    'https://panel.up.railway.app', 
-    'http://localhost:5500',
-    'http://127.0.0.1:5500'
+    'https://eps1llon.win'
+    // Add any other domains you might use for development or production
 ];
 
 const corsOptions = {
@@ -52,6 +50,7 @@ const corsOptions = {
             console.log(`Allowing origin: ${origin}`);
             callback(null, true);
         } else {
+            // This error is causing the server to crash. We log it to see the blocked address.
             console.error(`Blocking origin: ${origin}`);
             callback(new Error('Not allowed by CORS'));
         }
@@ -68,12 +67,14 @@ app.use(bodyParser.urlencoded({ extended: true, limit: '100kb' }));
 
 // --- ADDITIONAL SECURITY MIDDLEWARE ---
 const validateRequest = (req, res, next) => {
+    // Basic User-Agent check for common bots/scanners
     const userAgent = req.headers['user-agent'] || '';
     const suspiciousAgents = ['bot', 'crawler', 'scanner', 'curl', 'wget'];
     if (suspiciousAgents.some(agent => userAgent.toLowerCase().includes(agent))) {
         console.warn(`Suspicious user agent detected: ${userAgent} from ${req.ip}`);
     }
     
+    // Prevent excessively large payloads
     const contentLength = parseInt(req.headers['content-length']);
     if (contentLength > 10 * 1024 * 1024) { // 10MB limit
         return res.status(413).json({ error: 'Payload too large' });
@@ -89,8 +90,10 @@ const uploadDir = 'uploads';
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir);
 }
+// Serve uploaded files statically
 app.use('/uploads', express.static('uploads'));
 
+// Multer configuration for file storage
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         cb(null, uploadDir);
@@ -101,6 +104,7 @@ const storage = multer.diskStorage({
     }
 });
 
+// Multer middleware for handling PNG file uploads
 const upload = multer({
     storage: storage,
     limits: { 
@@ -120,6 +124,8 @@ let clients = new Map();
 let pendingCommands = new Map();
 
 // --- MYSQL DATABASE SETUP ---
+// Updated to use Railway's default environment variables for MySQL.
+// Railway injects these automatically when a MySQL service is linked.
 const dbPool = mysql.createPool({
     host: process.env.MYSQLHOST,
     user: process.env.MYSQLUSER,
@@ -139,6 +145,7 @@ async function initializeDatabase() {
         const connection = await dbPool.getConnection();
         console.log("Successfully connected to MySQL database.");
 
+        // Create tables if they don't exist
         await connection.query(`CREATE TABLE IF NOT EXISTS connections (
             id INT AUTO_INCREMENT PRIMARY KEY, 
             client_id VARCHAR(255) NOT NULL, 
@@ -223,6 +230,7 @@ async function initializeDatabase() {
             INDEX idx_executor (executor_name)
         );`);
 
+        // Create default admin users if none exist
         const [adminUsers] = await connection.query("SELECT COUNT(*) as count FROM adminusers WHERE role = 'admin'");
         if (adminUsers[0].count === 0) {
             console.log("Creating default admin users...");
@@ -231,6 +239,7 @@ async function initializeDatabase() {
             await connection.query("INSERT INTO adminusers (username, password_hash, role) VALUES (?, ?, 'admin'), (?, ?, 'admin')", ['vupxy', hashedVupxy, 'megamind', hashedMegamind]);
         }
         
+        // Create default seller users if they don't exist
         const sellerUsers = [
             { username: 'Vandelz', password: 'Vandelzseller1' },
             { username: 'zuse35', password: 'zuse35seller1' },
@@ -285,6 +294,7 @@ const requireBuyer = requireRole(['buyer', 'admin']);
 const requireAnyRole = requireRole(['admin', 'seller', 'buyer']);
 
 // --- INPUT VALIDATION MIDDLEWARE ---
+// More flexible list of payment methods to avoid breaking frontend if it changes.
 const validateTicketCreation = [
     body('paymentMethod')
         .trim()
@@ -369,7 +379,7 @@ app.post('/login', async (req, res) => {
     try {
         const [rows] = await dbPool.query("SELECT * FROM adminusers WHERE username = ?", [username]);
         if (rows.length === 0) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Delay to prevent timing attacks
             return res.status(401).json({ message: 'Invalid credentials' });
         }
         
@@ -380,7 +390,7 @@ app.post('/login', async (req, res) => {
         const payload = { id: user.id, username: user.username, role: user.role };
         const token = jwt.sign(payload, process.env.JWT_SECRET, { 
             expiresIn: '8h',
-            issuer: 'eps1llon-hub' // Updated issuer
+            issuer: 'aperture-hub'
         });
         
         res.json({ 
@@ -400,6 +410,7 @@ app.get('/verify-token', verifyToken, (req, res) => {
 });
 
 app.post('/logout', (req, res) => {
+    // On the client-side, the token should be deleted. The server doesn't need to do anything.
     res.json({ success: true });
 });
 
@@ -706,12 +717,15 @@ app.post('/connect', async (req, res) => {
     console.log(`[CONNECT] Client registered: ${username} (ID: ${id})`);
     
     try {
+        // Store connection info
         await dbPool.query(
             "INSERT INTO connections (client_id, username, user_id, game_name, server_info, player_count) VALUES (?, ?, ?, ?, ?, ?)", 
             [id, username, userId, gameName, serverInfo, playerCount]
         );
         
+        // Store location info if provided
         if (city && country) {
+            // Get geolocation coordinates
             let lat = null, lon = null;
             try {
                 const geoResponse = await axios.get(`http://ip-api.com/json/${city},${country}`);
@@ -729,6 +743,7 @@ app.post('/connect', async (req, res) => {
             );
         }
         
+        // Store executor info if provided
         if (executorName) {
             await dbPool.query(
                 "INSERT INTO executor_stats (client_id, username, executor_name, executor_version) VALUES (?, ?, ?, ?)",
@@ -742,6 +757,7 @@ app.post('/connect', async (req, res) => {
     res.json({ message: "Successfully registered." });
 });
 
+// New heartbeat endpoint for continuous updates
 app.post('/heartbeat', async (req, res) => {
     const { 
         id, 
@@ -760,6 +776,7 @@ app.post('/heartbeat', async (req, res) => {
         return res.status(404).json({ error: "Client not registered." });
     }
     
+    // Update client data
     const client = clients.get(id);
     client.lastSeen = Date.now();
     client.gameName = gameName || client.gameName;
@@ -771,6 +788,7 @@ app.post('/heartbeat', async (req, res) => {
     client.executorName = executorName || client.executorName;
     client.executorVersion = executorVersion || client.executorVersion;
     
+    // Update location if changed
     if (city && country && (city !== client.city || country !== client.country)) {
         try {
             let lat = null, lon = null;
@@ -789,6 +807,7 @@ app.post('/heartbeat', async (req, res) => {
         }
     }
     
+    // Update executor info if changed
     if (executorName && executorName !== client.executorName) {
         await dbPool.query(
             "INSERT INTO executor_stats (client_id, username, executor_name, executor_version) VALUES (?, ?, ?, ?)",
@@ -1195,8 +1214,7 @@ app.use((err, req, res, next) => {
 // --- START SERVER ---
 async function startServer() {
     await initializeDatabase();
-    app.listen(PORT, () => console.log(`Eps1llon Command Server running on port ${PORT}`));
+    app.listen(PORT, () => console.log(`Aperture Command Server running on port ${PORT}`));
 }
 
 startServer();
-
