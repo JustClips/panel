@@ -858,12 +858,6 @@
           this.registerEventListeners();
           this.updateUI();
           this.initScrollAnimations();
-          
-          setInterval(() => {
-            if (document.body.classList.contains('chat-active') && this.state.isLoggedIn) {
-              this.loadTickets();
-            }
-          }, 15000);
         },
         
         cacheElements() {
@@ -921,7 +915,7 @@
               if (payload.exp * 1000 > Date.now()) {
                 this.state.isLoggedIn = true;
                 this.state.user = { id: payload.id, username: payload.username };
-                this.loadTickets(); // It's okay to load tickets if a valid token is found
+                this.loadTickets(); 
               } else {
                 this.logout();
               }
@@ -949,7 +943,6 @@
               headers
             });
             
-            // This is the important change to fix the "session expired" on signup/login
             if ((response.status === 401 || response.status === 403) && endpoint !== '/login' && endpoint !== '/register') {
               this.logout();
               this.showToast("Your session has expired. Please log in again.");
@@ -1129,76 +1122,81 @@
           this.elements.loginView.classList.toggle('hidden', !showLogin);
         },
         
-        async handleSignup(e) {
-          e.preventDefault();
-          const form = this.elements.signupForm;
-          const username = form.querySelector('#signup-username').value;
-          const password = form.querySelector('#signup-password').value;
-          const turnstileToken = form.querySelector('[name="cf-turnstile-response"]')?.value;
+        async _performLogin(username, password, turnstileToken) {
+            const response = await this.apiCall('/login', {
+                method: 'POST',
+                body: JSON.stringify({ username, password, turnstileToken })
+            });
 
-          if (!username || !password) return this.showToast('Please fill in all fields');
-          if (!turnstileToken) {
-            this.showToast('Please complete the security check.');
-            return;
-          }
-
-          const response = await this.apiCall('/register', {
-            method: 'POST',
-            body: JSON.stringify({ username, password, turnstileToken })
-          });
-          
-          if (response && response.ok) {
-            this.showToast('Account created! Please log in.');
-            this.toggleAuthView(true);
-          } else if (response) {
-            try {
-              const data = await response.json();
-              this.showToast(data.message || 'Signup failed.');
-            } catch (err) {
-              this.showToast('Signup failed. Please try again.');
+            if (response && response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    localStorage.setItem('token', data.token);
+                    this.state.isLoggedIn = true;
+                    this.state.user = { username: data.username, id: JSON.parse(atob(data.token.split('.')[1])).id };
+                    this.closeAuthModal();
+                    this.updateUI();
+                    await this.loadTickets();
+                    this.openTicketSystem();
+                }
+            } else if (response) {
+                try {
+                    const data = await response.json();
+                    this.showToast(data.message || 'Login failed.');
+                } catch (err) {
+                    this.showToast('Login failed. Please try again.');
+                }
             }
-          }
-          turnstile.reset(form.querySelector('.cf-turnstile'));
+        },
+
+        async handleSignup(e) {
+            e.preventDefault();
+            const form = this.elements.signupForm;
+            const username = form.querySelector('#signup-username').value;
+            const password = form.querySelector('#signup-password').value;
+            const turnstileToken = form.querySelector('[name="cf-turnstile-response"]')?.value;
+
+            if (!username || !password) return this.showToast('Please fill in all fields');
+            if (!turnstileToken) {
+                this.showToast('Please complete the security check.');
+                return;
+            }
+
+            const response = await this.apiCall('/register', {
+                method: 'POST',
+                body: JSON.stringify({ username, password, turnstileToken })
+            });
+            
+            if (response && response.ok) {
+                this.showToast('Account created! Logging you in...');
+                // Automatically log in the user after successful signup
+                await this._performLogin(username, password, turnstileToken);
+            } else if (response) {
+                try {
+                    const data = await response.json();
+                    this.showToast(data.message || 'Signup failed.');
+                } catch (err) {
+                    this.showToast('Signup failed. Please try again.');
+                }
+            }
+            turnstile.reset(form.querySelector('.cf-turnstile'));
         },
         
         async handleLogin(e) {
-          e.preventDefault();
-          const form = this.elements.loginForm;
-          const username = form.querySelector('#login-username').value;
-          const password = form.querySelector('#login-password').value;
-          const turnstileToken = form.querySelector('[name="cf-turnstile-response"]')?.value;
+            e.preventDefault();
+            const form = this.elements.loginForm;
+            const username = form.querySelector('#login-username').value;
+            const password = form.querySelector('#login-password').value;
+            const turnstileToken = form.querySelector('[name="cf-turnstile-response"]')?.value;
 
-          if (!username || !password) return this.showToast('Please fill in all fields');
-          if (!turnstileToken) {
-            this.showToast('Please complete the security check.');
-            return;
-          }
+            if (!username || !password) return this.showToast('Please fill in all fields');
+            if (!turnstileToken) {
+                this.showToast('Please complete the security check.');
+                return;
+            }
 
-          const response = await this.apiCall('/login', {
-            method: 'POST',
-            body: JSON.stringify({ username, password, turnstileToken })
-          });
-          
-          if (response && response.ok) {
-            const data = await response.json();
-            if(data.success) {
-              localStorage.setItem('token', data.token);
-              this.state.isLoggedIn = true;
-              this.state.user = { username: data.username, id: JSON.parse(atob(data.token.split('.')[1])).id };
-              this.closeAuthModal();
-              this.updateUI();
-              await this.loadTickets(); // Now we load tickets after a successful login
-              this.openTicketSystem();
-            }
-          } else if (response) {
-            try {
-              const data = await response.json();
-              this.showToast(data.message || 'Login failed.');
-            } catch(err) {
-              this.showToast('Login failed. Please try again.');
-            }
-          }
-          turnstile.reset(form.querySelector('.cf-turnstile'));
+            await this._performLogin(username, password, turnstileToken);
+            turnstile.reset(form.querySelector('.cf-turnstile'));
         },
         
         logout() {
