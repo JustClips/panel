@@ -63,6 +63,8 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 
+// --- PARSER MIDDLEWARE (ORDER IS IMPORTANT) ---
+// Must be before routes and verifyTurnstile middleware
 app.use(bodyParser.json({ limit: '100kb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '100kb' }));
 
@@ -145,63 +147,63 @@ async function initializeDatabase() {
     console.log('Successfully connected to MySQL database.');
 
     await connection.query(`CREATE TABLE IF NOT EXISTS connections (
-      id INT AUTO_INCREMENT PRIMARY KEY, 
-      client_id VARCHAR(255) NOT NULL, 
-      username VARCHAR(255) NOT NULL, 
-      user_id BIGINT, 
-      game_name VARCHAR(255), 
-      server_info VARCHAR(255), 
-      player_count INT, 
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      client_id VARCHAR(255) NOT NULL,
+      username VARCHAR(255) NOT NULL,
+      user_id BIGINT,
+      game_name VARCHAR(255),
+      server_info VARCHAR(255),
+      player_count INT,
       connected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );`);
-    
+
     await connection.query(`CREATE TABLE IF NOT EXISTS commands (
-      id INT AUTO_INCREMENT PRIMARY KEY, 
-      command_type VARCHAR(50) NOT NULL, 
-      content TEXT, 
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      command_type VARCHAR(50) NOT NULL,
+      content TEXT,
       executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );`);
-    
+
     await connection.query(`CREATE TABLE IF NOT EXISTS player_snapshots (
-      id INT AUTO_INCREMENT PRIMARY KEY, 
-      player_count INT NOT NULL, 
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      player_count INT NOT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );`);
-    
+
     await connection.query(`CREATE TABLE IF NOT EXISTS adminusers (
-      id INT AUTO_INCREMENT PRIMARY KEY, 
-      username VARCHAR(255) UNIQUE NOT NULL, 
-      password_hash VARCHAR(255) NOT NULL, 
-      role ENUM('admin','seller','buyer') NOT NULL DEFAULT 'buyer', 
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      username VARCHAR(255) UNIQUE NOT NULL,
+      password_hash VARCHAR(255) NOT NULL,
+      role ENUM('admin','seller','buyer') NOT NULL DEFAULT 'buyer',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );`);
-    
+
     await connection.query(`CREATE TABLE IF NOT EXISTS key_redemptions (
-      id INT AUTO_INCREMENT PRIMARY KEY, 
-      redeemed_by_admin VARCHAR(255) NOT NULL, 
-      discord_user_id VARCHAR(255) NOT NULL, 
-      generated_key VARCHAR(255) NOT NULL, 
-      screenshot_filename VARCHAR(255), 
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      redeemed_by_admin VARCHAR(255) NOT NULL,
+      discord_user_id VARCHAR(255) NOT NULL,
+      generated_key VARCHAR(255) NOT NULL,
+      screenshot_filename VARCHAR(255),
       redeemed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );`);
-    
+
     await connection.query(`CREATE TABLE IF NOT EXISTS tickets (
-      id INT AUTO_INCREMENT PRIMARY KEY, 
-      user_id INT NOT NULL, 
-      status ENUM('awaiting', 'processing', 'completed') DEFAULT 'awaiting', 
-      license_key VARCHAR(255), 
-      payment_method VARCHAR(50), 
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, 
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      status ENUM('awaiting', 'processing', 'completed') DEFAULT 'awaiting',
+      license_key VARCHAR(255),
+      payment_method VARCHAR(50),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES adminusers(id)
     );`);
-    
+
     await connection.query(`CREATE TABLE IF NOT EXISTS ticket_messages (
-      id INT AUTO_INCREMENT PRIMARY KEY, 
-      ticket_id INT NOT NULL, 
-      sender ENUM('user', 'seller') NOT NULL, 
-      message TEXT NOT NULL, 
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      ticket_id INT NOT NULL,
+      sender ENUM('user', 'seller') NOT NULL,
+      message TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE
     );`);
 
@@ -217,7 +219,7 @@ async function initializeDatabase() {
       INDEX idx_client_id (client_id),
       INDEX idx_country (country)
     );`);
-    
+
     await connection.query(`CREATE TABLE IF NOT EXISTS executor_stats (
       id INT AUTO_INCREMENT PRIMARY KEY,
       client_id VARCHAR(255) NOT NULL,
@@ -239,7 +241,7 @@ async function initializeDatabase() {
         ['vupxy', hashedVupxy, 'megamind', hashedMegamind]
       );
     }
-    
+
     // default sellers
     const sellerUsers = [
       { username: 'Vandelz', password: 'Vandelzseller1' },
@@ -247,7 +249,7 @@ async function initializeDatabase() {
       { username: 'Duzin', password: 'Duzinseller1' },
       { username: 'swiftkey', password: 'swiftkeyseller1' }
     ];
-    
+
     for (const user of sellerUsers) {
       const [existingUser] = await connection.query("SELECT COUNT(*) as count FROM adminusers WHERE username = ?", [user.username]);
       if (existingUser[0].count === 0) {
@@ -260,7 +262,7 @@ async function initializeDatabase() {
         console.log(`User ${user.username} created.`);
       }
     }
-    
+
     connection.release();
     console.log('Database initialization complete.');
   } catch (error) {
@@ -297,7 +299,8 @@ const requireBuyer = requireRole(['buyer', 'admin']);
 const requireAnyRole = requireRole(['admin', 'seller', 'buyer']);
 
 // --- TURNSTILE VERIFY MIDDLEWARE (Interactive challenge) ---
-// Accepts token via body, header, or query.
+// Expects token via body['cf-turnstile-response'] (standard).
+// Accepts token via body['turnstileToken'], headers, or query for flexibility (though frontend primarily uses body).
 // Bypass in dev with TURNSTILE_BYPASS=1
 async function verifyTurnstile(req, res, next) {
   try {
@@ -306,25 +309,32 @@ async function verifyTurnstile(req, res, next) {
       return next();
     }
 
-    const token =
-      req.body['cf-turnstile-response'] ||
-      req.body['turnstileToken'] ||
-      req.headers['cf-turnstile-response'] ||
-      req.headers['x-turnstile-token'] ||
-      req.query['cf-turnstile-response'] ||
-      req.query['turnstileToken'];
+    // --- Focus on the standard location first ---
+    let token = req.body['cf-turnstile-response'];
+
+    // --- Fallbacks (less common for standard frontend setup) ---
+    if (!token) {
+      token =
+        req.body['turnstileToken'] ||
+        req.headers['cf-turnstile-response'] ||
+        req.headers['x-turnstile-token'] ||
+        req.query['cf-turnstile-response'] ||
+        req.query['turnstileToken'];
+    }
 
     if (!process.env.TURNSTILE_SECRET) {
-      console.error('TURNSTILE_SECRET not set.');
-      return res.status(500).json({ message: 'Server misconfiguration' });
+      console.error('TURNSTILE_SECRET not set in environment variables.');
+      return res.status(500).json({ message: 'Server misconfiguration: Turnstile secret key missing.' });
     }
     if (!token) {
-      return res.status(400).json({ message: 'Challenge required. Please complete Turnstile.' });
+      console.warn(`Turnstile verification failed for ${req.ip}: No token provided in request.`);
+      return res.status(400).json({ message: 'Challenge required. Please complete the Turnstile verification.' });
     }
 
     const form = new URLSearchParams();
     form.append('secret', process.env.TURNSTILE_SECRET);
     form.append('response', token);
+    // It's good practice to include the user's IP
     if (req.ip) form.append('remoteip', req.ip);
 
     const verifyRes = await axios.post(
@@ -333,17 +343,28 @@ async function verifyTurnstile(req, res, next) {
       { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, timeout: 10000 }
     );
 
+    // --- More detailed logging for debugging ---
     if (verifyRes.data && verifyRes.data.success === true) {
+      console.log(`Turnstile verification successful for IP: ${req.ip}`);
       return next();
+    } else {
+      console.warn(`Turnstile verification failed for IP: ${req.ip}. Response data:`, verifyRes.data);
+      // Check for specific error codes if needed, but a generic message is usually fine for the client
+      // const errorCodes = verifyRes.data['error-codes'] || [];
+      // if (errorCodes.includes('timeout-or-duplicate')) { ... }
+      return res.status(403).json({ message: 'Turnstile verification failed. Please try again.' });
     }
 
-    console.warn('Turnstile verification failed:', verifyRes.data);
-    return res.status(403).json({ message: 'Turnstile verification failed' });
   } catch (e) {
-    console.error('Turnstile verification error:', e.message);
-    return res.status(503).json({ message: 'Challenge verification unavailable. Try again.' });
+    console.error('Turnstile verification error for IP:', req.ip, 'Error:', e.message);
+    // Differentiate between network errors and other issues if possible
+    if (e.code === 'ECONNABORTED' || e.code === 'ENOTFOUND') {
+       return res.status(503).json({ message: 'Unable to verify challenge (network issue). Please try again.' });
+    }
+    return res.status(503).json({ message: 'Challenge verification temporarily unavailable. Try again.' });
   }
 }
+
 
 // --- RATE LIMITERS ---
 const registerLimiter = rateLimit({
@@ -391,8 +412,8 @@ const validateKeyRedemption = [
 app.post('/register', registerLimiter, verifyTurnstile, async (req, res) => {
   const { username, password } = req.body;
 
-  if (!username || !password) { 
-    return res.status(400).json({ message: 'Username and password are required.' }); 
+  if (!username || !password) {
+    return res.status(400).json({ message: 'Username and password are required.' });
   }
   if (typeof username !== 'string' || typeof password !== 'string') {
     return res.status(400).json({ message: 'Invalid input types.' });
@@ -409,8 +430,8 @@ app.post('/register', registerLimiter, verifyTurnstile, async (req, res) => {
 
   try {
     const [existingUsers] = await dbPool.query("SELECT id FROM adminusers WHERE username = ?", [username]);
-    if (existingUsers.length > 0) { 
-      return res.status(409).json({ message: 'Username already taken.' }); 
+    if (existingUsers.length > 0) {
+      return res.status(409).json({ message: 'Username already taken.' });
     }
     const hashedPassword = await bcrypt.hash(password, 12);
     await dbPool.query("INSERT INTO adminusers (username, password_hash, role) VALUES (?, ?, 'buyer')", [username, hashedPassword]);
@@ -432,14 +453,14 @@ app.post('/login', async (req, res) => {
   try {
     const [rows] = await dbPool.query("SELECT * FROM adminusers WHERE username = ?", [username]);
     if (rows.length === 0) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Brute force mitigation
       return res.status(401).json({ message: 'Invalid credentials' });
     }
     const user = rows[0];
     const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) return res.status(401).json({ message: 'Invalid credentials' });
     const payload = { id: user.id, username: user.username, role: user.role };
-    const token = jwt.sign(payload, process.env.JWT_SECRET, { 
+    const token = jwt.sign(payload, process.env.JWT_SECRET, {
       expiresIn: '8h',
       issuer: 'aperture-hub'
     });
@@ -462,10 +483,10 @@ app.post('/logout', (req, res) => {
 app.get('/tickets/my', verifyToken, requireAnyRole, async (req, res) => {
   try {
     const [tickets] = await dbPool.query(
-      `SELECT t.*, u.username as buyer_name 
-       FROM tickets t 
-       JOIN adminusers u ON t.user_id = u.id 
-       WHERE t.user_id = ? 
+      `SELECT t.*, u.username as buyer_name
+       FROM tickets t
+       JOIN adminusers u ON t.user_id = u.id
+       WHERE t.user_id = ?
        ORDER BY t.updated_at DESC`,
       [req.user.id]
     );
@@ -483,9 +504,9 @@ app.get('/tickets/my', verifyToken, requireAnyRole, async (req, res) => {
 app.get('/tickets/all', verifyToken, requireSeller, async (req, res) => {
   try {
     const [tickets] = await dbPool.query(
-      `SELECT t.*, u.username as buyer_name 
-       FROM tickets t 
-       JOIN adminusers u ON t.user_id = u.id 
+      `SELECT t.*, u.username as buyer_name
+       FROM tickets t
+       JOIN adminusers u ON t.user_id = u.id
        ORDER BY t.updated_at DESC`
     );
     for (let ticket of tickets) {
@@ -499,9 +520,9 @@ app.get('/tickets/all', verifyToken, requireSeller, async (req, res) => {
   }
 });
 
-app.post('/tickets', 
-  verifyToken, 
-  requireBuyer, 
+app.post('/tickets',
+  verifyToken,
+  requireBuyer,
   validateTicketCreation,
   async (req, res) => {
     const errors = validationResult(req);
@@ -511,7 +532,7 @@ app.post('/tickets',
     const { paymentMethod } = req.body;
     try {
       const [existingTickets] = await dbPool.query(
-        "SELECT id FROM tickets WHERE user_id = ? AND status != 'completed'", 
+        "SELECT id FROM tickets WHERE user_id = ? AND status != 'completed'",
         [req.user.id]
       );
       if (existingTickets.length > 0) {
@@ -526,14 +547,14 @@ app.post('/tickets',
       }
       const licenseKey = 'PENDING-' + Date.now();
       const [result] = await dbPool.query(
-        "INSERT INTO tickets (user_id, license_key, payment_method, status) VALUES (?, ?, ?, 'awaiting')", 
+        "INSERT INTO tickets (user_id, license_key, payment_method, status) VALUES (?, ?, ?, 'awaiting')",
         [req.user.id, licenseKey, paymentMethod]
       );
       const ticketId = result.insertId;
       const message = `Welcome! A seller will be with you shortly to help you purchase with ${paymentMethod}.`;
       await dbPool.query("INSERT INTO ticket_messages (ticket_id, sender, message) VALUES (?, ?, ?)", [ticketId, 'seller', message]);
       const [tickets] = await dbPool.query(
-        `SELECT t.*, u.username as buyer_name FROM tickets t JOIN adminusers u ON t.user_id = u.id WHERE t.id = ?`, 
+        `SELECT t.*, u.username as buyer_name FROM tickets t JOIN adminusers u ON t.user_id = u.id WHERE t.id = ?`,
         [ticketId]
       );
       const [messages] = await dbPool.query("SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC", [ticketId]);
@@ -547,9 +568,9 @@ app.post('/tickets',
   }
 );
 
-app.post('/tickets/:id/messages', 
-  verifyToken, 
-  requireAnyRole, 
+app.post('/tickets/:id/messages',
+  verifyToken,
+  requireAnyRole,
   validateTicketMessage,
   async (req, res) => {
     const errors = validationResult(req);
@@ -563,8 +584,8 @@ app.post('/tickets/:id/messages',
     }
     try {
       const [tickets] = await dbPool.query("SELECT * FROM tickets WHERE id = ?", [id]);
-      if (tickets.length === 0) { 
-        return res.status(404).json({ message: 'Ticket not found.' }); 
+      if (tickets.length === 0) {
+        return res.status(404).json({ message: 'Ticket not found.' });
       }
       const ticket = tickets[0];
       if (req.user.role === 'buyer' && ticket.user_id !== req.user.id) {
@@ -585,7 +606,7 @@ app.post('/tickets/:id/messages',
         await dbPool.query("UPDATE tickets SET updated_at = CURRENT_TIMESTAMP WHERE id = ?", [id]);
       }
       const [updatedTickets] = await dbPool.query(
-        `SELECT t.*, u.username as buyer_name FROM tickets t JOIN adminusers u ON t.user_id = u.id WHERE t.id = ?`, 
+        `SELECT t.*, u.username as buyer_name FROM tickets t JOIN adminusers u ON t.user_id = u.id WHERE t.id = ?`,
         [id]
       );
       const [messages] = await dbPool.query("SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC", [id]);
@@ -599,9 +620,9 @@ app.post('/tickets/:id/messages',
   }
 );
 
-app.post('/api/tickets/:id/close', 
-  verifyToken, 
-  requireSeller, 
+app.post('/api/tickets/:id/close',
+  verifyToken,
+  requireSeller,
   async (req, res) => {
     const { id } = req.params;
     if (!id || isNaN(id)) {
@@ -609,12 +630,12 @@ app.post('/api/tickets/:id/close',
     }
     try {
       const [tickets] = await dbPool.query("SELECT * FROM tickets WHERE id = ?", [id]);
-      if (tickets.length === 0) { 
-        return res.status(404).json({ message: 'Ticket not found.' }); 
+      if (tickets.length === 0) {
+        return res.status(404).json({ message: 'Ticket not found.' });
       }
       await dbPool.query("UPDATE tickets SET status = 'completed', updated_at = CURRENT_TIMESTAMP WHERE id = ?", [id]);
       const [updatedTickets] = await dbPool.query(
-        `SELECT t.*, u.username as buyer_name FROM tickets t JOIN adminusers u ON t.user_id = u.id WHERE t.id = ?`, 
+        `SELECT t.*, u.username as buyer_name FROM tickets t JOIN adminusers u ON t.user_id = u.id WHERE t.id = ?`,
         [id]
       );
       const [messages] = await dbPool.query("SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC", [id]);
@@ -628,9 +649,9 @@ app.post('/api/tickets/:id/close',
   }
 );
 
-app.delete('/api/tickets/:id', 
-  verifyToken, 
-  requireSeller, 
+app.delete('/api/tickets/:id',
+  verifyToken,
+  requireSeller,
   async (req, res) => {
     const { id } = req.params;
     if (!id || isNaN(id)) {
@@ -652,7 +673,7 @@ app.delete('/api/tickets/:id',
 
 // --- GAME CLIENT ENDPOINTS ---
 app.post('/connect', async (req, res) => {
-  const { 
+  const {
     id, username, gameName, serverInfo, playerCount, userId,
     city, country, executorName, executorVersion
   } = req.body;
@@ -668,16 +689,16 @@ app.post('/connect', async (req, res) => {
   if (playerCount !== undefined && (isNaN(playerCount) || playerCount < 0 || playerCount > 1000000)) {
     return res.status(400).json({ error: 'Invalid player count.' });
   }
-  clients.set(id, { 
-    id, username, gameName, serverInfo, playerCount, userId, 
+  clients.set(id, {
+    id, username, gameName, serverInfo, playerCount, userId,
     city, country, executorName, executorVersion,
-    connectedAt: new Date(), lastSeen: Date.now() 
+    connectedAt: new Date(), lastSeen: Date.now()
   });
   if (!pendingCommands.has(id)) pendingCommands.set(id, []);
   console.log(`[CONNECT] Client registered: ${username} (ID: ${id})`);
   try {
     await dbPool.query(
-      "INSERT INTO connections (client_id, username, user_id, game_name, server_info, player_count) VALUES (?, ?, ?, ?, ?, ?)", 
+      "INSERT INTO connections (client_id, username, user_id, game_name, server_info, player_count) VALUES (?, ?, ?, ?, ?, ?)",
       [id, username, userId, gameName, serverInfo, playerCount]
     );
     if (city && country) {
@@ -706,7 +727,7 @@ app.post('/connect', async (req, res) => {
 });
 
 app.post('/heartbeat', async (req, res) => {
-  const { 
+  const {
     id, username, gameName, serverInfo, playerCount, userId,
     city, country, executorName, executorVersion
   } = req.body;
@@ -781,15 +802,15 @@ app.post('/broadcast', verifyToken, requireAdmin, async (req, res) => {
   try {
     const commandType = typeof command === 'string' ? 'lua_script' : 'json_action';
     await dbPool.query("INSERT INTO commands (command_type, content) VALUES (?, ?)", [commandType, JSON.stringify(command)]);
-  } catch (error) { 
-    console.error('[DB] Failed to log broadcast command:', error.message); 
+  } catch (error) {
+    console.error('[DB] Failed to log broadcast command:', error.message);
   }
   res.json({ message: `Command broadcasted to ${successCount}/${clients.size} clients.` });
 });
 
 app.post('/api/command/targeted', verifyToken, requireAdmin, (req, res) => {
   const { clientIds, command } = req.body;
-  if (!Array.isArray(clientIds) || !command) 
+  if (!Array.isArray(clientIds) || !command)
     return res.status(400).json({ error: 'Missing "clientIds" array or "command".' });
   if (clientIds.length > 100) {
     return res.status(400).json({ error: 'Too many clients specified' });
@@ -820,10 +841,10 @@ app.post('/kick', verifyToken, requireAdmin, (req, res) => {
   res.json({ message: `Client ${client.username} kicked.` });
 });
 
-app.post('/api/seller/redeem', 
-  verifyToken, 
-  requireSeller, 
-  upload.single('screenshot'), 
+app.post('/api/seller/redeem',
+  verifyToken,
+  requireSeller,
+  upload.single('screenshot'),
   validateKeyRedemption,
   async (req, res) => {
     const errors = validationResult(req);
@@ -944,7 +965,7 @@ app.get('/api/locations', verifyToken, requireAnyRole, async (req, res) => {
   try {
     const [locations] = await dbPool.query(`
       SELECT DISTINCT city, country, latitude, longitude, COUNT(*) as user_count
-      FROM user_locations 
+      FROM user_locations
       WHERE latitude IS NOT NULL AND longitude IS NOT NULL
       GROUP BY city, country, latitude, longitude
       ORDER BY user_count DESC
@@ -961,7 +982,7 @@ app.get('/api/executor-stats', verifyToken, requireAnyRole, async (req, res) => 
   try {
     const [executors] = await dbPool.query(`
       SELECT executor_name, COUNT(*) as usage_count, COUNT(DISTINCT username) as unique_users
-      FROM executor_stats 
+      FROM executor_stats
       WHERE executor_name IS NOT NULL
       GROUP BY executor_name
       ORDER BY usage_count DESC
@@ -977,7 +998,7 @@ app.get('/api/country-stats', verifyToken, requireAnyRole, async (req, res) => {
   try {
     const [countries] = await dbPool.query(`
       SELECT country, COUNT(*) as user_count
-      FROM user_locations 
+      FROM user_locations
       WHERE country IS NOT NULL
       GROUP BY country
       ORDER BY user_count DESC
