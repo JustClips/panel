@@ -79,38 +79,49 @@
         .nav-links a i { margin-right: 1rem; width: 20px; text-align: center; font-size: 1.1rem; }
         .logout-link { margin-top: auto; padding: 1rem; }
         
-        /* CORE LAYOUT FIX: Main content area now uses flexbox to manage height */
+        /* === START: LAYOUT FIX === */
         .main-content {
             flex: 1;
             display: flex;
             flex-direction: column;
-            max-height: 100vh; /* Use max-height to prevent overflow */
+            max-height: 100vh;
             overflow: hidden;
             padding: 2rem 3rem;
-            gap: 2rem; /* Adds consistent spacing between header and content */
+            gap: 2rem;
         }
         header {
-            flex-shrink: 0; /* Header doesn't shrink */
+            flex-shrink: 0;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            /* margin-bottom is no longer needed because of the 'gap' on the parent */
         }
         header h1 { font-size: 2.25rem; color: #fff; font-weight: 700; }
         .content-panel {
-            flex-grow: 1; /* Panel takes all remaining vertical space */
-            overflow: hidden; /* Let child elements handle their own scrolling */
+            flex-grow: 1;
+            overflow: hidden;
             display: none;
             animation: fadeIn 0.5s ease-out;
+            min-height: 0; /* Prevents flexbox collapsing issues */
         }
-        .content-panel.active { display: block; }
+        .content-panel.active {
+            display: flex; /* IMPORTANT: Use flex for the active panel */
+            flex-direction: column;
+        }
+        #chats-grid {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 1.5rem;
+            flex-grow: 1; /* Let the grid grow to fill the panel */
+            min-height: 0; /* IMPORTANT: for nested scrollable areas */
+        }
+        /* === END: LAYOUT FIX === */
 
         .panel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; }
         .panel-wrapper {
             background: var(--glass-bg); backdrop-filter: blur(12px); border: 1px solid var(--border-color);
             border-radius: 12px; box-shadow: var(--panel-shadow); display: flex; flex-direction: column;
             height: 100%;
-            position: relative; /* For claim overlay positioning */
+            position: relative;
         }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         .panel-header { padding: 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
@@ -164,7 +175,6 @@
         .modal-buttons { display: flex; justify-content: center; gap: 1rem; }
 
         /* --- CHAT-SPECIFIC IMPROVEMENTS --- */
-        #chats-grid { display: grid; grid-template-columns: 350px 1fr; gap: 1.5rem; height: 100%; }
         #chat-list-container { display: flex; flex-direction: column; overflow-y: auto; padding: 0.5rem 0; }
         .chat-list-header {
             font-size: 0.8rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase;
@@ -182,11 +192,25 @@
             font-size: 1.75rem; width: 44px; height: 44px; display: flex; align-items: center;
             justify-content: center; flex-shrink: 0; border-radius: 8px; background-color: var(--bg-dark);
         }
-        .unread-dot {
-            position: absolute; top: 12px; right: 12px; width: 10px; height: 10px; background-color: var(--primary);
-            border-radius: 50%; border: 2px solid var(--bg-light); box-shadow: var(--primary-glow-box); animation: pulse 2s infinite;
+        
+        /* NEW: Unread message count badge */
+        .unread-badge {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background-color: var(--danger);
+            color: white;
+            font-size: 0.7rem;
+            font-weight: 700;
+            border-radius: 50px;
+            padding: 2px 7px;
+            min-width: 20px;
+            text-align: center;
+            border: 2px solid var(--bg-light);
+            box-shadow: 0 0 10px rgba(218, 54, 51, 0.5);
+            line-height: 1.1;
         }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        
         .chat-item-details { flex-grow: 1; overflow: hidden; }
         .chat-user { font-weight: 600; color: var(--text-light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
         .chat-payment { font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -220,7 +244,6 @@
         }
         #chat-reply-input { flex-grow: 1; resize: none; min-height: 50px; padding-top: 14px; }
         
-        /* NEW: Claim Ticket Overlay */
         #claim-ticket-overlay {
             position: absolute; top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(13, 17, 23, 0.8);
@@ -419,12 +442,10 @@
                 chatMessages: document.getElementById('chat-messages'),
                 chatReplyForm: document.getElementById('chat-reply-form'),
                 chatReplyInput: document.getElementById('chat-reply-input'),
-                // NEW claim overlay elements
                 claimOverlay: document.getElementById('claim-ticket-overlay'),
                 claimBtnOverlay: document.getElementById('claim-ticket-btn-overlay'),
                 claimBuyerName: document.getElementById('claim-buyer-name'),
                 claimPaymentMethod: document.getElementById('claim-payment-method'),
-                // End new selectors
                 completeBtn: document.getElementById('complete-ticket-btn'),
                 deleteBtn: document.getElementById('delete-ticket-btn'),
                 notificationSound: document.getElementById('notification-sound'),
@@ -522,7 +543,7 @@
                 'CashApp': 'fas fa-dollar-sign', 'Gag Pets': 'fas fa-paw', 'Secret Brainrots': 'fas fa-brain'
             }[method] || 'fas fa-receipt');
 
-            const renderChatList = (tickets, container, isUnreadLogic) => {
+            const renderChatList = (tickets, container) => {
                 const titleMap = {
                     'chat-list-awaiting': 'Awaiting Claim',
                     'chat-list-active': 'My Active Chats',
@@ -537,9 +558,26 @@
                     item.className = 'chat-item';
                     if (state.currentTicketId === chat.id) item.classList.add('active');
                     item.dataset.chatId = chat.id;
-                    const isUnread = isUnreadLogic && chat.last_message_sender === 'user';
+
+                    let unreadCount = 0;
+                    // Only calculate unread count for active, claimed tickets
+                    if (container.id === 'chat-list-active' && chat.messages) {
+                        const lastSellerMessageIndex = chat.messages.map(m => m.sender).lastIndexOf('seller');
+                        
+                        if (lastSellerMessageIndex === -1) {
+                            // If seller has never replied, all user messages are unread
+                            unreadCount = chat.messages.filter(m => m.sender === 'user').length;
+                        } else {
+                            // Count user messages that came after the seller's last message
+                            unreadCount = chat.messages.slice(lastSellerMessageIndex + 1)
+                                                       .filter(m => m.sender === 'user').length;
+                        }
+                    }
+                    
+                    const unreadIndicator = unreadCount > 0 ? `<div class="unread-badge">${unreadCount}</div>` : '';
+
                     item.innerHTML = `
-                        ${isUnread ? '<div class="unread-dot"></div>' : ''}
+                        ${unreadIndicator}
                         <div class="chat-item-icon"><i class="${getPaymentMethodIcon(chat.payment_method)}"></i></div>
                         <div class="chat-item-details">
                             <div class="chat-user">Buyer: ${escapeHTML(chat.buyer_name)}</div>
@@ -577,9 +615,9 @@
                         const active = state.tickets.filter(t => t.claimed_by === state.user.id && t.status !== 'completed');
                         const completed = state.tickets.filter(t => t.status === 'completed');
 
-                        renderChatList(awaiting.sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at)), selectors.chatListAwaiting, true);
-                        renderChatList(active.sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at)), selectors.chatListActive, true);
-                        renderChatList(completed.sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at)), selectors.chatListCompleted, false);
+                        renderChatList(awaiting.sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at)), selectors.chatListAwaiting);
+                        renderChatList(active.sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at)), selectors.chatListActive);
+                        renderChatList(completed.sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at)), selectors.chatListCompleted);
 
                         updateDashboard(state.tickets);
                         
@@ -608,15 +646,12 @@
                 selectors.chatHeaderTitle.innerHTML = `<i class="${getPaymentMethodIcon(chat.payment_method)}"></i> Chat with ${escapeHTML(chat.buyer_name)}`;
                 selectors.chatHeaderDetails.textContent = `Status: ${chat.status} | Claimed by: ${chat.claimed_by_name || 'None'}`;
                 
-                // NEW LOGIC for showing claim overlay or chat view
                 if (!chat.claimed_by && chat.status !== 'completed') {
-                    // Show claim overlay
                     selectors.chatView.classList.add('hidden');
                     selectors.claimOverlay.classList.remove('hidden');
                     selectors.claimBuyerName.textContent = chat.buyer_name;
                     selectors.claimPaymentMethod.textContent = chat.payment_method;
                 } else {
-                    // Show chat view
                     selectors.claimOverlay.classList.add('hidden');
                     selectors.chatView.classList.remove('hidden');
 
@@ -714,7 +749,6 @@
                     
                     selectors.chatReplyInput.addEventListener('keydown', handleEnterKey);
                     
-                    // NEW: Event listener for the claim button in the overlay
                     selectors.claimBtnOverlay.addEventListener('click', async () => {
                         if (!state.currentTicketId) return;
                         try {
