@@ -69,17 +69,42 @@ const dbPool = mysql.createPool({
 
 // --- DATABASE INITIALIZATION ---
 async function initializeDatabase() {
+    let connection;
     try {
-        const connection = await dbPool.getConnection();
+        connection = await dbPool.getConnection();
         console.log("Successfully connected to MySQL database.");
+
+        // Step 1: Ensure base tables exist
         await connection.query(`CREATE TABLE IF NOT EXISTS adminusers (id INT AUTO_INCREMENT PRIMARY KEY, username VARCHAR(255) UNIQUE NOT NULL, password_hash VARCHAR(255), role ENUM('admin','seller','buyer') NOT NULL DEFAULT 'buyer', discord_id VARCHAR(255) UNIQUE NULL, discord_avatar VARCHAR(255) NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
         await connection.query(`CREATE TABLE IF NOT EXISTS tickets (id INT AUTO_INCREMENT PRIMARY KEY, user_id INT NOT NULL, status ENUM('awaiting', 'processing', 'completed') DEFAULT 'awaiting', license_key VARCHAR(255), payment_method VARCHAR(50), claimed_by INT NULL DEFAULT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, FOREIGN KEY (user_id) REFERENCES adminusers(id) ON DELETE CASCADE, FOREIGN KEY (claimed_by) REFERENCES adminusers(id) ON DELETE SET NULL);`);
         await connection.query(`CREATE TABLE IF NOT EXISTS ticket_messages (id INT AUTO_INCREMENT PRIMARY KEY, ticket_id INT NOT NULL, sender ENUM('user', 'seller') NOT NULL, message TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE);`);
-        connection.release();
-        console.log("Database schema verified.");
+
+        // --- MODIFIED SECTION START ---
+        // Step 2: Check if 'adminusers' table is missing the discord_id column
+        const [columns] = await connection.query(
+            `SELECT * FROM INFORMATION_SCHEMA.COLUMNS 
+             WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'adminusers' AND COLUMN_NAME = 'discord_id'`,
+            [process.env.MYSQLDATABASE]
+        );
+
+        // Step 3: If the column is missing, add it automatically
+        if (columns.length === 0) {
+            console.log("Legacy table detected. Updating 'adminusers' table: adding 'discord_id' and 'discord_avatar' columns...");
+            await connection.query(
+                `ALTER TABLE adminusers 
+                 ADD COLUMN discord_id VARCHAR(255) UNIQUE NULL, 
+                 ADD COLUMN discord_avatar VARCHAR(255) NULL`
+            );
+            console.log("'adminusers' table updated successfully.");
+        }
+        // --- MODIFIED SECTION END ---
+
+        console.log("Database schema verified and up-to-date.");
     } catch (error) {
         console.error("!!! DATABASE INITIALIZATION FAILED !!!", error);
         process.exit(1);
+    } finally {
+        if (connection) connection.release();
     }
 }
 
@@ -281,7 +306,7 @@ apiRouter.get('/tickets/my', verifyToken, requireBuyer, async (req, res) => {
     try {
         const [tickets] = await dbPool.query(`SELECT t.*, u.username as buyer_name FROM tickets t JOIN adminusers u ON t.user_id = u.id WHERE t.user_id = ? ORDER BY t.updated_at DESC`, [req.user.id]);
         for (let ticket of tickets) {
-            const [messages] = await dbPool.query("SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC", [ticket.id]);
+            const [messages] = await dbPool.query("SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC", [ticketId]);
             ticket.messages = messages;
         }
         res.json(tickets);
