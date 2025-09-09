@@ -104,21 +104,14 @@
         }
         .content-panel.active {
             display: flex;
-            flex-direction: column;
         }
         
         .panel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; }
-        
-        /* === START: THE ONE CRITICAL FIX === */
         .panel-wrapper {
             background: var(--glass-bg); backdrop-filter: blur(12px); border: 1px solid var(--border-color);
             border-radius: 12px; box-shadow: var(--panel-shadow);
-            height: 100%;
             position: relative;
-            /* The 'display: flex' from the original code was breaking the chat view layout */
         }
-        /* === END: THE ONE CRITICAL FIX === */
-
         @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         .panel-header { padding: 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
         .panel-header h2 { font-size: 1.25rem; color: var(--text-light); display: flex; align-items: center; gap: 10px; font-weight: 600; }
@@ -171,13 +164,17 @@
         .modal-buttons { display: flex; justify-content: center; gap: 1rem; }
 
         /* --- CHAT-SPECIFIC IMPROVEMENTS --- */
+        
+        /* === START: CHAT GRID LAYOUT FIX === */
         #chats-grid {
             display: grid;
-            grid-template-columns: 350px 1fr;
+            grid-template-columns: 350px 1fr; /* Two columns: one for the list, one for the view */
+            grid-template-rows: 1fr; /* CRITICAL: Define one row that takes all available height */
             gap: 1.5rem;
-            flex-grow: 1;
-            min-height: 0;
+            height: 100%; /* Make the grid fill its parent container */
         }
+        /* === END: CHAT GRID LAYOUT FIX === */
+
         #chat-list-container { display: flex; flex-direction: column; overflow-y: auto; padding: 0.5rem 0; height: 100%; }
         .chat-list-header {
             font-size: 0.8rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase;
@@ -235,7 +232,7 @@
         #chat-messages {
             flex-grow: 1; overflow-y: auto; padding: 1.5rem;
             display: flex; flex-direction: column; gap: 1.25rem;
-            min-height: 0; /* Added for extra safety in flex layouts */
+            min-height: 0;
         }
         .message-bubble { padding: 0.8rem 1.25rem; border-radius: 18px; max-width: 80%; word-wrap: break-word; line-height: 1.5; animation: fadeIn 0.3s ease; }
         .message-bubble.seller { background: var(--primary); color: #fff; border-bottom-right-radius: 4px; align-self: flex-end; }
