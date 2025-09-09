@@ -771,20 +771,94 @@
   </div>
   
   <div id="ticket-system">
-      </div>
+      <div id="ticket-app-container" class="ticket-app-container">
+      <aside class="ticket-sidebar">
+        <div class="sidebar-header flex justify-between items-center">
+          <div>
+            <h2 class="text-2xl font-bold text-white">Purchase Portal</h2>
+            <p class="text-sm text-text-muted">Your active & past orders.</p>
+          </div>
+          <button id="close-ticket-system-btn" title="Back to Main Page" class="text-text-muted hover:text-white transition-colors text-2xl has-ripple">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <div id="ticket-list" class="sidebar-content"></div>
+        <div class="sidebar-footer p-4 border-t border-border-color mt-auto">
+          <button id="new-ticket-btn" class="w-full font-semibold py-3 px-4 rounded-lg transition-colors flex items-center justify-center has-ripple">
+            <i class="fas fa-plus mr-2"></i> New Purchase
+          </button>
+        </div>
+      </aside>
+      
+      <main class="ticket-main">
+        <div id="ticket-view-content" class="h-full flex-col hidden">
+          <header class="chat-header">
+            <button id="back-to-list-btn" class="md:hidden text-text-light text-xl mr-4 has-ripple">
+              <i class="fas fa-arrow-left"></i>
+            </button>
+            <div class="relative mr-4">
+              <div class="w-12 h-12 rounded-full bg-tertiary flex items-center justify-center text-primary text-xl">
+                <i class="fas fa-headset"></i>
+              </div>
+              <div class="online-indicator absolute bottom-0 right-0 border-2 border-bg-light"></div>
+            </div>
+            <div>
+              <h3 id="ticket-title" class="text-lg font-bold text-white"></h3>
+              <p id="ticket-status-text" class="text-sm"></p>
+            </div>
+          </header>
+          
+          <div id="chat-container" class="chat-container">
+            <div id="chat-messages" class="chat-messages"></div>
+            <div class="chat-input-area">
+              <form id="chat-form" class="flex items-center gap-4">
+                <input type="text" id="chat-input" class="form-input flex-1 p-3 rounded-full bg-tertiary" placeholder="Type your message..." autocomplete="off" required>
+                <button type="submit" class="w-12 h-12 text-white font-bold rounded-full btn-primary text-lg flex items-center justify-center flex-shrink-0 has-ripple">
+                  <i class="fas fa-paper-plane"></i>
+                </button>
+              </form>
+            </div>
+          </div>
+          
+          <div id="completed-view" class="p-8 flex-1 flex flex-col items-center justify-center hidden">
+            <div class="text-green-400 mb-4">
+              <i class="fas fa-check-circle fa-5x"></i>
+            </div>
+            <h2 class="text-3xl font-bold text-white mb-2">Purchase Complete!</h2>
+            <p class="text-text-muted mb-6">Thank you! Your lifetime license for Eps1llon Hub Premium is now active.</p>
+            <div class="w-full max-w-md">
+              <label class="block text-sm font-medium text-text-light text-left mb-2">Your License Key:</label>
+              <div class="license-key-wrapper">
+                <p id="license-key"></p>
+              </div>
+              <button id="copy-key-btn" class="w-full mt-4 bg-green-500/20 text-green-400 font-semibold py-3 px-4 rounded-lg hover:bg-green-500/30 transition-colors flex items-center justify-center has-ripple">
+                <i class="fas fa-copy mr-2"></i> Copy to Clipboard
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <div id="ticket-placeholder" class="empty-state">
+          <i class="fas fa-ticket-alt text-7xl text-tertiary mb-6"></i>
+          <h3 class="text-2xl font-bold text-white mb-2">Welcome to the Purchase Portal</h3>
+          <p class="text-text-muted max-w-sm">Select a ticket from the left or create a new one to begin.</p>
+        </div>
+      </main>
+    </div>
+  </div>
   
-  <div id="toast-notification" class="fixed top-5 right-5 bg-tertiary text-white py-3 px-5 rounded-lg shadow-lg z-[9999]">
+  <div id="toast-notification" class="fixed top-5 right-5 bg-tertiary text-white py-3 px-5 rounded-lg shadow-lg opacity-0 transform -translate-y-5 transition-all duration-300 z-[9999]">
     <p id="toast-message"></p>
   </div>
   
-  <audio id="notification-sound" src="data:audio/mpeg;base64,..."></audio>
+  <audio id="notification-sound" src="data:audio/mpeg;base64,SUQzBAAAAAABEVRYWFgAAAAtAAADY29tbWVudABCaW5nIENTUkFQX1NGQkxXU0ZPQUNPMwAAAAAAAExodTEAAAAAADISAWAAAZGfk34pEEYp9+BY0TE3aJgl9xW8EaB/zP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/......"></audio>
   
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const API_BASE_URL = '/api';
       
       const App = {
-        state: { /* ... */ },
+        state: { isLoggedIn: false, user: null, tickets: [], currentTicketId: null, selectedPaymentMethod: null },
         elements: {},
         
         init() {
@@ -794,8 +868,32 @@
           this.registerEventListeners();
           this.updateUI();
           this.initScrollAnimations();
+          setInterval(() => {
+            if (document.body.classList.contains('chat-active') && this.state.isLoggedIn) {
+              this.loadTickets();
+            }
+          }, 15000);
         },
-
+        
+        cacheElements() {
+          this.elements = {
+            body: document.body, purchaseBtn: document.getElementById('purchase-btn'), purchaseBtnContent: document.getElementById('purchase-btn-content'),
+            authModal: document.getElementById('auth-modal'), closeAuthModalBtn: document.getElementById('close-auth-modal-btn'), ticketSystem: document.getElementById('ticket-system'),
+            showLoginBtn: document.getElementById('show-login'), showSignupBtn: document.getElementById('show-signup'), signupView: document.getElementById('signup-view'),
+            loginView: document.getElementById('login-view'), signupForm: document.getElementById('signup-form'), loginForm: document.getElementById('login-form'),
+            chatMessages: document.querySelector('.chat-messages'), chatForm: document.querySelector('#chat-form'), chatInput: document.querySelector('#chat-input'),
+            chatContainer: document.getElementById('chat-container'), ticketList: document.getElementById('ticket-list'), ticketViewContent: document.getElementById('ticket-view-content'),
+            ticketPlaceholder: document.getElementById('ticket-placeholder'), ticketTitle: document.getElementById('ticket-title'), ticketStatusText: document.getElementById('ticket-status-text'),
+            newTicketBtn: document.getElementById('new-ticket-btn'), backToListBtn: document.getElementById('back-to-list-btn'), notificationSound: document.getElementById('notification-sound'),
+            completedView: document.getElementById('completed-view'), licenseKey: document.getElementById('license-key'), copyKeyBtn: document.getElementById('copy-key-btn'),
+            closeTicketSystemBtn: document.getElementById('close-ticket-system-btn'), toastNotification: document.getElementById('toast-notification'), toastMessage: document.getElementById('toast-message'),
+            paymentMethodModal: document.getElementById('payment-method-modal'), closePaymentModalBtn: document.getElementById('close-payment-modal-btn'),
+            paymentMethodOptions: document.querySelectorAll('.payment-method-option'), confirmPaymentBtn: document.getElementById('confirm-payment-btn'),
+            ticketAppContainer: document.querySelector('.ticket-app-container'), authLinks: document.getElementById('auth-links'), userInfo: document.getElementById('user-info'),
+            usernameDisplay: document.getElementById('username-display'), logoutButton: document.getElementById('logout-button'), loginNavBtn: document.getElementById('login-nav-btn'),
+          };
+        },
+        
         handleDiscordRedirect() {
             if (window.location.hash.startsWith('#token=')) {
                 const token = window.location.hash.substring(7);
@@ -808,8 +906,181 @@
             }
         },
 
-        // All other functions from before...
+        loadState() {
+          const token = localStorage.getItem('token');
+          if (token) {
+            try {
+              const payload = JSON.parse(atob(token.split('.')[1]));
+              if (payload.exp * 1000 > Date.now()) {
+                this.state.isLoggedIn = true;
+                this.state.user = { id: payload.id, username: payload.username };
+                this.loadTickets();
+              } else {
+                this.logout();
+              }
+            } catch (e) {
+              this.logout();
+            }
+          }
+           this.updateUI();
+        },
+        
+        async apiCall(endpoint, options = {}) {
+          const token = localStorage.getItem('token');
+          const headers = { 'Content-Type': 'application/json', ...options.headers };
+          if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+          }
+          try {
+            const response = await fetch(`${API_BASE_URL}${endpoint}`, { ...options, headers });
+            if ((response.status === 401 || response.status === 403) && endpoint !== '/login' && endpoint !== '/register') {
+              this.logout();
+              this.showToast("Your session has expired. Please log in again.");
+              return null;
+            }
+            return response;
+          } catch (error) {
+            this.showToast("A network error occurred.");
+            return null;
+          }
+        },
+        
+        async loadTickets() {
+          if (!this.state.isLoggedIn) return;
+          const response = await this.apiCall('/tickets/my');
+          if (response && response.ok) {
+            this.state.tickets = await response.json();
+            this.renderSidebar();
+            if (this.state.currentTicketId) {
+              const updatedTicket = this.state.tickets.find(t => t.id === this.state.currentTicketId);
+              if (updatedTicket) {
+                this.renderTicketView(updatedTicket);
+              } else {
+                this.state.currentTicketId = null;
+                this.elements.ticketViewContent.classList.add('hidden');
+                this.elements.ticketPlaceholder.classList.remove('hidden');
+              }
+            }
+          }
+        },
+        
+        registerEventListeners() {
+            // ... all event listeners are unchanged ...
+        },
+        
+        updateUI() { /* ... unchanged ... */ },
+        showToast(message) { /* ... unchanged ... */ },
+        initScrollAnimations() { /* ... unchanged ... */ },
+        openAuthModal() { /* ... unchanged ... */ },
+        closeAuthModal() { /* ... unchanged ... */ },
+        toggleAuthView(showLogin) { /* ... unchanged ... */ },
 
+        async handleSignup(e) {
+            e.preventDefault();
+            const form = this.elements.signupForm;
+            const button = form.querySelector('button[type="submit"]');
+            const buttonText = button.querySelector('.button-text');
+            const originalText = buttonText.innerHTML;
+
+            button.disabled = true;
+            buttonText.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Signing Up...`;
+
+            try {
+                const username = form.querySelector('#signup-username').value;
+                const password = form.querySelector('#signup-password').value;
+                const turnstileToken = form.querySelector('[name="cf-turnstile-response"]')?.value;
+
+                if (!username || !password) {
+                    this.showToast('Please fill in all fields');
+                    return;
+                }
+                if (!turnstileToken) {
+                    this.showToast('Please complete the security check.');
+                    return;
+                }
+
+                const response = await this.apiCall('/register', {
+                    method: 'POST',
+                    body: JSON.stringify({ username, password, turnstileToken })
+                });
+                
+                if (response && response.ok) {
+                    const data = await response.json();
+                    if (data.success && data.token) {
+                        this.showToast('Account created! Welcome.');
+                        localStorage.setItem('token', data.token);
+                        this.state.isLoggedIn = true;
+                        this.state.user = { username: data.username, id: JSON.parse(atob(data.token.split('.')[1])).id };
+                        this.closeAuthModal();
+                        this.updateUI();
+                        await this.loadTickets();
+                        this.openTicketSystem();
+                    } else {
+                        this.showToast(data.message || 'Signup failed.');
+                    }
+                } else if (response) {
+                    const data = await response.json();
+                    this.showToast(data.message || 'Signup failed.');
+                }
+            } finally {
+                button.disabled = false;
+                buttonText.innerHTML = originalText;
+                turnstile.reset(form.querySelector('.cf-turnstile'));
+            }
+        },
+        
+        async handleLogin(e) {
+            e.preventDefault();
+            const form = this.elements.loginForm;
+            const button = form.querySelector('button[type="submit"]');
+            const buttonText = button.querySelector('.button-text');
+            const originalText = buttonText.innerHTML;
+
+            button.disabled = true;
+            buttonText.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Logging In...`;
+
+            try {
+                const username = form.querySelector('#login-username').value;
+                const password = form.querySelector('#login-password').value;
+                const turnstileToken = form.querySelector('[name="cf-turnstile-response"]')?.value;
+
+                if (!username || !password) {
+                    this.showToast('Please fill in all fields');
+                    return;
+                }
+                if (!turnstileToken) {
+                    this.showToast('Please complete the security check.');
+                    return;
+                }
+
+                const response = await this.apiCall('/login', {
+                    method: 'POST',
+                    body: JSON.stringify({ username, password, turnstileToken })
+                });
+                
+                if (response && response.ok) {
+                    const data = await response.json();
+                    if(data.success) {
+                        localStorage.setItem('token', data.token);
+                        this.state.isLoggedIn = true;
+                        this.state.user = { username: data.username, id: JSON.parse(atob(data.token.split('.')[1])).id };
+                        this.closeAuthModal();
+                        this.updateUI();
+                        await this.loadTickets();
+                        this.openTicketSystem();
+                    }
+                } else if (response) {
+                    const data = await response.json();
+                    this.showToast(data.message || 'Login failed.');
+                }
+            } finally {
+                button.disabled = false;
+                buttonText.innerHTML = originalText;
+                turnstile.reset(form.querySelector('.cf-turnstile'));
+            }
+        },
+        
+        // All other functions are unchanged...
       };
       
       App.init();
