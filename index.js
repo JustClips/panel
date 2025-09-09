@@ -67,7 +67,7 @@ const dbPool = mysql.createPool({
     waitForConnections: true, connectionLimit: 10, queueLimit: 0
 });
 
-// --- DATABASE INITIALIZATION ---
+// --- DATABASE INITIALIZATION & AUTOMATIC REPAIR ---
 async function initializeDatabase() {
     let connection;
     try {
@@ -79,24 +79,30 @@ async function initializeDatabase() {
         await connection.query(`CREATE TABLE IF NOT EXISTS tickets (id INT AUTO_INCREMENT PRIMARY KEY, user_id INT NOT NULL, status ENUM('awaiting', 'processing', 'completed') DEFAULT 'awaiting', license_key VARCHAR(255), payment_method VARCHAR(50), claimed_by INT NULL DEFAULT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, FOREIGN KEY (user_id) REFERENCES adminusers(id) ON DELETE CASCADE, FOREIGN KEY (claimed_by) REFERENCES adminusers(id) ON DELETE SET NULL);`);
         await connection.query(`CREATE TABLE IF NOT EXISTS ticket_messages (id INT AUTO_INCREMENT PRIMARY KEY, ticket_id INT NOT NULL, sender ENUM('user', 'seller') NOT NULL, message TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE);`);
 
-        // Step 2: Check if 'adminusers' table is missing the discord_id column
-        const [columns] = await connection.query(
+        // Step 2: Check for and add missing discord columns
+        const [discordColumns] = await connection.query(
             `SELECT * FROM INFORMATION_SCHEMA.COLUMNS 
              WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'adminusers' AND COLUMN_NAME = 'discord_id'`,
             [process.env.MYSQLDATABASE]
         );
-
-        // Step 3: If the column is missing, add it automatically
-        if (columns.length === 0) {
-            console.log("Legacy table detected. Updating 'adminusers' table: adding 'discord_id' and 'discord_avatar' columns...");
-            await connection.query(
-                `ALTER TABLE adminusers 
-                 ADD COLUMN discord_id VARCHAR(255) UNIQUE NULL, 
-                 ADD COLUMN discord_avatar VARCHAR(255) NULL`
-            );
-            console.log("'adminusers' table updated successfully.");
+        if (discordColumns.length === 0) {
+            console.log("SCHEMA-FIX: Adding 'discord_id' and 'discord_avatar' columns to 'adminusers' table...");
+            await connection.query(`ALTER TABLE adminusers ADD COLUMN discord_id VARCHAR(255) UNIQUE NULL, ADD COLUMN discord_avatar VARCHAR(255) NULL`);
+            console.log("SCHEMA-FIX: Columns added successfully.");
         }
-        
+
+        // Step 3: Check for and fix incorrect password_hash rule
+        const [passwordColumnInfo] = await connection.query(
+            `SELECT IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS 
+             WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'adminusers' AND COLUMN_NAME = 'password_hash'`,
+            [process.env.MYSQLDATABASE]
+        );
+        if (passwordColumnInfo.length > 0 && passwordColumnInfo[0].IS_NULLABLE === 'NO') {
+            console.log("SCHEMA-FIX: 'password_hash' column has incorrect NOT NULL rule. Fixing...");
+            await connection.query(`ALTER TABLE adminusers MODIFY COLUMN password_hash VARCHAR(255) NULL`);
+            console.log("SCHEMA-FIX: 'password_hash' column rule fixed successfully.");
+        }
+
         console.log("Database schema verified and up-to-date.");
     } catch (error) {
         console.error("!!! DATABASE INITIALIZATION FAILED !!!", error);
@@ -105,6 +111,7 @@ async function initializeDatabase() {
         if (connection) connection.release();
     }
 }
+
 
 // --- MIDDLEWARE ---
 const verifyToken = (req, res, next) => {
@@ -117,8 +124,6 @@ const verifyToken = (req, res, next) => {
         next();
     });
 };
-
-// ... (The rest of your middleware code is fine) ...
 
 const verifyTurnstile = async (req, res, next) => {
     const secretKey = process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY;
@@ -166,6 +171,10 @@ apiRouter.post('/login', verifyTurnstile, async (req, res) => {
         const [rows] = await dbPool.query("SELECT * FROM adminusers WHERE username = ?", [username]);
         if (rows.length === 0) return res.status(401).json({ message: 'Invalid credentials' });
         const user = rows[0];
+        // Check if password_hash exists before comparing
+        if (!user.password_hash) {
+            return res.status(401).json({ message: 'Invalid credentials. Please log in with Discord.' });
+        }
         const isMatch = await bcrypt.compare(password, user.password_hash);
         if (!isMatch) return res.status(401).json({ message: 'Invalid credentials' });
         const payload = { id: user.id, username: user.username, role: user.role };
@@ -187,8 +196,8 @@ apiRouter.post('/register', verifyTurnstile, async (req, res) => {
         const newUserId = result.insertId;
         const payload = { id: newUserId, username: username, role: 'buyer' };
         const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '8h' });
-        res.status(201).json({ 
-            success: true, 
+        res.status(201).json({
+            success: true,
             message: 'User created successfully.',
             token: token,
             username: username,
@@ -231,13 +240,10 @@ apiRouter.get('/auth/discord/callback', async (req, res) => {
         let [users] = await dbPool.query("SELECT * FROM adminusers WHERE discord_id = ?", [discordId]);
         let user = users[0];
         if (!user) {
-            // --- MODIFIED SECTION START ---
-            // Explicitly set password_hash to NULL for new Discord users
             const [result] = await dbPool.query(
                 "INSERT INTO adminusers (username, password_hash, role, discord_id, discord_avatar) VALUES (?, NULL, 'buyer', ?, ?)",
                 [username, discordId, avatar]
             );
-            // --- MODIFIED SECTION END ---
             user = { id: result.insertId, username, role: 'buyer' };
         }
         const payload = { id: user.id, username: user.username, role: user.role };
@@ -249,14 +255,13 @@ apiRouter.get('/auth/discord/callback', async (req, res) => {
     }
 });
 
-// ... (The rest of your /tickets routes are fine) ...
-
 // --- TICKET ROUTES ---
+// ... (The ticket routes are fine and do not need changes) ...
 apiRouter.get('/tickets/all', verifyToken, requireSeller, async (req, res) => {
     try {
         const query = `
-            SELECT 
-                t.*, 
+            SELECT
+                t.*,
                 buyer.username as buyer_name,
                 seller.username as claimed_by_name,
                 (SELECT sender FROM ticket_messages tm WHERE tm.ticket_id = t.id ORDER BY tm.created_at DESC LIMIT 1) as last_message_sender
