@@ -97,7 +97,7 @@ async function initializeDatabase() {
         const connection = await dbPool.getConnection();
         console.log("Successfully connected to MySQL database.");
         await connection.query(`CREATE TABLE IF NOT EXISTS adminusers (id INT AUTO_INCREMENT PRIMARY KEY, username VARCHAR(255) UNIQUE NOT NULL, password_hash VARCHAR(255) NOT NULL, role ENUM('admin','seller','buyer') NOT NULL DEFAULT 'buyer', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
-        await connection.query(`CREATE TABLE IF NOT EXISTS tickets (id INT AUTO_INCREMENT PRIMARY KEY, user_id INT NOT NULL, status ENUM('awaiting', 'processing', 'completed') DEFAULT 'awaiting', license_key VARCHAR(255), payment_method VARCHAR(50), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, FOREIGN KEY (user_id) REFERENCES adminusers(id) ON DELETE CASCADE);`);
+        await connection.query(`CREATE TABLE IF NOT EXISTS tickets (id INT AUTO_INCREMENT PRIMARY KEY, user_id INT NOT NULL, status ENUM('awaiting', 'processing', 'completed') DEFAULT 'awaiting', license_key VARCHAR(255), payment_method VARCHAR(50), claimed_by INT NULL DEFAULT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, FOREIGN KEY (user_id) REFERENCES adminusers(id) ON DELETE CASCADE, FOREIGN KEY (claimed_by) REFERENCES adminusers(id) ON DELETE SET NULL);`);
         await connection.query(`CREATE TABLE IF NOT EXISTS ticket_messages (id INT AUTO_INCREMENT PRIMARY KEY, ticket_id INT NOT NULL, sender ENUM('user', 'seller') NOT NULL, message TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE);`);
         connection.release();
         console.log("Database schema verified.");
@@ -132,30 +132,24 @@ const verifyToken = (req, res, next) => {
     });
 };
 
-// ===== THIS FUNCTION IS UPDATED WITH BETTER LOGGING =====
 const verifyTurnstile = async (req, res, next) => {
     const secretKey = process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY;
     if (!secretKey) {
-        console.error("CRITICAL: CLOUDFLARE_TURNSTILE_SECRET_KEY is not set. Skipping CAPTCHA verification.");
+        console.error("CRITICAL: CLOUDFLARE_TURNSTILE_SECRET_KEY is not set.");
         return next();
     }
     const token = req.body.turnstileToken;
-    if (!token) {
-        return res.status(400).json({ message: 'CAPTCHA token is required.' });
-    }
+    if (!token) return res.status(400).json({ message: 'CAPTCHA token is required.' });
     try {
         const formData = new URLSearchParams();
         formData.append('secret', secretKey);
         formData.append('response', token);
         if (req.ip) { formData.append('remoteip', req.ip); }
-        
         const response = await axios.post('https://challenges.cloudflare.com/turnstile/v0/siteverify', formData);
-        
         const outcome = response.data;
         if (outcome.success) {
-            next(); // Verification successful
+            next();
         } else {
-            // NEW: Log the specific error codes from Cloudflare for debugging
             console.error('Turnstile verification failed. Cloudflare error codes:', outcome['error-codes']);
             res.status(403).json({ message: 'Failed CAPTCHA verification.' });
         }
@@ -203,6 +197,7 @@ apiRouter.post('/login', verifyTurnstile, async (req, res) => {
     }
 });
 
+// ===== THIS ENDPOINT IS UPDATED FOR AUTO-LOGIN =====
 apiRouter.post('/register', verifyTurnstile, async (req, res) => {
     const { username, password } = req.body;
     if (!username || !password || username.length < 3) {
@@ -214,12 +209,26 @@ apiRouter.post('/register', verifyTurnstile, async (req, res) => {
             return res.status(409).json({ message: 'Username already taken.' });
         }
         const hashedPassword = await bcrypt.hash(password, 12);
-        await dbPool.query("INSERT INTO adminusers (username, password_hash, role) VALUES (?, ?, 'buyer')", [username, hashedPassword]);
-        res.status(201).json({ success: true, message: 'User created.' });
+        const [result] = await dbPool.query("INSERT INTO adminusers (username, password_hash, role) VALUES (?, ?, 'buyer')", [username, hashedPassword]);
+        
+        // NEW: Automatically create a login token and send it back
+        const newUserId = result.insertId;
+        const payload = { id: newUserId, username: username, role: 'buyer' };
+        const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '8h' });
+
+        res.status(201).json({ 
+            success: true, 
+            message: 'User created successfully.',
+            token: token,
+            username: username,
+            role: 'buyer'
+        });
     } catch (error) {
+        console.error('Registration error:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 });
+
 
 // --- TICKET ROUTES ---
 apiRouter.post('/tickets', verifyTurnstile, verifyToken, requireBuyer, validateTicketCreation, async (req, res) => {
@@ -254,18 +263,30 @@ apiRouter.get('/tickets/my', verifyToken, requireBuyer, async (req, res) => {
 
 apiRouter.get('/tickets/all', verifyToken, requireSeller, async (req, res) => {
     try {
-        const [tickets] = await dbPool.query(`SELECT t.*, u.username as buyer_name FROM tickets t JOIN adminusers u ON t.user_id = u.id ORDER BY t.updated_at DESC`);
+        const query = `
+            SELECT 
+                t.*, 
+                buyer.username as buyer_name,
+                seller.username as claimed_by_name,
+                (SELECT sender FROM ticket_messages tm WHERE tm.ticket_id = t.id ORDER BY tm.created_at DESC LIMIT 1) as last_message_sender
+            FROM tickets t
+            JOIN adminusers buyer ON t.user_id = buyer.id
+            LEFT JOIN adminusers seller ON t.claimed_by = seller.id
+            ORDER BY t.updated_at DESC
+        `;
+        const [tickets] = await dbPool.query(query);
         for (let ticket of tickets) {
             const [messages] = await dbPool.query("SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC", [ticket.id]);
             ticket.messages = messages;
         }
         res.json(tickets);
     } catch (error) {
+        console.error("Error fetching all tickets:", error);
         res.status(500).json({ message: 'Failed to fetch all tickets' });
     }
 });
 
-apiRouter.post('/tickets/:id/messages', verifyToken, requireAnyRole, validateTicketMessage, async (req, res) => {
+apiRouter.post('/tickets/:id/messages', verifyToken, requireAnyRole, async (req, res) => {
     const { id } = req.params;
     const { message } = req.body;
     try {
@@ -273,8 +294,9 @@ apiRouter.post('/tickets/:id/messages', verifyToken, requireAnyRole, validateTic
         if (tickets.length === 0) return res.status(404).json({ message: 'Ticket not found.' });
         const ticket = tickets[0];
         const senderType = (req.user.role === 'buyer') ? 'user' : 'seller';
-        if (senderType === 'user' && ticket.user_id !== req.user.id) {
-             return res.status(403).json({ message: 'Forbidden' });
+        if (senderType === 'user' && ticket.user_id !== req.user.id) return res.status(403).json({ message: 'Forbidden' });
+        if (senderType === 'seller' && req.user.role !== 'admin' && ticket.claimed_by && ticket.claimed_by !== req.user.id) {
+            return res.status(403).json({ message: 'This ticket is claimed by another seller.' });
         }
         await dbPool.query("INSERT INTO ticket_messages (ticket_id, sender, message) VALUES (?, ?, ?)", [id, senderType, message]);
         if (ticket.status === 'awaiting') {
@@ -282,12 +304,26 @@ apiRouter.post('/tickets/:id/messages', verifyToken, requireAnyRole, validateTic
         } else {
             await dbPool.query("UPDATE tickets SET updated_at = CURRENT_TIMESTAMP WHERE id = ?", [id]);
         }
-        const [updatedTickets] = await dbPool.query(`SELECT t.*, u.username as buyer_name FROM tickets t JOIN adminusers u ON t.user_id = u.id WHERE t.id = ?`, [id]);
-        const [messages] = await dbPool.query("SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC", [id]);
-        updatedTickets[0].messages = messages;
-        res.json(updatedTickets[0]);
+        res.json({ success: true, message: 'Message sent.' });
     } catch (error) {
         res.status(500).json({ message: 'Failed to add message' });
+    }
+});
+
+apiRouter.post('/tickets/:id/claim', verifyToken, requireSeller, async (req, res) => {
+    const { id } = req.params;
+    const sellerId = req.user.id;
+    try {
+        const [tickets] = await dbPool.query("SELECT * FROM tickets WHERE id = ? FOR UPDATE", [id]);
+        if (tickets.length === 0) return res.status(404).json({ message: 'Ticket not found.' });
+        if (tickets[0].claimed_by) return res.status(409).json({ message: 'Ticket has already been claimed.' });
+        await dbPool.query("UPDATE tickets SET claimed_by = ?, status = 'processing', updated_at = CURRENT_TIMESTAMP WHERE id = ?", [sellerId, id]);
+        const sellerUsername = req.user.username;
+        await dbPool.query("INSERT INTO ticket_messages (ticket_id, sender, message) VALUES (?, 'seller', ?)", [id, `${sellerUsername} has joined the chat and will assist you.`]);
+        res.json({ success: true, message: `You have claimed ticket #${id}` });
+    } catch (error) {
+        console.error('Error claiming ticket:', error);
+        res.status(500).json({ message: 'Failed to claim ticket' });
     }
 });
 
@@ -298,12 +334,7 @@ apiRouter.post('/tickets/:id/complete', verifyToken, requireSeller, async (req, 
         return res.status(400).json({ message: 'License key is required to complete a ticket.' });
     }
     try {
-        const [tickets] = await dbPool.query("SELECT * FROM tickets WHERE id = ?", [id]);
-        if (tickets.length === 0) return res.status(404).json({ message: 'Ticket not found.' });
-        await dbPool.query(
-            "UPDATE tickets SET status = 'completed', license_key = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", 
-            [licenseKey.trim(), id]
-        );
+        await dbPool.query( "UPDATE tickets SET status = 'completed', license_key = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", [licenseKey.trim(), id]);
         await dbPool.query("INSERT INTO ticket_messages (ticket_id, sender, message) VALUES (?, 'seller', ?)", [id, `Your purchase is complete! Your license key is: ${licenseKey.trim()}`]);
         const [updatedTickets] = await dbPool.query(`SELECT t.*, u.username as buyer_name FROM tickets t JOIN adminusers u ON t.user_id = u.id WHERE t.id = ?`, [id]);
         const [messages] = await dbPool.query("SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC", [id]);
@@ -329,10 +360,8 @@ apiRouter.delete('/tickets/:id', verifyToken, requireSeller, async (req, res) =>
 
 // --- OTHER ADMIN ROUTES ---
 apiRouter.get('/health', (req, res) => res.status(200).json({ status: 'ok' }));
-apiRouter.get('/clients', verifyToken, requireSeller, (req, res) => res.json({ count: clients.size, clients: Array.from(clients.values()) }));
 
 app.use('/api', apiRouter);
-
 
 // --- FRONTEND ROUTE HANDLER ---
 app.get('/seller', (req, res) => {
