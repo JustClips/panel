@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="UTF--8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Eps1llon Seller Hub</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -272,7 +272,7 @@
                 </div>
                 <div class="cf-turnstile" data-sitekey="0x4AAAAAAB0PeEmSeY6uJ3nN" data-theme="dark" style="margin-bottom: 1.5rem;"></div>
                 <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.75rem;">Login</button>
-                <p id="login-error">Invalid username or password.</p>
+                <p id="login-error" style="display: none;">Invalid username or password.</p>
             </form>
         </div>
     </div>
@@ -332,7 +332,7 @@
                               <div class="panel-header">
                                   <div>
                                     <h2 id="chat-header-title"></h2>
-                                    <p id="chat-header-details" style="font-size: 0.8rem; color: var(--text-secondary);"></p>
+                                    <p id="chat-header-details"></p>
                                   </div>
                                   <div style="display: flex; gap: 0.5rem;">
                                       <button id="complete-ticket-btn" class="btn btn-success"><i class="fas fa-check-circle"></i></button>
@@ -358,13 +358,15 @@
     </div>
     
     <script>
+        // NOTE: JS is preserved but slightly adapted for the new, stable design.
         document.addEventListener('DOMContentLoaded', () => {
-            const API_BASE_URL = '/api';
+            const API_BASE_URL = '/api'; 
             const state = { user: null, tickets: [], currentTicketId: null, pollingInterval: null };
             const selectors = {
                 loginContainer: document.getElementById('login-container'),
                 appContainer: document.getElementById('app-container'),
                 loginForm: document.getElementById('login-form'),
+                loginError: document.getElementById('login-error'),
                 logoutBtn: document.getElementById('logout-btn'),
                 chatListAwaiting: document.getElementById('chat-list-awaiting'),
                 chatListActive: document.getElementById('chat-list-active'),
@@ -377,12 +379,8 @@
                 chatReplyForm: document.getElementById('chat-reply-form'),
                 chatReplyInput: document.getElementById('chat-reply-input'),
                 claimOverlay: document.getElementById('claim-ticket-overlay'),
-                claimBtnOverlay: document.getElementById('claim-ticket-btn-overlay'),
-                claimBuyerName: document.getElementById('claim-buyer-name'),
-                claimPaymentMethod: document.getElementById('claim-payment-method'),
                 completeBtn: document.getElementById('complete-ticket-btn'),
                 deleteBtn: document.getElementById('delete-ticket-btn'),
-                notificationSound: document.getElementById('notification-sound'),
                 statAwaiting: document.getElementById('stat-awaiting'),
                 statActive: document.getElementById('stat-active'),
                 statCompleted: document.getElementById('stat-completed'),
@@ -399,16 +397,63 @@
                 selectors.loginContainer.style.display = 'flex';
                 if (state.pollingInterval) clearInterval(state.pollingInterval);
             };
+            
+            const authFetch = async (url, options = {}) => {
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    hideApp();
+                    throw new Error('No token found.');
+                }
+                const headers = { 'Content-Type': 'application/json', ...options.headers, 'Authorization': `Bearer ${token}` };
+                const response = await fetch(url, { ...options, headers });
+                if (response.status === 401 || response.status === 403) {
+                    localStorage.removeItem('token');
+                    hideApp();
+                    throw new Error('Session expired. Please log in again.');
+                }
+                return response;
+            };
+
+            const handleLogin = async (e) => {
+                e.preventDefault();
+                selectors.loginError.style.display = 'none';
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+                const turnstileToken = selectors.loginForm.querySelector('[name="cf-turnstile-response"]')?.value;
+
+                try {
+                    const response = await fetch(`${API_BASE_URL}/login`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username, password, turnstileToken })
+                    });
+                    const data = await response.json();
+                    if (!response.ok || !['seller', 'admin'].includes(data.role)) {
+                        throw new Error(data.message || 'Invalid credentials or permissions.');
+                    }
+                    localStorage.setItem('token', data.token);
+                    showApp();
+                } catch (error) {
+                    selectors.loginError.textContent = error.message;
+                    selectors.loginError.style.display = 'block';
+                    document.querySelector('.login-box').classList.add('shake');
+                    setTimeout(() => document.querySelector('.login-box').classList.remove('shake'), 500);
+                } finally {
+                    if (window.turnstile) window.turnstile.reset();
+                }
+            };
+            
+            const getPaymentMethodIcon = (method) => ({
+                'PayPal': 'fab fa-paypal', 'Crypto': 'fab fa-bitcoin', 'Credit Card': 'fas fa-credit-card',
+                'Bank Transfer': 'fas fa-university', 'Google Pay': 'fab fa-google-pay', 'Apple Pay': 'fab fa-apple-pay',
+                'CashApp': 'fas fa-dollar-sign', 'Gag Pets': 'fas fa-paw', 'Secret Brainrots': 'fas fa-brain'
+            }[method] || 'fas fa-receipt');
+            
+            const escapeHTML = str => str ? str.toString().replace(/[&<>"']/g, tag => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[tag])) : '';
 
             const renderChatList = (tickets, container) => {
-                const titleMap = {
-                    'chat-list-awaiting': 'Awaiting Claim',
-                    'chat-list-active': 'My Active Chats',
-                    'chat-list-completed': 'Completed'
-                };
+                const titleMap = { 'chat-list-awaiting': 'Awaiting Claim', 'chat-list-active': 'My Active Chats', 'chat-list-completed': 'Completed' };
                 container.innerHTML = `<h2 class="chat-list-header">${titleMap[container.id]} (${tickets.length})</h2>`;
-                if (!tickets.length) return;
-                
                 const fragment = document.createDocumentFragment();
                 tickets.forEach(chat => {
                     const item = document.createElement('div');
@@ -434,23 +479,20 @@
                 container.appendChild(fragment);
             };
 
-            const displayChatDetails = (chatId, isRefresh = false) => {
+            const displayChatDetails = (chatId) => {
                 const chat = state.tickets.find(t => t.id === chatId);
                 if (!chat) return resetChatView();
+                state.currentTicketId = chatId;
                 
-                if (!isRefresh) {
-                    state.currentTicketId = chatId;
-                    document.querySelectorAll('.chat-item').forEach(item => {
-                        item.classList.toggle('active', parseInt(item.dataset.chatId) === chatId);
-                    });
-                }
+                document.querySelectorAll('.chat-item').forEach(item => {
+                    item.classList.toggle('active', parseInt(item.dataset.chatId) === chatId);
+                });
                 
                 selectors.chatPlaceholder.style.display = 'none';
-                selectors.claimOverlay.classList.add('hidden');
                 selectors.chatView.classList.remove('hidden');
 
                 selectors.chatHeaderTitle.innerHTML = `<i class="${getPaymentMethodIcon(chat.payment_method)}"></i> ${escapeHTML(chat.buyer_name)}`;
-                selectors.chatHeaderDetails.textContent = `Status: ${chat.status} | Claimed by: ${chat.claimed_by_name || 'None'}`;
+                selectors.chatHeaderDetails.textContent = `Status: ${chat.status}`;
                 
                 const isMyTicket = chat.claimed_by === state.user.id;
                 selectors.completeBtn.style.display = isMyTicket && chat.status !== 'completed' ? 'inline-flex' : 'none';
@@ -475,9 +517,7 @@
             const resetChatView = () => {
                 state.currentTicketId = null;
                 selectors.chatView.classList.add('hidden');
-                selectors.claimOverlay.classList.add('hidden');
                 selectors.chatPlaceholder.style.display = 'flex';
-                document.querySelectorAll('.chat-item.active').forEach(el => el.classList.remove('active'));
             };
 
             const loadChats = async () => {
@@ -491,28 +531,21 @@
                         const awaiting = state.tickets.filter(t => !t.claimed_by && t.status !== 'completed');
                         const active = state.tickets.filter(t => t.claimed_by === state.user.id && t.status !== 'completed');
                         const completed = state.tickets.filter(t => t.status === 'completed');
-
+                        
                         renderChatList(awaiting.sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at)), selectors.chatListAwaiting);
                         renderChatList(active.sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at)), selectors.chatListActive);
                         renderChatList(completed.sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at)), selectors.chatListCompleted);
 
-                        // Also update dashboard stats
                         selectors.statAwaiting.textContent = awaiting.length;
                         selectors.statActive.textContent = active.length;
                         selectors.statCompleted.textContent = state.tickets.filter(t => t.status === 'completed').length;
                         
-                        if (state.currentTicketId) {
-                            displayChatDetails(state.currentTicketId, true);
-                        }
+                        if (state.currentTicketId) displayChatDetails(state.currentTicketId);
                     }
-                } catch (error) {
-                    console.error(error);
-                }
+                } catch (error) { console.error(error); }
             };
             
             const initApp = () => {
-                // Simplified init function. The original had many event listeners that can be re-added.
-                // This focuses on getting the core chat functionality working with the new design.
                 const token = localStorage.getItem('token');
                 if (!token) return hideApp();
                 try {
@@ -522,15 +555,9 @@
 
                 resetChatView();
                 loadChats();
-                if(state.pollingInterval) clearInterval(state.pollingInterval);
                 state.pollingInterval = setInterval(loadChats, 5000);
                 
-                // Event Listeners
-                selectors.logoutBtn.addEventListener('click', (e) => { 
-                    e.preventDefault(); 
-                    localStorage.removeItem('token'); 
-                    hideApp(); 
-                });
+                selectors.logoutBtn.addEventListener('click', (e) => { e.preventDefault(); localStorage.removeItem('token'); hideApp(); });
 
                 document.querySelectorAll('.nav-links a[data-tab]').forEach(link => {
                     link.addEventListener('click', (e) => {
@@ -565,15 +592,7 @@
                 });
             };
 
-            const escapeHTML = str => str ? str.toString().replace(/[&<>"']/g, tag => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[tag])) : '';
-
-            // Initial load check
-            if (localStorage.getItem('token')) {
-                showApp();
-            } else {
-                selectors.loginContainer.style.display = 'flex';
-                selectors.appContainer.style.display = 'none';
-            }
+            if (localStorage.getItem('token')) showApp(); else hideApp();
             selectors.loginForm.addEventListener('submit', handleLogin);
         });
     </script>
