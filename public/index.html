@@ -686,6 +686,15 @@
           <div class="cf-turnstile mb-4" data-sitekey="0x4AAAAAAB0PeEmSeY6uJ3nN" data-theme="dark"></div>
           <button type="submit" class="w-full text-white font-bold py-3 px-6 rounded-lg btn-primary text-lg has-ripple">Sign Up</button>
         </form>
+        <div class="my-6 flex items-center">
+            <div class="flex-grow border-t border-border-color"></div>
+            <span class="mx-4 text-text-muted">OR</span>
+            <div class="flex-grow border-t border-border-color"></div>
+        </div>
+        <button type="button" class="discord-login-btn w-full flex justify-center items-center text-white font-bold py-3 px-6 rounded-lg bg-[#5865F2] hover:bg-[#4752C4] transition-colors has-ripple">
+            <i class="fab fa-discord mr-3 text-xl"></i>
+            Continue with Discord
+        </button>
         <p class="text-center mt-6 text-text-muted">Already have an account? <a href="#" id="show-login" class="text-primary hover:underline font-medium">Log In</a></p>
       </div>
       <div id="login-view" class="hidden">
@@ -703,6 +712,15 @@
           <div class="cf-turnstile mb-4" data-sitekey="0x4AAAAAAB0PeEmSeY6uJ3nN" data-theme="dark"></div>
           <button type="submit" class="w-full text-white font-bold py-3 px-6 rounded-lg btn-primary text-lg has-ripple">Log In</button>
         </form>
+        <div class="my-6 flex items-center">
+            <div class="flex-grow border-t border-border-color"></div>
+            <span class="mx-4 text-text-muted">OR</span>
+            <div class="flex-grow border-t border-border-color"></div>
+        </div>
+        <button type="button" class="discord-login-btn w-full flex justify-center items-center text-white font-bold py-3 px-6 rounded-lg bg-[#5865F2] hover:bg-[#4752C4] transition-colors has-ripple">
+            <i class="fab fa-discord mr-3 text-xl"></i>
+            Login with Discord
+        </button>
         <p class="text-center mt-6 text-text-muted">Don't have an account? <a href="#" id="show-signup" class="text-primary hover:underline font-medium">Sign Up</a></p>
       </div>
     </div>
@@ -841,6 +859,19 @@
     document.addEventListener('DOMContentLoaded', () => {
       const API_BASE_URL = '/api';
       
+      // === NEW: HANDLE DISCORD LOGIN REDIRECT ===
+      // This checks for a token in the URL hash, stores it, and cleans the URL.
+      let justLoggedInViaOAuth = false;
+      if (window.location.hash.startsWith('#token=')) {
+          const token = window.location.hash.substring(7); // #token=... -> ...
+          if (token) {
+              localStorage.setItem('token', token);
+              // Clean the URL hash without reloading the page
+              history.replaceState(null, null, window.location.pathname + window.location.search);
+              justLoggedInViaOAuth = true;
+          }
+      }
+      
       const App = {
         state: {
           isLoggedIn: false,
@@ -852,11 +883,19 @@
         
         elements: {},
         
-        init() {
+        async init() {
           this.cacheElements();
-          this.loadState();
           this.registerEventListeners();
-          this.updateUI();
+          // Load state will now pick up the token from localStorage if it was in the URL
+          this.loadState(); 
+          
+          // If just logged in via Discord, automatically open the purchase portal
+          if (justLoggedInViaOAuth && this.state.isLoggedIn) {
+              this.showToast(`Welcome, ${this.state.user.username}!`);
+              await this.loadTickets();
+              this.openTicketSystem();
+          }
+          
           this.initScrollAnimations();
           
           setInterval(() => {
@@ -910,6 +949,8 @@
             usernameDisplay: document.getElementById('username-display'),
             logoutButton: document.getElementById('logout-button'),
             loginNavBtn: document.getElementById('login-nav-btn'),
+            // === NEW: Cache Discord Login Buttons ===
+            discordLoginBtns: document.querySelectorAll('.discord-login-btn'),
           };
         },
         
@@ -921,9 +962,6 @@
               if (payload.exp * 1000 > Date.now()) {
                 this.state.isLoggedIn = true;
                 this.state.user = { id: payload.id, username: payload.username };
-                // This line was causing the issue. We should only load tickets if the user is logged in
-                // and not on initial page load before they have a chance to do anything.
-                // We'll call loadTickets() only after a successful login.
               } else {
                 this.logout();
               }
@@ -931,7 +969,7 @@
               this.logout();
             }
           }
-           this.updateUI();
+          this.updateUI(); // Moved from the middle of the function to the end
         },
         
         async apiCall(endpoint, options = {}) {
@@ -1028,6 +1066,14 @@
           this.elements.confirmPaymentBtn.addEventListener('click', this.handlePaymentMethodConfirm.bind(this));
           this.elements.logoutButton.addEventListener('click', this.logout.bind(this));
           this.elements.loginNavBtn.addEventListener('click', this.openAuthModal.bind(this));
+
+          // === NEW: Add Discord Login Button Listeners ===
+          this.elements.discordLoginBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+              // Redirect to the backend Discord auth route
+              window.location.href = '/api/auth/discord';
+            });
+          });
           
           this.elements.paymentMethodOptions.forEach(option => {
             option.addEventListener('click', () => {
@@ -1074,6 +1120,7 @@
           if (this.state.isLoggedIn) {
             this.elements.authLinks.classList.add('hidden');
             this.elements.userInfo.classList.remove('hidden');
+            this.elements.userInfo.classList.add('flex'); // Ensure flex is added back
             this.elements.usernameDisplay.textContent = this.state.user.username;
             btnHTML = (hasActiveTicket || this.state.tickets.length > 0) 
               ? `<i class="fas fa-arrow-right mr-3"></i> My Purchases` 
@@ -1081,6 +1128,7 @@
           } else {
             this.elements.authLinks.classList.remove('hidden');
             this.elements.userInfo.classList.add('hidden');
+            this.elements.userInfo.classList.remove('flex');
             btnHTML = `<i class="fas fa-shopping-cart mr-3"></i> Purchase Now`;
           }
           
