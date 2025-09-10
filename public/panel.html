@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF--8">
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Eps1llon Seller Hub</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -10,8 +10,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     <style>
-        /* === COMPLETE REWORK: NEW DESIGN SYSTEM & LAYOUT === */
-
         :root {
             --font-family: 'Inter', sans-serif;
             --background-primary: #0a0c10;
@@ -29,224 +27,75 @@
             --shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
             --radius: 10px;
         }
-
-        /* --- Base Styles --- */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        html {
-            font-family: var(--font-family);
-            background: var(--background-primary);
-            color: var(--text-primary);
-        }
-
-        body {
-            height: 100vh;
-            width: 100vw;
-            overflow: hidden;
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { font-family: var(--font-family); background: var(--background-primary); color: var(--text-primary); }
+        body { height: 100vh; width: 100vw; overflow: hidden; }
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: var(--border-primary); border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
-
-        /* --- Login Page --- */
-        #login-container {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 100%;
-            animation: fadeIn 0.5s ease;
-        }
-
+        #login-container { display: flex; align-items: center; justify-content: center; height: 100%; animation: fadeIn 0.5s ease; }
         .login-box {
-            width: 100%;
-            max-width: 400px;
-            padding: 2.5rem;
-            background: var(--background-secondary);
-            border: 1px solid var(--border-primary);
-            border-radius: var(--radius);
-            text-align: center;
+            width: 100%; max-width: 400px; padding: 2.5rem; background: var(--background-secondary);
+            border: 1px solid var(--border-primary); border-radius: var(--radius); text-align: center;
         }
-        .login-box h2 {
-            display: flex; align-items: center; justify-content: center;
-            gap: 0.75rem; font-size: 1.5rem; margin-bottom: 0.5rem; color: var(--text-emphasis);
-        }
+        .login-box h2 { display: flex; align-items: center; justify-content: center; gap: 0.75rem; font-size: 1.5rem; margin-bottom: 0.5rem; color: var(--text-emphasis); }
         .login-box h2 i { color: var(--accent-primary); }
         .login-box p { color: var(--text-secondary); margin-bottom: 2rem; }
         .input-group { margin-bottom: 1.25rem; }
-        
-        /* --- Main Application Layout --- */
-        #app-container {
-            display: grid;
-            grid-template-columns: 260px 1fr;
-            height: 100vh;
-            width: 100vw;
-        }
-
-        /* --- Sidebar --- */
-        .sidebar {
-            background: var(--background-secondary);
-            border-right: 1px solid var(--border-primary);
-            display: flex;
-            flex-direction: column;
-            padding: 1.5rem 1rem;
-        }
-        .logo {
-            display: flex; align-items: center; gap: 0.75rem;
-            padding: 0 0.5rem 1.5rem; margin-bottom: 1rem;
-            border-bottom: 1px solid var(--border-primary);
-        }
+        #app-container { display: grid; grid-template-columns: 260px 1fr; height: 100vh; width: 100vw; }
+        .sidebar { background: var(--background-secondary); border-right: 1px solid var(--border-primary); display: flex; flex-direction: column; padding: 1.5rem 1rem; }
+        .logo { display: flex; align-items: center; gap: 0.75rem; padding: 0 0.5rem 1.5rem; margin-bottom: 1rem; border-bottom: 1px solid var(--border-primary); }
         .logo i { font-size: 1.75rem; color: var(--accent-primary); }
         .logo h1 { font-size: 1.25rem; font-weight: 600; }
         .nav-links { flex-grow: 1; overflow-y: auto; }
-        .nav-category {
-            font-size: 0.7rem; font-weight: 600; text-transform: uppercase;
-            letter-spacing: 0.05em; color: var(--text-secondary);
-            padding: 1.5rem 0.5rem 0.5rem;
-        }
-        .nav-links a {
-            display: flex; align-items: center; gap: 1rem;
-            padding: 0.75rem; margin-bottom: 0.25rem;
-            font-size: 0.9rem; font-weight: 500;
-            color: var(--text-secondary); text-decoration: none;
-            border-radius: 8px; transition: 0.2s ease;
-        }
+        .nav-category { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); padding: 1.5rem 0.5rem 0.5rem; }
+        .nav-links a { display: flex; align-items: center; gap: 1rem; padding: 0.75rem; margin-bottom: 0.25rem; font-size: 0.9rem; font-weight: 500; color: var(--text-secondary); text-decoration: none; border-radius: 8px; transition: 0.2s ease; }
         .nav-links a:hover { color: var(--text-emphasis); background: var(--surface-hover); }
         .nav-links a.active { color: var(--text-emphasis); background: var(--accent-primary); font-weight: 600; }
         .nav-links a i { width: 20px; text-align: center; }
         .logout-link { margin-top: auto; }
-
-        /* --- Main Content --- */
-        .main-content {
-            display: grid;
-            grid-template-rows: auto 1fr; /* Header + Content */
-            padding: 2rem 2.5rem;
-            gap: 2rem;
-            overflow: hidden;
-        }
+        .main-content { display: grid; grid-template-rows: auto 1fr; padding: 2rem 2.5rem; gap: 2rem; overflow: hidden; }
         header h1 { font-size: 1.75rem; font-weight: 600; }
         .content-panel { display: none; overflow: hidden; }
         .content-panel.active { display: block; animation: fadeIn 0.4s ease; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-        /* --- Dashboard --- */
         .panel-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
-        .stat-card {
-            background: var(--background-secondary); border: 1px solid var(--border-primary);
-            border-radius: var(--radius); padding: 1.5rem;
-        }
+        .stat-card { background: var(--background-secondary); border: 1px solid var(--border-primary); border-radius: var(--radius); padding: 1.5rem; }
         .stat-number { font-size: 2.5rem; font-weight: 700; color: var(--accent-primary); }
         .stat-label { color: var(--text-secondary); margin-top: 0.5rem; }
-
-        /* --- Chat Page --- */
         #chats-tab { height: 100%; }
-        #chats-grid {
-            display: grid;
-            grid-template-columns: 360px 1fr;
-            gap: 1.5rem;
-            height: 100%;
-        }
-        .panel-wrapper {
-            background: var(--background-secondary);
-            border: 1px solid var(--border-primary);
-            border-radius: var(--radius);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            height: 100%;
-        }
+        #chats-grid { display: grid; grid-template-columns: 360px 1fr; gap: 1.5rem; height: 100%; }
+        .panel-wrapper { background: var(--background-secondary); border: 1px solid var(--border-primary); border-radius: var(--radius); display: flex; flex-direction: column; overflow: hidden; height: 100%; }
         #chat-list-container { overflow-y: auto; padding-bottom: 1rem; }
-        .chat-list-header {
-            font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
-            letter-spacing: 0.05em; color: var(--text-secondary);
-            padding: 1.25rem 1.25rem 0.5rem;
-        }
-        .chat-item {
-            display: flex; align-items: center; gap: 1rem;
-            margin: 0.25rem 1rem; padding: 0.75rem;
-            border-radius: 8px; cursor: pointer; position: relative;
-            transition: 0.2s ease;
-        }
+        .chat-list-header { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); padding: 1.25rem 1.25rem 0.5rem; }
+        .chat-item { display: flex; flex-direction: column; gap: 0.75rem; margin: 0.25rem 1rem; padding: 0.75rem; border-radius: 8px; cursor: pointer; position: relative; transition: 0.2s ease; }
+        .chat-item-main { display: flex; gap: 1rem; align-items: center; }
         .chat-item:hover { background: var(--surface-hover); }
         .chat-item.active { background: var(--accent-primary); }
         .chat-item.active, .chat-item.active .chat-payment, .chat-item.active .chat-date { color: var(--text-emphasis); }
-        .chat-item-icon {
-            width: 40px; height: 40px; flex-shrink: 0;
-            display: grid; place-items: center;
-            background: var(--surface-primary); border-radius: 8px;
-        }
+        .chat-item-icon { width: 40px; height: 40px; flex-shrink: 0; display: grid; place-items: center; background: var(--surface-primary); border-radius: 8px; }
         .chat-item.active .chat-item-icon { background: rgba(255,255,255,0.15); }
         .chat-item-details { flex-grow: 1; min-width: 0; }
         .chat-user { font-weight: 500; font-size: 0.9rem; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
         .chat-payment { font-size: 0.8rem; color: var(--text-secondary); }
-        .unread-badge {
-            position: absolute; top: 0.5rem; right: 0.5rem;
-            background: var(--accent-danger); color: white;
-            font-size: 0.7rem; font-weight: 600;
-            line-height: 1; padding: 4px 7px;
-            border-radius: 50px; border: 2px solid var(--background-secondary);
-        }
-
-        /* --- Chat View --- */
-        #chat-view, #chat-placeholder, #claim-ticket-overlay {
-            display: flex; flex-direction: column; height: 100%;
-        }
-        .panel-header {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 0.75rem 1.5rem; border-bottom: 1px solid var(--border-primary);
-            flex-shrink: 0;
-        }
+        .unread-badge { position: absolute; top: 0.5rem; right: 0.5rem; background: var(--accent-danger); color: white; font-size: 0.7rem; font-weight: 600; line-height: 1; padding: 4px 7px; border-radius: 50px; border: 2px solid var(--background-secondary); }
+        #chat-view, #chat-placeholder { display: flex; flex-direction: column; height: 100%; }
+        .panel-header { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1.5rem; border-bottom: 1px solid var(--border-primary); flex-shrink: 0; }
         #chat-header-title { font-size: 1.1rem; font-weight: 500; display: flex; align-items: center; gap: 0.75rem; }
         #chat-header-details { font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px; }
-        #chat-messages {
-            flex-grow: 1;
-            overflow-y: auto;
-            padding: 1.5rem;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-end; /* Push content to bottom */
-        }
+        #chat-messages { flex-grow: 1; overflow-y: auto; padding: 1.5rem; display: flex; flex-direction: column; justify-content: flex-end; }
         .message-list-wrapper { display: flex; flex-direction: column; gap: 1rem; }
-        .message-bubble {
-            max-width: 75%; padding: 0.75rem 1.25rem;
-            line-height: 1.5; border-radius: 18px;
-            animation: fadeIn 0.4s ease;
-        }
+        .message-bubble { max-width: 75%; padding: 0.75rem 1.25rem; line-height: 1.5; border-radius: 18px; animation: fadeIn 0.4s ease; }
         .message-bubble.seller { background: var(--accent-primary); color: white; border-bottom-right-radius: 6px; align-self: flex-end; }
         .message-bubble.user { background: var(--surface-primary); border-bottom-left-radius: 6px; align-self: flex-start; }
-        #chat-reply-form {
-            display: flex; gap: 1rem; align-items: flex-start;
-            padding: 1rem 1.5rem; border-top: 1px solid var(--border-primary);
-        }
-        
+        #chat-reply-form { display: flex; gap: 1rem; align-items: flex-start; padding: 1rem 1.5rem; border-top: 1px solid var(--border-primary); }
         #chat-placeholder { justify-content: center; align-items: center; color: var(--text-secondary); }
         #chat-placeholder i { font-size: 3rem; margin-bottom: 1rem; }
-
-        /* --- Forms & Buttons --- */
-        .form-control {
-            width: 100%; padding: 0.75rem 1rem;
-            background: var(--background-primary); color: var(--text-primary);
-            border: 1px solid var(--border-primary); border-radius: 8px;
-            font-size: 0.9rem; transition: 0.2s ease;
-        }
-        .form-control:focus {
-            outline: none; border-color: var(--accent-primary);
-            box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.2);
-        }
+        .form-control { width: 100%; padding: 0.75rem 1rem; background: var(--background-primary); color: var(--text-primary); border: 1px solid var(--border-primary); border-radius: 8px; font-size: 0.9rem; transition: 0.2s ease; }
+        .form-control:focus { outline: none; border-color: var(--accent-primary); box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.2); }
         #chat-reply-input { resize: none; }
-
-        .btn {
-            display: inline-flex; align-items: center; justify-content: center;
-            gap: 0.5rem; font-weight: 500; font-size: 0.9rem;
-            padding: 0.6rem 1rem; border-radius: 8px;
-            border: 1px solid transparent; text-decoration: none;
-            cursor: pointer; transition: 0.2s ease;
-        }
+        .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; font-weight: 500; font-size: 0.9rem; padding: 0.6rem 1rem; border-radius: 8px; border: 1px solid transparent; text-decoration: none; cursor: pointer; transition: 0.2s ease; }
         .btn:disabled { cursor: not-allowed; opacity: 0.6; }
         .btn-primary { background: var(--accent-primary); color: white; }
         .btn-primary:hover:not(:disabled) { background: var(--accent-primary-hover); }
@@ -254,10 +103,12 @@
         .btn-success { background: var(--accent-success); color: white; }
         .btn-secondary { background: var(--surface-primary); color: var(--text-primary); border-color: var(--border-primary); }
         .btn-secondary:hover:not(:disabled) { background: var(--surface-hover); }
+        .btn-claim-ticket { background: transparent; color: var(--accent-success); border: 1px solid var(--accent-success); width: 100%; }
+        .btn-claim-ticket:hover:not(:disabled) { background: var(--accent-success); color: white; }
     </style>
 </head>
 <body>
-    <audio id="notification-sound" src="data:audio/mpeg;base64,SUQzBAAAAAABEVRYWFgAAAAtAAADY29tbWVudABCaW5nIENTUkFQX1NGQkxXU0ZPQUNPMwAAAAAAAExodTEAAAAAADISAWAAAZGfk34pEEYp9+BY0TE3aJgl9xW8EaB/zP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/......"></audio>
+    <audio id="notification-sound" src="https://sndup.net/hb96h/"></audio>
     
     <div id="login-container">
         <div class="login-box">
@@ -345,8 +196,6 @@
                                  <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane"></i></button>
                               </form>
                          </div>
-                         <div id="claim-ticket-overlay" class="hidden">
-                            </div>
                          <div id="chat-placeholder">
                               <i class="fas fa-comments"></i>
                               <p>Select a chat to begin</p>
@@ -358,7 +207,6 @@
     </div>
     
     <script>
-        // NOTE: JS is preserved but slightly adapted for the new, stable design.
         document.addEventListener('DOMContentLoaded', () => {
             const API_BASE_URL = '/api'; 
             const state = { user: null, tickets: [], currentTicketId: null, pollingInterval: null };
@@ -368,6 +216,7 @@
                 loginForm: document.getElementById('login-form'),
                 loginError: document.getElementById('login-error'),
                 logoutBtn: document.getElementById('logout-btn'),
+                chatListContainer: document.getElementById('chat-list-container'),
                 chatListAwaiting: document.getElementById('chat-list-awaiting'),
                 chatListActive: document.getElementById('chat-list-active'),
                 chatListCompleted: document.getElementById('chat-list-completed'),
@@ -378,7 +227,7 @@
                 chatMessages: document.getElementById('chat-messages'),
                 chatReplyForm: document.getElementById('chat-reply-form'),
                 chatReplyInput: document.getElementById('chat-reply-input'),
-                claimOverlay: document.getElementById('claim-ticket-overlay'),
+                notificationSound: document.getElementById('notification-sound'),
                 completeBtn: document.getElementById('complete-ticket-btn'),
                 deleteBtn: document.getElementById('delete-ticket-btn'),
                 statAwaiting: document.getElementById('stat-awaiting'),
@@ -420,7 +269,6 @@
                 const username = document.getElementById('username').value;
                 const password = document.getElementById('password').value;
                 const turnstileToken = selectors.loginForm.querySelector('[name="cf-turnstile-response"]')?.value;
-
                 try {
                     const response = await fetch(`${API_BASE_URL}/login`, {
                         method: 'POST',
@@ -465,15 +313,23 @@
                         const lastSellerMsgIndex = chat.messages.map(m => m.sender).lastIndexOf('seller');
                         unreadCount = chat.messages.slice(lastSellerMsgIndex + 1).filter(m => m.sender === 'user').length;
                     }
+                    const claimButtonHTML = container.id === 'chat-list-awaiting' 
+                        ? `<button class="btn btn-claim-ticket" data-chat-id="${chat.id}"><i class="fas fa-check"></i> Claim</button>` 
+                        : '';
+
                     item.innerHTML = `
-                        ${unreadCount > 0 ? `<div class="unread-badge">${unreadCount}</div>` : ''}
-                        <div class="chat-item-icon"><i class="${getPaymentMethodIcon(chat.payment_method)}"></i></div>
-                        <div class="chat-item-details">
-                            <div class="chat-user">${escapeHTML(chat.buyer_name)}</div>
-                            <div class="chat-payment">${escapeHTML(chat.payment_method)}</div>
+                        <div class="chat-item-main">
+                            ${unreadCount > 0 ? `<div class="unread-badge">${unreadCount}</div>` : ''}
+                            <div class="chat-item-icon"><i class="${getPaymentMethodIcon(chat.payment_method)}"></i></div>
+                            <div class="chat-item-details">
+                                <div class="chat-user">${escapeHTML(chat.buyer_name)}</div>
+                                <div class="chat-payment">${escapeHTML(chat.payment_method)}</div>
+                            </div>
                         </div>
+                        ${claimButtonHTML}
                     `;
-                    item.addEventListener('click', () => displayChatDetails(chat.id));
+                    // Use a more robust way to add click listener for non-button part
+                    item.querySelector('.chat-item-main').addEventListener('click', () => displayChatDetails(chat.id));
                     fragment.appendChild(item);
                 });
                 container.appendChild(fragment);
@@ -483,26 +339,20 @@
                 const chat = state.tickets.find(t => t.id === chatId);
                 if (!chat) return resetChatView();
                 state.currentTicketId = chatId;
-                
                 document.querySelectorAll('.chat-item').forEach(item => {
                     item.classList.toggle('active', parseInt(item.dataset.chatId) === chatId);
                 });
-                
                 selectors.chatPlaceholder.style.display = 'none';
                 selectors.chatView.classList.remove('hidden');
-
                 selectors.chatHeaderTitle.innerHTML = `<i class="${getPaymentMethodIcon(chat.payment_method)}"></i> ${escapeHTML(chat.buyer_name)}`;
                 selectors.chatHeaderDetails.textContent = `Status: ${chat.status}`;
-                
                 const isMyTicket = chat.claimed_by === state.user.id;
                 selectors.completeBtn.style.display = isMyTicket && chat.status !== 'completed' ? 'inline-flex' : 'none';
                 selectors.deleteBtn.style.display = isMyTicket && chat.status === 'completed' ? 'inline-flex' : 'none';
-                
                 const isChatLocked = chat.status === 'completed' || !isMyTicket;
                 selectors.chatReplyInput.disabled = isChatLocked;
                 selectors.chatReplyForm.querySelector('button').disabled = isChatLocked;
                 selectors.chatReplyInput.placeholder = isChatLocked ? "This chat is locked." : "Type your reply...";
-
                 const messageListWrapper = selectors.chatMessages.querySelector('.message-list-wrapper');
                 messageListWrapper.innerHTML = '';
                 (chat.messages || []).forEach(msg => {
@@ -518,6 +368,7 @@
                 state.currentTicketId = null;
                 selectors.chatView.classList.add('hidden');
                 selectors.chatPlaceholder.style.display = 'flex';
+                document.querySelectorAll('.chat-item.active').forEach(el => el.classList.remove('active'));
             };
 
             const loadChats = async () => {
@@ -527,19 +378,32 @@
                     const newTickets = await res.json();
                     
                     if (JSON.stringify(newTickets) !== JSON.stringify(state.tickets)) {
+                        // --- SMART NOTIFICATION LOGIC ---
+                        const oldTotalTickets = state.tickets.length;
+                        const newTotalTickets = newTickets.length;
+                        
+                        const oldMsgCounts = state.tickets.reduce((acc, t) => acc + (t.messages?.length || 0), 0);
+                        const newMsgCounts = newTickets.reduce((acc, t) => acc + (t.messages?.length || 0), 0);
+
+                        if (oldTotalTickets > 0 && (newTotalTickets > oldTotalTickets || newMsgCounts > oldMsgCounts)) {
+                             // Find the newest ticket or message to see if it's from a user
+                            const latestTicket = newTickets.reduce((a, b) => new Date(a.updated_at) > new Date(b.updated_at) ? a : b);
+                            if (latestTicket && latestTicket.last_message_sender === 'user') {
+                                selectors.notificationSound.play().catch(e => console.error("Audio play failed:", e));
+                            }
+                        }
+                        // --- END LOGIC ---
+
                         state.tickets = newTickets;
                         const awaiting = state.tickets.filter(t => !t.claimed_by && t.status !== 'completed');
                         const active = state.tickets.filter(t => t.claimed_by === state.user.id && t.status !== 'completed');
                         const completed = state.tickets.filter(t => t.status === 'completed');
-                        
                         renderChatList(awaiting.sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at)), selectors.chatListAwaiting);
                         renderChatList(active.sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at)), selectors.chatListActive);
                         renderChatList(completed.sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at)), selectors.chatListCompleted);
-
                         selectors.statAwaiting.textContent = awaiting.length;
                         selectors.statActive.textContent = active.length;
                         selectors.statCompleted.textContent = state.tickets.filter(t => t.status === 'completed').length;
-                        
                         if (state.currentTicketId) displayChatDetails(state.currentTicketId);
                     }
                 } catch (error) { console.error(error); }
@@ -552,7 +416,6 @@
                     const payload = JSON.parse(atob(token.split('.')[1]));
                     state.user = { id: payload.id, username: payload.username };
                 } catch(e) { return hideApp(); }
-
                 resetChatView();
                 loadChats();
                 state.pollingInterval = setInterval(loadChats, 5000);
@@ -575,7 +438,6 @@
                     e.preventDefault();
                     const message = selectors.chatReplyInput.value.trim();
                     if (!message || !state.currentTicketId) return;
-                    
                     selectors.chatReplyInput.disabled = true;
                     try {
                         await authFetch(`${API_BASE_URL}/tickets/${state.currentTicketId}/messages`, {
@@ -583,11 +445,32 @@
                         });
                         selectors.chatReplyInput.value = '';
                         await loadChats();
-                    } catch (error) {
-                        console.error("Failed to send message", error);
-                    } finally {
-                        selectors.chatReplyInput.disabled = false;
-                        selectors.chatReplyInput.focus();
+                    } catch (error) { console.error("Failed to send message", error); } 
+                    finally { selectors.chatReplyInput.disabled = false; selectors.chatReplyInput.focus(); }
+                });
+
+                // Event delegation for claim buttons
+                selectors.chatListContainer.addEventListener('click', async (e) => {
+                    if (e.target.classList.contains('btn-claim-ticket')) {
+                        const button = e.target;
+                        const chatId = button.dataset.chatId;
+                        button.disabled = true;
+                        button.textContent = 'Claiming...';
+                        try {
+                            // 1. Claim the ticket
+                            await authFetch(`${API_BASE_URL}/tickets/${chatId}/claim`, { method: 'POST' });
+                            // 2. Send a notification message to the buyer
+                            await authFetch(`${API_BASE_URL}/tickets/${chatId}/messages`, {
+                                method: 'POST',
+                                body: JSON.stringify({ message: "Your ticket has been claimed. A seller will be with you shortly." })
+                            });
+                            // 3. Refresh the entire chat list
+                            await loadChats();
+                        } catch (error) {
+                            console.error('Failed to claim ticket:', error);
+                            button.disabled = false;
+                            button.innerHTML = '<i class="fas fa-check"></i> Claim';
+                        }
                     }
                 });
             };
