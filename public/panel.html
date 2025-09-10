@@ -80,35 +80,19 @@
         .logout-link { margin-top: auto; padding: 1rem; }
         
         .main-content {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            max-height: 100vh;
-            overflow: hidden;
-            padding: 2rem 3rem;
-            gap: 2rem;
+            flex: 1; display: flex; flex-direction: column; max-height: 100vh;
+            overflow: hidden; padding: 2rem 3rem; gap: 2rem;
         }
-        header {
-            flex-shrink: 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
+        header { flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; }
         header h1 { font-size: 2.25rem; color: #fff; font-weight: 700; }
-        .content-panel {
-            flex-grow: 1;
-            overflow: hidden;
-            display: none;
-            animation: fadeIn 0.5s ease-out;
-        }
+        .content-panel { flex-grow: 1; overflow: hidden; display: none; animation: fadeIn 0.5s ease-out; }
         .content-panel.active { display: flex; flex-direction: column; }
 
         .panel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; }
         .panel-wrapper {
             background: var(--glass-bg); backdrop-filter: blur(12px); border: 1px solid var(--border-color);
             border-radius: 12px; box-shadow: var(--panel-shadow); display: flex; flex-direction: column;
-            height: 100%;
-            position: relative;
+            height: 100%; position: relative;
         }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         .panel-header { padding: 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
@@ -136,8 +120,7 @@
         .btn-danger { background: var(--danger); color: white; }
         .btn-success { background: var(--success); color: white; }
         .btn-secondary { background: #30363d; color: white; border: 1px solid var(--border-color); }
-
-        /* --- CHAT-SPECIFIC IMPROVEMENTS --- */
+        
         #chats-grid { display: grid; grid-template-columns: 350px 1fr; gap: 1.5rem; height: 100%; }
         #chat-list-container { display: flex; flex-direction: column; overflow-y: auto; }
         .chat-list-header {
@@ -187,18 +170,12 @@
         #chat-reply-form { display: flex; gap: 1rem; flex-shrink: 0; padding: 1rem 1.5rem; border-top: 1px solid var(--border-color); background: var(--glass-bg); }
         #chat-reply-input { flex-grow: 1; resize: none; min-height: 50px; padding-top: 14px; }
         
-        #claim-ticket-overlay {
-            position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(13, 17, 23, 0.8);
-            backdrop-filter: blur(5px); display: none; flex-direction: column; align-items: center; justify-content: center;
-            text-align: center; z-index: 10; padding: 2rem; border-radius: 12px; animation: fadeIn 0.3s ease;
+        #claim-action-bar {
+            display: none; /* hidden by default */
+            flex-shrink: 0; padding: 1rem 1.5rem; border-top: 1px solid var(--border-color);
+            background: var(--glass-bg);
+            align-items: center; justify-content: center;
         }
-        #claim-ticket-overlay.show { display: flex; }
-        #claim-ticket-overlay h3 { font-size: 1.5rem; margin-bottom: 0.5rem; }
-        #claim-ticket-overlay p { color: var(--text-muted); margin-bottom: 2rem; font-size: 1.1rem; }
-        #claim-ticket-overlay .ticket-info { background-color: var(--bg-light); padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 2rem; display: flex; gap: 2rem; }
-        #claim-ticket-overlay .ticket-info-item { text-align: left; }
-        #claim-ticket-overlay .ticket-info-item .label { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
-        #claim-ticket-overlay .ticket-info-item .value { font-size: 1.1rem; font-weight: 600; color: var(--text-light); }
     </style>
 </head>
 <body>
@@ -259,15 +236,9 @@
                                <textarea id="chat-reply-input" class="form-control" placeholder="Type your reply... (Shift + Enter for new line)"></textarea>
                                <button type="submit" class="btn btn-primary" style="height: 50px;"><i class="fas fa-paper-plane"></i></button>
                             </form>
-                        </div>
-                         <div id="claim-ticket-overlay" class="hidden">
-                            <h3>Ticket Unclaimed</h3>
-                            <p>You must claim this ticket to respond to the buyer.</p>
-                            <div class="ticket-info">
-                                <div class="ticket-info-item"><div class="label">Buyer</div><div class="value" id="claim-buyer-name"></div></div>
-                                <div class="ticket-info-item"><div class="label">Payment Method</div><div class="value" id="claim-payment-method"></div></div>
+                            <div id="claim-action-bar">
+                                <button id="claim-ticket-btn" class="btn btn-success btn-lg"><i class="fas fa-check"></i> Claim Ticket to Reply</button>
                             </div>
-                            <button id="claim-ticket-btn-overlay" class="btn btn-success btn-lg"><i class="fas fa-check"></i> Claim Ticket and Respond</button>
                         </div>
                          <div id="chat-placeholder"><i class="fas fa-envelope-open-text"></i><p>Select a chat from the left to view messages.</p></div>
                     </div>
@@ -275,6 +246,8 @@
             </section>
         </main>
     </div>
+
+    <div id="notification-container" style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;"></div>
     
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -292,10 +265,9 @@
                 chatHeaderTitle: document.getElementById('chat-header-title'), chatHeaderDetails: document.getElementById('chat-header-details'),
                 chatMessages: document.getElementById('chat-messages'), chatReplyForm: document.getElementById('chat-reply-form'),
                 chatReplyInput: document.getElementById('chat-reply-input'),
-                claimOverlay: document.getElementById('claim-ticket-overlay'), claimBtnOverlay: document.getElementById('claim-ticket-btn-overlay'),
-                claimBuyerName: document.getElementById('claim-buyer-name'), claimPaymentMethod: document.getElementById('claim-payment-method'),
+                claimActionBar: document.getElementById('claim-action-bar'), claimBtn: document.getElementById('claim-ticket-btn'),
                 completeBtn: document.getElementById('complete-ticket-btn'), deleteBtn: document.getElementById('delete-ticket-btn'),
-                notificationSound: document.getElementById('notification-sound'),
+                notificationSound: document.getElementById('notification-sound'), notificationContainer: document.getElementById('notification-container'),
                 statAwaiting: document.getElementById('stat-awaiting'), statActive: document.getElementById('stat-active'),
                 statCompleted: document.getElementById('stat-completed'),
                 navLinks: document.querySelectorAll('.nav-links a'), contentPanels: document.querySelectorAll('.content-panel'),
@@ -304,12 +276,24 @@
 
             const escapeHTML = str => str ? str.toString().replace(/[&<>"']/g, tag => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[tag])) : '';
             
-            // CORRECTED: Using Font Awesome icons as requested by your file's design.
             const getPaymentMethodIconClass = (method) => ({
                 'PayPal': 'fab fa-paypal', 'Crypto': 'fab fa-bitcoin', 'Credit Card': 'fas fa-credit-card',
                 'Bank Transfer': 'fas fa-university', 'Google Pay': 'fab fa-google-pay', 'Apple Pay': 'fab fa-apple-pay',
                 'CashApp': 'fas fa-dollar-sign', 'Gag Pets': 'fas fa-paw', 'Secret Brainrots': 'fas fa-brain'
             }[method] || 'fas fa-receipt');
+
+            const showNotification = (message, type = 'success') => {
+                const el = document.createElement('div');
+                el.className = `notification ${type}`; // Use pre-defined CSS classes if available
+                el.style.cssText = `background: var(--bg-light); border-left: 4px solid var(--${type}); padding: 15px 25px; border-radius: 8px; margin-bottom: 10px; box-shadow: var(--panel-shadow); transition: all 0.4s ease; transform: translateX(120%);`;
+                el.textContent = message;
+                selectors.notificationContainer.appendChild(el);
+                setTimeout(() => { el.style.transform = 'translateX(0)'; }, 10);
+                setTimeout(() => {
+                    el.style.transform = 'translateX(120%)';
+                    el.addEventListener('transitionend', () => el.remove());
+                }, 4000);
+            };
 
             const authFetch = async (url, options = {}) => {
                 const token = localStorage.getItem('token');
@@ -318,6 +302,7 @@
                 const response = await fetch(url, { ...options, headers });
                 if ([401, 403].includes(response.status)) {
                     localStorage.removeItem('token');
+                    showNotification('Your session has expired. Please log in again.', 'danger');
                     showLoginScreen();
                     throw new Error('Session expired.');
                 }
@@ -326,8 +311,7 @@
 
             const handleLogin = async (e) => {
                 e.preventDefault();
-                const loginError = document.getElementById('login-error');
-                loginError.style.display = 'none';
+                selectors.loginError.style.display = 'none';
                 const username = document.getElementById('username').value;
                 const password = document.getElementById('password').value;
                 const turnstileToken = selectors.loginForm.querySelector('[name="cf-turnstile-response"]')?.value;
@@ -338,8 +322,8 @@
                     localStorage.setItem('token', data.token);
                     showApp();
                 } catch (error) {
-                    loginError.textContent = error.message;
-                    loginError.style.display = 'block';
+                    selectors.loginError.textContent = error.message;
+                    selectors.loginError.style.display = 'block';
                     selectors.loginBox.classList.add('shake');
                     setTimeout(() => selectors.loginBox.classList.remove('shake'), 500);
                 } finally {
@@ -381,9 +365,8 @@
 
                 selectors.chatListContainer.innerHTML = '';
                 
-                const renderCategory = (key, title, options = {}) => {
+                const renderCategory = (key, title) => {
                     const list = categories[key];
-                    if (list.length === 0 && !options.alwaysShow) return;
                     const container = document.createElement('div');
                     container.innerHTML = `<h2 class="chat-list-header">${title} (${list.length})</h2>`;
                     if (list.length > 0) {
@@ -391,16 +374,11 @@
                             const itemEl = document.createElement('div');
                             itemEl.className = `chat-item ${state.currentTicketId === chat.id ? 'active' : ''}`;
                             itemEl.dataset.chatId = chat.id;
-                            const lastMessage = chat.messages?.[chat.messages.length - 1]?.message || 'New ticket created.';
                             itemEl.innerHTML = `
                                 <div class="chat-item-icon"><i class="${getPaymentMethodIconClass(chat.payment_method)}"></i></div>
                                 <div class="chat-item-details">
                                     <div class="chat-user">${escapeHTML(chat.buyer_name)}</div>
                                     <div class="chat-payment">${escapeHTML(chat.payment_method)}</div>
-                                    <div class="chat-info">
-                                        <span class="chat-date">${new Date(chat.updated_at).toLocaleDateString()}</span>
-                                        <span class="status-badge status-${chat.status}">${chat.status}</span>
-                                    </div>
                                 </div>
                                 ${chat.unreadCount > 0 ? `<div class="unread-badge">${chat.unreadCount}</div>` : ''}
                             `;
@@ -412,7 +390,7 @@
                     selectors.chatListContainer.appendChild(container);
                 };
                 
-                renderCategory('needsReply', 'Requires Your Response', { alwaysShow: true });
+                renderCategory('needsReply', 'Requires Your Response');
                 renderCategory('awaiting', 'Awaiting Claim');
                 renderCategory('myActive', 'My Active Chats');
                 renderCategory('completed', 'Completed');
@@ -454,52 +432,42 @@
                     updateChatListDOM();
                     if (state.currentTicketId) renderChatView();
 
-                } catch (error) { console.error("Failed to update data:", error.message); }
+                } catch (error) {
+                    if (error.message !== 'Session expired.') console.error("Failed to update data:", error.message);
+                }
             };
             
             const renderChatView = () => {
                 const chat = state.tickets.get(state.currentTicketId);
                 if (!chat) return resetChatView();
 
-                document.querySelectorAll('.chat-item').forEach(item => item.classList.toggle('active', parseInt(item.dataset.chatId) === chat.id));
                 selectors.chatPlaceholder.classList.add('hidden');
-                
-                if (!chat.claimed_by) {
-                    selectors.chatView.classList.add('hidden');
-                    selectors.claimOverlay.classList.add('show');
-                    selectors.claimBuyerName.textContent = chat.buyer_name;
-                    selectors.claimPaymentMethod.textContent = chat.payment_method;
-                } else {
-                    selectors.claimOverlay.classList.remove('show');
-                    selectors.chatView.classList.remove('hidden');
+                selectors.chatView.classList.remove('hidden');
 
-                    selectors.chatHeaderTitle.textContent = `Chat with ${escapeHTML(chat.buyer_name)}`;
-                    selectors.chatHeaderDetails.textContent = `Status: ${chat.status} | Claimed by: ${chat.claimed_by_name || 'None'}`;
-                    
-                    const isMyTicket = chat.claimed_by === state.user.id;
-                    selectors.completeBtn.style.display = isMyTicket && chat.status !== 'completed' ? 'inline-flex' : 'none';
-                    selectors.deleteBtn.style.display = isMyTicket ? 'inline-flex' : 'none';
-                    
-                    const isChatLocked = chat.status === 'completed' || !isMyTicket;
-                    selectors.chatReplyInput.disabled = isChatLocked;
-                    selectors.chatReplyForm.querySelector('button').disabled = isChatLocked;
-                    selectors.chatReplyInput.placeholder = isChatLocked ? "This chat is locked." : "Type your reply...";
-                    
-                    const messagesHTML = (chat.messages || []).map(msg => {
-                        const senderName = msg.sender === 'user' ? escapeHTML(chat.buyer_name) : 'You';
-                        return `<div class="message-bubble ${msg.sender}">
-                            <div class="message-sender">${senderName}</div>
-                            <p>${escapeHTML(msg.message).replace(/\n/g, '<br>')}</p>
-                        </div>`;
-                    }).join('');
-                    selectors.chatMessages.innerHTML = `<div class="message-list-wrapper">${messagesHTML}</div>`;
-                }
+                selectors.chatHeaderTitle.textContent = `Chat with ${escapeHTML(chat.buyer_name)}`;
+                selectors.chatHeaderDetails.textContent = `Status: ${chat.status} | Claimed by: ${chat.claimed_by_name || 'None'}`;
+                
+                const isMyTicket = chat.claimed_by === state.user.id;
+                selectors.completeBtn.style.display = isMyTicket && chat.status !== 'completed' ? 'inline-flex' : 'none';
+                selectors.deleteBtn.style.display = isMyTicket ? 'inline-flex' : 'none';
+                
+                const isClaimed = !!chat.claimed_by;
+                selectors.chatReplyForm.style.display = isClaimed ? 'flex' : 'none';
+                selectors.claimActionBar.style.display = isClaimed ? 'none' : 'flex';
+
+                const messagesHTML = (chat.messages || []).map(msg => {
+                    const senderName = msg.sender === 'user' ? escapeHTML(chat.buyer_name) : 'You';
+                    return `<div class="message-bubble ${msg.sender}">
+                        <div class="message-sender">${senderName}</div>
+                        <p>${escapeHTML(msg.message).replace(/\n/g, '<br>')}</p>
+                    </div>`;
+                }).join('');
+                selectors.chatMessages.innerHTML = `<div class="message-list-wrapper">${messagesHTML}</div>`;
             };
 
             const resetChatView = () => {
                 state.currentTicketId = null;
                 selectors.chatView.classList.add('hidden');
-                selectors.claimOverlay.classList.remove('show');
                 selectors.chatPlaceholder.classList.remove('hidden');
                 document.querySelectorAll('.chat-item.active').forEach(el => el.classList.remove('active'));
             };
@@ -517,7 +485,8 @@
                 selectors.navLinks.forEach(link => {
                     link.addEventListener('click', e => {
                         e.preventDefault();
-                        if (link.id !== 'logout-btn') switchTab(link.dataset.tab);
+                        const tab = link.dataset.tab;
+                        if (tab) switchTab(tab);
                     });
                 });
                 
@@ -525,11 +494,12 @@
                     const chatItem = e.target.closest('.chat-item');
                     if (chatItem) {
                         state.currentTicketId = parseInt(chatItem.dataset.chatId);
+                        updateChatListDOM(); // Re-render to show active state
                         renderChatView();
                     }
                 });
 
-                selectors.claimBtnOverlay.addEventListener('click', async () => {
+                selectors.claimBtn.addEventListener('click', async () => {
                     if (!state.currentTicketId) return;
                     try {
                         await authFetch(`${API_BASE_URL}/tickets/${state.currentTicketId}/claim`, { method: 'POST' });
