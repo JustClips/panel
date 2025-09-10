@@ -83,7 +83,8 @@
         .ticket-buyer-name { font-weight: 600; }
         .ticket-timestamp { font-size: 0.8rem; color: var(--text-secondary); }
         .ticket-info { display: flex; align-items: center; gap: 0.5rem; margin-top: 4px; font-size: 0.85rem; color: var(--text-secondary); }
-        .payment-logo { height: 16px; }
+        .payment-logo { height: 16px; filter: grayscale(100%) opacity(70%); }
+        .ticket-item:hover .payment-logo, .ticket-item.active .payment-logo { filter: none; }
 
         /* Chat Panel */
         .chat-panel { display: flex; flex-direction: column; height: 100%; background: var(--background-secondary); }
@@ -109,7 +110,8 @@
         .detail-item p, .detail-item .form-control { font-size: 1rem; }
 
         /* General UI elements */
-        .placeholder { display: flex; flex-direction: column; height: 100%; justify-content: center; align-items: center; color: var(--text-secondary); text-align: center; background: var(--background-secondary); grid-column: 2 / -1; }
+        .placeholder { display: none; flex-direction: column; height: 100%; justify-content: center; align-items: center; color: var(--text-secondary); text-align: center; background: var(--background-secondary); grid-column: 3 / -1; }
+        .placeholder.visible { display: flex; }
         .placeholder i { font-size: 3rem; margin-bottom: 1rem; }
         .form-control { width: 100%; padding: 0.75rem; background: var(--background-primary); color: var(--text-primary); border: 1px solid var(--border-primary); border-radius: 6px; font-size: 1rem; transition: 0.2s ease; }
         .form-control:focus { outline: none; border-color: var(--accent-primary); box-shadow: 0 0 0 3px rgba(47, 129, 247, 0.3); }
@@ -126,7 +128,22 @@
     <audio id="notification-sound" src="http://sndup.net/hb96h" preload="auto"></audio>
     
     <div id="login-container">
+        <div class="login-box">
+            <h2><i class="fa-solid fa-atom"></i> Eps1llon Team Hub</h2>
+            <p>Please log in to your seller account.</p>
+            <form id="login-form">
+                <div class="input-group" style="margin-bottom: 1.25rem;">
+                    <input type="text" id="username" class="form-control" placeholder="Username" required>
+                </div>
+                <div class="input-group" style="margin-bottom: 1.25rem;">
+                    <input type="password" id="password" class="form-control" placeholder="Password" required>
+                </div>
+                <div class="cf-turnstile" data-sitekey="0x4AAAAAAB0PeEmSeY6uJ3nN" data-theme="dark" style="margin-bottom: 1.5rem;"></div>
+                <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.75rem;">Login</button>
+                <p id="login-error">&nbsp;</p>
+            </form>
         </div>
+    </div>
 
     <div id="app-container">
         <aside class="sidebar">
@@ -155,7 +172,7 @@
                 </div>
         </div>
 
-        <div class="placeholder" id="placeholder-view">
+        <div class="placeholder visible" id="placeholder-view">
             <i class="fas fa-arrow-left"></i>
             <p>Select a ticket to begin</p>
         </div>
@@ -183,21 +200,20 @@
     
     <script>
     document.addEventListener('DOMContentLoaded', () => {
-        const API_BASE_URL = '/api'; // This must point to your backend.
+        const API_BASE_URL = '/api';
         const POLLING_RATE = 5000;
 
         const state = {
-            user: null,
-            sellers: [], // Will store all sellers for reassignment
-            tickets: [],
-            currentTicketId: null,
-            currentView: 'unassigned', // unassigned, my_tickets, all_open, completed
-            currentChatTab: 'conversation', // conversation, internal
+            user: null, sellers: [], tickets: [],
+            currentTicketId: null, currentView: 'unassigned', currentChatTab: 'conversation',
             pollingInterval: null
         };
 
         const selectors = {
             loginContainer: document.getElementById('login-container'),
+            loginForm: document.getElementById('login-form'),
+            loginBox: document.querySelector('.login-box'),
+            loginError: document.getElementById('login-error'),
             appContainer: document.getElementById('app-container'),
             logoutBtn: document.getElementById('logout-btn'),
             navLinks: document.querySelectorAll('.nav-links a'),
@@ -214,37 +230,69 @@
             completeBtn: document.getElementById('complete-ticket-btn'),
         };
 
-        // --- UTILITY & HELPER FUNCTIONS ---
         const escapeHTML = str => str ? str.toString().replace(/[&<>"']/g, tag => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[tag])) : '';
-        const timeAgo = (date) => { /* ... (same as previous) ... */ };
+        const timeAgo = (date) => {
+            const seconds = Math.floor((new Date() - new Date(date)) / 1000);
+            if (seconds < 5) return "just now";
+            let interval = seconds / 31536000; if (interval > 1) return Math.floor(interval) + "y ago";
+            interval = seconds / 2592000; if (interval > 1) return Math.floor(interval) + "mo ago";
+            interval = seconds / 86400; if (interval > 1) return Math.floor(interval) + "d ago";
+            interval = seconds / 3600; if (interval > 1) return Math.floor(interval) + "h ago";
+            interval = seconds / 60; if (interval > 1) return Math.floor(interval) + "m ago";
+            return Math.floor(seconds) + "s ago";
+        };
         
         const getPaymentLogo = (method) => {
-            const logoMap = {
-                'PayPal': 'https://www.paypalobjects.com/webstatic/mktg/Logo/pp-logo-100px.png',
-                'Crypto': 'https://cdn4.iconfinder.com/data/icons/crypto-currency-and-coin-2/256/bch_bitcoin_cash_crypto_currency_coin-512.png',
-                'Credit Card': 'https://cdn.icon-icons.com/icons2/2235/PNG/512/credit_card_payment_money_icon_134780.png',
-                'CashApp': 'https://cdn.icon-icons.com/icons2/3245/PNG/512/cash_app_logo_icon_197825.png'
-            };
-            const defaultLogo = 'https://cdn-icons-png.flaticon.com/512/1086/1086741.png';
-            return logoMap[method] || defaultLogo;
+            const logoMap = { 'PayPal': 'https://upload.wikimedia.org/wikipedia/commons/b/b5/PayPal.svg', 'Crypto': 'https://upload.wikimedia.org/wikipedia/commons/4/46/Bitcoin.svg', 'Credit Card': 'https://upload.wikimedia.org/wikipedia/commons/a/ac/Old_Visa_Logo.svg', 'CashApp': 'https://upload.wikimedia.org/wikipedia/commons/c/c5/Square_Cash_app_logo.svg' };
+            return logoMap[method] || 'https://static.thenounproject.com/png/1830339-200.png';
         };
 
         const getAvatar = (sellerId) => {
-            if (!sellerId) {
-                return '<div class="assignee-avatar"><i class="fas fa-user-slash"></i></div>';
-            }
+            if (!sellerId) return '<div class="assignee-avatar"><i class="fas fa-user-slash"></i></div>';
             const seller = state.sellers.find(s => s.id === sellerId);
-            if (!seller) {
-                return '<div class="assignee-avatar"><i class="fas fa-user"></i></div>';
-            }
+            if (!seller) return '<div class="assignee-avatar"><i class="fas fa-user"></i></div>';
             const initials = (seller.username[0] || '').toUpperCase();
-            // In a real app, you'd have different colors per user
-            return `<div class="assignee-avatar" style="background-color: var(--accent-internal);">${initials}</div>`;
+            return `<div class="assignee-avatar" title="${seller.username}">${initials}</div>`;
         };
 
-        // --- API & AUTHENTICATION ---
-        const authFetch = async (url, options = {}) => { /* ... (same as previous) ... */ };
-        const showLoginScreen = () => { /* ... (same as previous) ... */ };
+        const authFetch = async (url, options = {}) => {
+            const token = localStorage.getItem('token');
+            if (!token) { showLoginScreen(); throw new Error('No token found.'); }
+            const headers = { 'Content-Type': 'application/json', ...options.headers, 'Authorization': `Bearer ${token}` };
+            const response = await fetch(url, { ...options, headers });
+            if ([401, 403].includes(response.status)) {
+                localStorage.removeItem('token');
+                showLoginScreen();
+                throw new Error('Session expired.');
+            }
+            return response;
+        };
+
+        const handleLogin = async (e) => {
+            e.preventDefault();
+            selectors.loginError.textContent = '\u00A0';
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const turnstileToken = document.querySelector('[name="cf-turnstile-response"]')?.value;
+            try {
+                const response = await fetch(`${API_BASE_URL}/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password, turnstileToken })
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.message || 'Login failed.');
+                localStorage.setItem('token', data.token);
+                showApp();
+            } catch (error) {
+                selectors.loginError.textContent = error.message;
+                selectors.loginBox.classList.add('shake');
+                setTimeout(() => selectors.loginBox.classList.remove('shake'), 500);
+            } finally {
+                if (window.turnstile) window.turnstile.reset();
+            }
+        };
+
         const showApp = async () => {
             const token = localStorage.getItem('token');
             if (!token) return showLoginScreen();
@@ -252,38 +300,35 @@
                 const payload = JSON.parse(atob(token.split('.')[1]));
                 state.user = { id: payload.id, username: payload.username };
                 
-                // MOCK SELLERS - in a real app, this would be an API call
-                state.sellers = [
-                    {id: 1, username: 'Alice'}, {id: 2, username: 'Bob'}, {id: 3, username: 'Charlie'}
-                ];
+                // In a real app, fetch sellers from an API
+                const sellersRes = await authFetch(`${API_BASE_URL}/sellers`);
+                state.sellers = await sellersRes.json();
 
-            } catch (e) { return showLoginScreen(); }
+            } catch (e) { console.error(e); return showLoginScreen(); }
             
-            selectors.loginContainer.classList.add('hidden');
+            selectors.loginContainer.style.display = 'none';
             selectors.appContainer.style.display = 'grid';
             
             await updateData();
             state.pollingInterval = setInterval(updateData, POLLING_RATE);
         };
 
-        // --- UI RENDERING ---
+        const showLoginScreen = () => {
+            localStorage.removeItem('token');
+            if (state.pollingInterval) clearInterval(state.pollingInterval);
+            state.user = null;
+            selectors.appContainer.style.display = 'none';
+            selectors.loginContainer.style.display = 'flex';
+        };
+
         const renderTicketList = () => {
             let ticketsToDisplay = [];
             switch(state.currentView) {
-                case 'unassigned':
-                    ticketsToDisplay = state.tickets.filter(t => !t.claimed_by && t.status !== 'completed');
-                    break;
-                case 'my_tickets':
-                    ticketsToDisplay = state.tickets.filter(t => t.claimed_by === state.user.id && t.status !== 'completed');
-                    break;
-                case 'all_open':
-                    ticketsToDisplay = state.tickets.filter(t => t.claimed_by && t.status !== 'completed');
-                    break;
-                case 'completed':
-                    ticketsToDisplay = state.tickets.filter(t => t.status === 'completed');
-                    break;
+                case 'unassigned': ticketsToDisplay = state.tickets.filter(t => !t.claimed_by && t.status !== 'completed'); break;
+                case 'my_tickets': ticketsToDisplay = state.tickets.filter(t => t.claimed_by === state.user.id && t.status !== 'completed'); break;
+                case 'all_open': ticketsToDisplay = state.tickets.filter(t => t.claimed_by && t.status !== 'completed'); break;
+                case 'completed': ticketsToDisplay = state.tickets.filter(t => t.status === 'completed'); break;
             }
-
             ticketsToDisplay.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
 
             selectors.ticketListContainer.innerHTML = '';
@@ -293,7 +338,6 @@
                 item.className = 'ticket-item';
                 item.dataset.ticketId = ticket.id;
                 if (ticket.id === state.currentTicketId) item.classList.add('active');
-
                 item.innerHTML = `
                     ${getAvatar(ticket.claimed_by)}
                     <div class="ticket-details">
@@ -305,8 +349,7 @@
                            <img src="${getPaymentLogo(ticket.payment_method)}" class="payment-logo" alt="${ticket.payment_method}">
                            <span>${escapeHTML(ticket.payment_method)}</span>
                         </div>
-                    </div>
-                `;
+                    </div>`;
                 fragment.appendChild(item);
             });
             selectors.ticketListContainer.appendChild(fragment);
@@ -315,65 +358,53 @@
         const renderChatView = () => {
              const ticket = state.tickets.find(t => t.id === state.currentTicketId);
              if (!ticket) {
-                selectors.placeholderView.classList.remove('hidden');
+                selectors.placeholderView.classList.add('visible');
                 selectors.chatPanel.classList.add('hidden');
                 selectors.detailsPanel.classList.add('hidden');
                 return;
              }
-             
-            selectors.placeholderView.classList.add('hidden');
+            selectors.placeholderView.classList.remove('visible');
             selectors.chatPanel.classList.remove('hidden');
             selectors.detailsPanel.classList.remove('hidden');
-            
-            // Render Messages or Internal Notes based on current tab
-            selectors.chatMessagesWrapper.innerHTML = '';
-            let messagesToRender = [];
-            if(state.currentChatTab === 'conversation') {
-                messagesToRender = ticket.messages || [];
-            } else {
-                // messagesToRender = ticket.internal_notes || []; // In a real app
-                messagesToRender = [{sender: 'internal', message: `Note from Bob: Check payment processor for transaction ID.`}];
-            }
-            messagesToRender.forEach(msg => {
-                const bubble = document.createElement('div');
-                bubble.className = `message-bubble ${msg.sender}`;
-                bubble.innerHTML = `<p>${escapeHTML(msg.message).replace(/\n/g, '<br>')}</p>`;
-                selectors.chatMessagesWrapper.appendChild(bubble);
-            });
 
-
-            // Render Details Panel
             const sellerOptions = state.sellers.map(s => `<option value="${s.id}" ${ticket.claimed_by === s.id ? 'selected' : ''}>${s.username}</option>`).join('');
             selectors.buyerDetailsContent.innerHTML = `
                 <div class="detail-item"><label>Buyer</label><p>${escapeHTML(ticket.buyer_name)}</p></div>
                 <div class="detail-item">
                     <label>Assignee</label>
-                    <select class="form-control" id="assignee-select">
+                    <select class="form-control" id="assignee-select" data-ticket-id="${ticket.id}">
                         <option value="">Unassigned</option>
                         ${sellerOptions}
                     </select>
-                </div>
-            `;
+                </div>`;
+            document.getElementById('assignee-select').addEventListener('change', handleReassign);
+        };
+
+        const handleReassign = async (e) => {
+            const newAssigneeId = e.target.value ? parseInt(e.target.value) : null;
+            const ticketId = parseInt(e.target.dataset.ticketId);
+            try {
+                await authFetch(`${API_BASE_URL}/tickets/${ticketId}/assign`, {
+                    method: 'POST',
+                    body: JSON.stringify({ sellerId: newAssigneeId })
+                });
+                await updateData();
+            } catch (error) { console.error('Failed to reassign:', error); }
         };
 
         const updateData = async () => {
-             try {
-                // In a real app, this would be a single API call
-                // For demo, we create mock data
-                if (state.tickets.length === 0) {
-                     state.tickets = [
-                        { id: 1, buyer_name: 'Alice Johnson', payment_method: 'PayPal', status: 'active', claimed_by: 1, messages: [{sender:'user', message:'Hello?'}], updated_at: new Date(Date.now() - 2 * 60000).toISOString()},
-                        { id: 2, buyer_name: 'Bob Williams', payment_method: 'Crypto', status: 'open', claimed_by: null, messages: [{sender:'user', message:'Help me!'}], updated_at: new Date(Date.now() - 5 * 60000).toISOString()},
-                        { id: 3, buyer_name: 'Charlie Brown', payment_method: 'Credit Card', status: 'completed', claimed_by: 2, messages: [], updated_at: new Date(Date.now() - 60 * 60000).toISOString()},
-                     ];
-                }
+            try {
+                const res = await authFetch(`${API_BASE_URL}/tickets/all`);
+                state.tickets = await res.json();
                 renderTicketList();
                 if(state.currentTicketId) renderChatView();
-             } catch(e) { console.error(e) }
+            } catch(e) { console.error("Update failed:", e); }
         };
 
-        // --- EVENT LISTENERS ---
         function setupEventListeners() {
+            selectors.loginForm?.addEventListener('submit', handleLogin);
+            selectors.logoutBtn.addEventListener('click', (e) => { e.preventDefault(); showLoginScreen(); });
+
             selectors.navLinks.forEach(link => {
                 link.addEventListener('click', e => {
                     e.preventDefault();
@@ -385,42 +416,32 @@
                 });
             });
 
-            selectors.ticketListContainer.addEventListener('click', e => {
+            selectors.ticketListContainer.addEventListener('click', async e => {
                 const ticketItem = e.target.closest('.ticket-item');
                 if (ticketItem) {
-                    state.currentTicketId = parseInt(ticketItem.dataset.ticketId);
-                    // Automatically claim if unassigned and I click it
-                    const ticket = state.tickets.find(t => t.id === state.currentTicketId);
+                    const ticketId = parseInt(ticketItem.dataset.ticketId);
+                    state.currentTicketId = ticketId;
+                    const ticket = state.tickets.find(t => t.id === ticketId);
                     if (!ticket.claimed_by) {
-                        ticket.claimed_by = state.user.id;
-                        ticket.status = 'active';
+                        try {
+                            await authFetch(`${API_BASE_URL}/tickets/${ticketId}/claim`, { method: 'POST' });
+                            await updateData(); // Refresh data to show correct assignment
+                        } catch (err) { console.error("Failed to auto-claim:", err); }
+                    } else {
+                        renderTicketList(); // Just highlight the new selection
+                        renderChatView();
                     }
-                    renderTicketList();
-                    renderChatView();
                 }
-            });
-
-            selectors.chatTabs.forEach(tab => {
-                tab.addEventListener('click', () => {
-                    state.currentChatTab = tab.dataset.tab;
-                    selectors.chatTabs.forEach(t => t.classList.remove('active'));
-                    tab.classList.add('active');
-                    renderChatView(); // Re-render messages
-                })
             });
         }
         
         // --- INITIALIZATION ---
-        // For this demo, we'll bypass login and go straight to the app
-        showApp();
+        if (localStorage.getItem('token')) {
+            showApp();
+        } else {
+            showLoginScreen();
+        }
         setupEventListeners();
-
-        // You would uncomment this for a real login flow
-        // if (localStorage.getItem('token')) {
-        //     showApp();
-        // } else {
-        //     showLoginScreen();
-        // }
     });
     </script>
 </body>
