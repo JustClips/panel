@@ -1,1553 +1,1559 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Eps1llon Hub Premium - The Ultimate Advantage</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-  <style>
-    :root {
-      --bg-dark: #0A0C10;
-      --bg-light: #1A1D25;
-      --primary: #00A8FF;
-      --secondary: #ffc107;
-      --tertiary: #1f2a40;
-      --glow-primary: 0 0 35px rgba(0, 168, 255, 0.7);
-      --text-light: #E0E6F0;
-      --text-muted: #9BA4B5;
-      --border-color: rgba(255, 255, 255, 0.08);
-      --success: #28a745;
-    }
-    
-    html {
-      scroll-behavior: smooth;
-    }
-    
-    body {
-      font-family: 'Poppins', sans-serif;
-      background-color: var(--bg-dark);
-      color: var(--text-muted);
-      min-height: 100vh;
-      overflow-x: hidden;
-      position: relative;
-    }
-    
-    /* --- Animated Starfield --- */
-    @keyframes move-stars {
-      from { transform: translateY(0px); }
-      to { transform: translateY(-1000px); }
-    }
-    
-    .stars {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      width: 100%;
-      height: 200%;
-      display: block;
-      z-index: -2;
-      background-repeat: repeat;
-      animation: move-stars linear infinite;
-    }
-    
-    #stars1 {
-      background-image: radial-gradient(1px 1px at 20px 30px, #eee, transparent),
-                        radial-gradient(1px 1px at 90px 60px, #fff, transparent),
-                        radial-gradient(1px 1px at 150px 180px, #ddd, transparent);
-      background-size: 200px 200px;
-      animation-duration: 120s;
-    }
-    
-    #stars2 {
-      background-image: radial-gradient(1.5px 1.5px at 50px 100px, #fff, transparent),
-                        radial-gradient(1.5px 1.5px at 120px 40px, #ddd, transparent),
-                        radial-gradient(2px 2px at 180px 150px, #fff, transparent);
-      background-size: 300px 300px;
-      animation-duration: 90s;
-    }
-    
-    #stars3 {
-      background-image: radial-gradient(2px 2px at 10px 160px, #ddd, transparent),
-                        radial-gradient(2.5px 2.5px at 100px 80px, #fff, transparent);
-      background-size: 400px 400px;
-      animation-duration: 60s;
-    }
-    
-    /* --- Ripple --- */
-    .ripple {
-      position: absolute;
-      border-radius: 50%;
-      background-color: rgba(255, 255, 255, 0.3);
-      transform: scale(0);
-      animation: ripple-effect 0.6s linear;
-      pointer-events: none;
-    }
-    
-    @keyframes ripple-effect {
-      to {
-        transform: scale(4);
-        opacity: 0;
-      }
-    }
-    
-    .has-ripple {
-      position: relative;
-      overflow: hidden;
-    }
-    
-    /* Logo white glow */
-    .logo-glow {
-      filter: drop-shadow(0 0 20px rgba(255,255,255,0.8)) drop-shadow(0 0 40px rgba(255,255,255,0.5));
-    }
-    
-    .text-gradient-primary {
-      background: linear-gradient(45deg, var(--primary), #00c6ff);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-    
-    body.chat-active #main-website,
-    body.chat-active #main-footer {
-      display: none;
-    }
-    
-    #ticket-system {
-      display: none;
-    }
-    
-    body.chat-active #ticket-system {
-      display: block;
-    }
-    
-    [data-animate] {
-      opacity: 0;
-      transform: translateY(30px);
-      transition: opacity 0.6s ease-out, transform 0.6s ease-out;
-    }
-    
-    [data-animate].is-visible {
-      opacity: 1;
-      transform: translateY(0);
-    }
-    
-    .btn-primary {
-      background-color: var(--primary);
-      box-shadow: var(--glow-primary);
-      transition: all 0.3s ease;
-      border: 1px solid rgba(0, 168, 255, 0.3);
-    }
-    
-    .btn-primary:hover:not(:disabled) {
-      background-color: #0095e0;
-      box-shadow: 0 0 45px rgba(0,168,255,0.8);
-      transform: translateY(-3px);
-    }
-    
-    .btn-primary:active:not(:disabled) {
-      transform: translateY(1px);
-    }
-    
-    #payment-methods {
-      position: relative;
-    }
-    
-    .card {
-      background: linear-gradient(145deg, rgba(26,29,37,0.8), rgba(31,42,64,0.8));
-      border: 1px solid var(--border-color);
-      box-shadow: 0 5px 20px rgba(0,0,0,0.2);
-      transition: all 0.3s ease-in-out;
-      transform: translateZ(0);
-      backdrop-filter: blur(5px);
-    }
-    
-    .card::before {
-      content: '';
-      position: absolute;
-      left: var(--mouse-x, -100%);
-      top: var(--mouse-y, -100%);
-      width: 250px;
-      height: 250px;
-      background: radial-gradient(circle at center, rgba(0, 168, 255, 0.1), transparent 70%);
-      transform: translate(-50%, -50%);
-      opacity: 0;
-      transition: opacity 0.3s ease, left 0.1s linear, top 0.1s linear;
-      pointer-events: none;
-      z-index: 1;
-    }
-    
-    .card:hover {
-      transform: translateY(-5px) scale(1.02) translateZ(0);
-      border-color: var(--primary);
-      background: linear-gradient(145deg, hsl(222, 22%, 18%), hsl(220, 37%, 15%));
-      box-shadow: 0 8px 30px rgba(0,0,0,0.4);
-    }
-    
-    .card:hover::before {
-      opacity: 1;
-    }
-    
-    .card-special::before {
-      background: radial-gradient(circle at center, rgba(255,193,7,0.1), transparent 70%);
-    }
-    
-    .card-special:hover {
-      border-color: var(--secondary);
-    }
-    
-    .modal-backdrop {
-      background-color: rgba(0,0,0,0.8);
-      backdrop-filter: blur(12px);
-      opacity: 0;
-      transition: opacity 0.3s ease-in-out;
-    }
-    
-    .modal-backdrop.visible {
-      opacity: 1;
-    }
-    
-    .modal-content {
-      background-color: var(--bg-light);
-      border: 1px solid var(--border-color);
-      box-shadow: 0 10px 40px rgba(0,0,0,0.4);
-      transform: translateY(20px) scale(0.98);
-      opacity: 0;
-      transition: transform 0.3s cubic-bezier(0.175,0.885,0.32,1.275), opacity 0.3s ease-in-out;
-    }
-    
-    .modal-backdrop.visible .modal-content {
-      transform: translateY(0) scale(1);
-      opacity: 1;
-    }
-    
-    .form-input {
-      background-color: var(--bg-dark);
-      border: 1px solid var(--border-color);
-      color: var(--text-light);
-      transition: all 0.3s ease;
-    }
-    
-    .form-input:focus {
-      border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(0, 168, 255, 0.3);
-      outline: none;
-    }
-    
-    .floating {
-      animation: floating 3s ease-in-out infinite;
-    }
-    
-    @keyframes floating {
-      0% { transform: translateY(0px); }
-      50% { transform: translateY(-10px); }
-      100% { transform: translateY(0px); }
-    }
-    
-    #toast-notification {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      background-color: var(--tertiary);
-      color: white;
-      padding: 12px 20px;
-      border-radius: 8px;
-      box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-      opacity: 0;
-      transform: translateY(-20px);
-      transition: opacity 0.3s ease, transform 0.3s ease;
-      z-index: 9999;
-    }
-    
-    #toast-notification.show {
-      opacity: 1;
-      transform: translateY(0);
-    }
-    
-    #ticket-system {
-      position: fixed;
-      inset: 0;
-      z-index: 100;
-      background-color: var(--bg-dark);
-    }
-    
-    .ticket-app-container {
-      display: flex;
-      height: 100vh;
-    }
-    
-    .ticket-sidebar {
-      width: 320px;
-      background: var(--bg-dark);
-      border-right: 1px solid var(--border-color);
-      display: flex;
-      flex-direction: column;
-      flex-shrink: 0;
-    }
-    
-    .sidebar-header {
-      padding: 1.25rem;
-      border-bottom: 1px solid var(--border-color);
-      flex-shrink: 0;
-    }
-    
-    .sidebar-content {
-      overflow-y: auto;
-      padding: 0.75rem;
-      flex: 1;
-    }
-    
-    .ticket-main {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      height: 100%;
-    }
-    
-    .chat-header {
-      display: flex;
-      align-items: center;
-      padding: 1rem 1.5rem;
-      border-bottom: 1px solid var(--border-color);
-      background-color: rgba(26, 29, 37, 0.7);
-      flex-shrink: 0;
-    }
-    
-    .chat-container {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-    
-    .chat-messages {
-      flex: 1;
-      padding: 1.5rem;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 1.5rem;
-    }
-    
-    .chat-input-area {
-      padding: 1rem 1.5rem;
-      border-top: 1px solid var(--border-color);
-      background: rgba(26, 29, 37, 0.8);
-    }
-    
-    #new-ticket-btn:disabled {
-      cursor: not-allowed;
-      opacity: 1;
-    }
-    
-    #new-ticket-btn[data-status="in-progress"] {
-      background-color: var(--tertiary);
-      color: var(--primary);
-      border: 1px solid var(--primary);
-      box-shadow: 0 0 20px rgba(0, 168, 255, 0.4);
-      animation: pulse-glow 2s ease-in-out infinite;
-    }
-    
-    @keyframes pulse-glow {
-      0% { box-shadow: 0 0 20px rgba(0, 168, 255, 0.4); }
-      50% { box-shadow: 0 0 30px rgba(0, 168, 255, 0.7); }
-      100% { box-shadow: 0 0 20px rgba(0, 168, 255, 0.4); }
-    }
-    
-    .ticket-item {
-      padding: 1rem;
-      border-radius: 10px;
-      margin-bottom: 0.5rem;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      border: 1px solid transparent;
-    }
-    
-    .ticket-item:hover {
-      background: var(--bg-light);
-      transform: translateX(4px);
-    }
-    
-    .ticket-item.active {
-      background: var(--tertiary);
-      border-color: var(--primary);
-      box-shadow: inset 0 0 15px rgba(0, 168, 255, 0.2), 0 0 15px rgba(0, 168, 255, 0.1);
-    }
-    
-    .ticket-item-preview {
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      font-size: 0.875rem;
-      color: var(--text-muted);
-    }
-    
-    .empty-state {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100%;
-      padding: 2rem;
-      text-align: center;
-    }
-    
-    .empty-state i {
-      font-size: 3rem;
-      color: var(--tertiary);
-      margin-bottom: 1rem;
-    }
-    
-    .online-indicator {
-      width: 10px;
-      height: 10px;
-      background-color: var(--success);
-      border-radius: 50%;
-      box-shadow: 0 0 8px var(--success);
-    }
-    
-    .chat-bubble {
-      padding: 0.75rem 1.25rem;
-      border-radius: 1.25rem;
-      max-width: 80%;
-      animation: bubbleAppear 0.3s ease-out;
-      word-wrap: break-word;
-      line-height: 1.5;
-    }
-    
-    .chat-bubble-user {
-      background-color: var(--primary);
-      color: white;
-      border-bottom-right-radius: 0.25rem;
-    }
-    
-    .chat-bubble-seller {
-      background-color: var(--tertiary);
-      color: var(--text-light);
-      border-bottom-left-radius: 0.25rem;
-    }
-    
-    @keyframes bubbleAppear {
-      from {
-        opacity: 0;
-        transform: translateY(10px) scale(0.98);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-      }
-    }
-    
-    .payment-method-option {
-      display: flex;
-      align-items: center;
-      padding: 1rem;
-      border-radius: 0.5rem;
-      border: 1px solid var(--border-color);
-      margin-bottom: 0.75rem;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-    
-    .payment-method-option:hover {
-      background-color: var(--bg-light);
-      border-color: var(--primary);
-    }
-    
-    .payment-method-option.selected {
-      background-color: var(--tertiary);
-      border-color: var(--primary);
-      box-shadow: 0 0 15px rgba(0, 168, 255, 0.3);
-    }
-    
-    .payment-method-option i {
-      font-size: 1.75rem;
-      margin-right: 1.25rem;
-      width: 35px;
-      text-align: center;
-    }
-    
-    .payment-method-option .method-name {
-      font-weight: 600;
-      font-size: 1.1rem;
-      color: var(--text-light);
-    }
-    
-    .ticket-payment-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      background-color: var(--bg-dark);
-      padding: 0.25rem 0.75rem;
-      border-radius: 1rem;
-      font-size: 0.75rem;
-      color: var(--text-light);
-      border: 1px solid var(--border-color);
-    }
-    
-    .ticket-payment-badge i {
-      font-size: 0.875rem;
-    }
-    
-    #completed-view {
-      text-align: center;
-    }
-    
-    .license-key-wrapper {
-      background: var(--bg-dark);
-      border: 1px solid var(--border-color);
-      padding: 1rem;
-      border-radius: 0.5rem;
-      margin-top: 2rem;
-    }
-    
-    #license-key {
-      font-family: monospace;
-      font-size: 1.25rem;
-      color: var(--primary);
-      word-break: break-all;
-    }
-    
-    @media (max-width: 768px) {
-      .ticket-app-container.mobile-chat-view .ticket-sidebar {
-        display: none;
-      }
-      
-      .ticket-app-container:not(.mobile-chat-view) .ticket-main {
-        display: none;
-      }
-      
-      .ticket-sidebar {
-        width: 100%;
-        border-right: none;
-      }
-    }
-  </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Eps1llon Hub Premium - The Ultimate Advantage</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  <style>
+    :root {
+      --bg-dark: #0A0C10;
+      --bg-light: #1A1D25;
+      --primary: #00A8FF;
+      --secondary: #ffc107;
+      --tertiary: #1f2a40;
+      --glow-primary: 0 0 35px rgba(0, 168, 255, 0.7);
+      --text-light: #E0E6F0;
+      --text-muted: #9BA4B5;
+      --border-color: rgba(255, 255, 255, 0.08);
+      --success: #28a745;
+    }
+    
+    html {
+      scroll-behavior: smooth;
+    }
+    
+    body {
+      font-family: 'Poppins', sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-muted);
+      min-height: 100vh;
+      overflow-x: hidden;
+      position: relative;
+    }
+    
+    /* --- Animated Starfield --- */
+    @keyframes move-stars {
+      from { transform: translateY(0px); }
+      to { transform: translateY(-1000px); }
+    }
+    
+    .stars {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      width: 100%;
+      height: 200%;
+      display: block;
+      z-index: -2;
+      background-repeat: repeat;
+      animation: move-stars linear infinite;
+    }
+    
+    #stars1 {
+      background-image: radial-gradient(1px 1px at 20px 30px, #eee, transparent),
+                        radial-gradient(1px 1px at 90px 60px, #fff, transparent),
+                        radial-gradient(1px 1px at 150px 180px, #ddd, transparent);
+      background-size: 200px 200px;
+      animation-duration: 120s;
+    }
+    
+    #stars2 {
+      background-image: radial-gradient(1.5px 1.5px at 50px 100px, #fff, transparent),
+                        radial-gradient(1.5px 1.5px at 120px 40px, #ddd, transparent),
+                        radial-gradient(2px 2px at 180px 150px, #fff, transparent);
+      background-size: 300px 300px;
+      animation-duration: 90s;
+    }
+    
+    #stars3 {
+      background-image: radial-gradient(2px 2px at 10px 160px, #ddd, transparent),
+                        radial-gradient(2.5px 2.5px at 100px 80px, #fff, transparent);
+      background-size: 400px 400px;
+      animation-duration: 60s;
+    }
+    
+    /* --- Ripple --- */
+    .ripple {
+      position: absolute;
+      border-radius: 50%;
+      background-color: rgba(255, 255, 255, 0.3);
+      transform: scale(0);
+      animation: ripple-effect 0.6s linear;
+      pointer-events: none;
+    }
+    
+    @keyframes ripple-effect {
+      to {
+        transform: scale(4);
+        opacity: 0;
+      }
+    }
+    
+    .has-ripple {
+      position: relative;
+      overflow: hidden;
+    }
+    
+    /* Logo white glow */
+    .logo-glow {
+      filter: drop-shadow(0 0 20px rgba(255,255,255,0.8)) drop-shadow(0 0 40px rgba(255,255,255,0.5));
+    }
+    
+    .text-gradient-primary {
+      background: linear-gradient(45deg, var(--primary), #00c6ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    
+    body.chat-active #main-website,
+    body.chat-active #main-footer {
+      display: none;
+    }
+    
+    #ticket-system {
+      display: none;
+    }
+    
+    body.chat-active #ticket-system {
+      display: block;
+    }
+    
+    [data-animate] {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+    }
+    
+    [data-animate].is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    
+    .btn-primary {
+      background-color: var(--primary);
+      box-shadow: var(--glow-primary);
+      transition: all 0.3s ease;
+      border: 1px solid rgba(0, 168, 255, 0.3);
+    }
+    
+    .btn-primary:hover:not(:disabled) {
+      background-color: #0095e0;
+      box-shadow: 0 0 45px rgba(0,168,255,0.8);
+      transform: translateY(-3px);
+    }
+    
+    .btn-primary:active:not(:disabled) {
+      transform: translateY(1px);
+    }
+    
+    #payment-methods {
+      position: relative;
+    }
+    
+    .card {
+      background: linear-gradient(145deg, rgba(26,29,37,0.8), rgba(31,42,64,0.8));
+      border: 1px solid var(--border-color);
+      box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+      transition: all 0.3s ease-in-out;
+      transform: translateZ(0);
+      backdrop-filter: blur(5px);
+    }
+    
+    .card::before {
+      content: '';
+      position: absolute;
+      left: var(--mouse-x, -100%);
+      top: var(--mouse-y, -100%);
+      width: 250px;
+      height: 250px;
+      background: radial-gradient(circle at center, rgba(0, 168, 255, 0.1), transparent 70%);
+      transform: translate(-50%, -50%);
+      opacity: 0;
+      transition: opacity 0.3s ease, left 0.1s linear, top 0.1s linear;
+      pointer-events: none;
+      z-index: 1;
+    }
+    
+    .card:hover {
+      transform: translateY(-5px) scale(1.02) translateZ(0);
+      border-color: var(--primary);
+      background: linear-gradient(145deg, hsl(222, 22%, 18%), hsl(220, 37%, 15%));
+      box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+    }
+    
+    .card:hover::before {
+      opacity: 1;
+    }
+    
+    .card-special::before {
+      background: radial-gradient(circle at center, rgba(255,193,7,0.1), transparent 70%);
+    }
+    
+    .card-special:hover {
+      border-color: var(--secondary);
+    }
+    
+    .modal-backdrop {
+      background-color: rgba(0,0,0,0.8);
+      backdrop-filter: blur(12px);
+      opacity: 0;
+      transition: opacity 0.3s ease-in-out;
+    }
+    
+    .modal-backdrop.visible {
+      opacity: 1;
+    }
+    
+    .modal-content {
+      background-color: var(--bg-light);
+      border: 1px solid var(--border-color);
+      box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+      transform: translateY(20px) scale(0.98);
+      opacity: 0;
+      transition: transform 0.3s cubic-bezier(0.175,0.885,0.32,1.275), opacity 0.3s ease-in-out;
+    }
+    
+    .modal-backdrop.visible .modal-content {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+    }
+    
+    .form-input {
+      background-color: var(--bg-dark);
+      border: 1px solid var(--border-color);
+      color: var(--text-light);
+      transition: all 0.3s ease;
+    }
+    
+    .form-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(0, 168, 255, 0.3);
+      outline: none;
+    }
+    
+    .floating {
+      animation: floating 3s ease-in-out infinite;
+    }
+    
+    @keyframes floating {
+      0% { transform: translateY(0px); }
+      50% { transform: translateY(-10px); }
+      100% { transform: translateY(0px); }
+    }
+    
+    #toast-notification {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background-color: var(--tertiary);
+      color: white;
+      padding: 12px 20px;
+      border-radius: 8px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+      opacity: 0;
+      transform: translateY(-20px);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      z-index: 9999;
+    }
+    
+    #toast-notification.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    
+    #ticket-system {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background-color: var(--bg-dark);
+    }
+    
+    .ticket-app-container {
+      display: flex;
+      height: 100vh;
+    }
+    
+    .ticket-sidebar {
+      width: 320px;
+      background: var(--bg-dark);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+    
+    .sidebar-header {
+      padding: 1.25rem;
+      border-bottom: 1px solid var(--border-color);
+      flex-shrink: 0;
+    }
+    
+    .sidebar-content {
+      overflow-y: auto;
+      padding: 0.75rem;
+      flex: 1;
+    }
+    
+    .ticket-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+    
+    .chat-header {
+      display: flex;
+      align-items: center;
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--border-color);
+      background-color: rgba(26, 29, 37, 0.7);
+      flex-shrink: 0;
+    }
+    
+    .chat-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    
+    .chat-messages {
+      flex: 1;
+      padding: 1.5rem;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+    
+    .chat-input-area {
+      padding: 1rem 1.5rem;
+      border-top: 1px solid var(--border-color);
+      background: rgba(26, 29, 37, 0.8);
+    }
+    
+    #new-ticket-btn:disabled {
+      cursor: not-allowed;
+      opacity: 1;
+    }
+    
+    #new-ticket-btn[data-status="in-progress"] {
+      background-color: var(--tertiary);
+      color: var(--primary);
+      border: 1px solid var(--primary);
+      box-shadow: 0 0 20px rgba(0, 168, 255, 0.4);
+      animation: pulse-glow 2s ease-in-out infinite;
+    }
+    
+    @keyframes pulse-glow {
+      0% { box-shadow: 0 0 20px rgba(0, 168, 255, 0.4); }
+      50% { box-shadow: 0 0 30px rgba(0, 168, 255, 0.7); }
+      100% { box-shadow: 0 0 20px rgba(0, 168, 255, 0.4); }
+    }
+    
+    .ticket-item {
+      padding: 1rem;
+      border-radius: 10px;
+      margin-bottom: 0.5rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
+    }
+    
+    .ticket-item:hover {
+      background: var(--bg-light);
+      transform: translateX(4px);
+    }
+    
+    .ticket-item.active {
+      background: var(--tertiary);
+      border-color: var(--primary);
+      box-shadow: inset 0 0 15px rgba(0, 168, 255, 0.2), 0 0 15px rgba(0, 168, 255, 0.1);
+    }
+    
+    .ticket-item-preview {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+    
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      padding: 2rem;
+      text-align: center;
+    }
+    
+    .empty-state i {
+      font-size: 3rem;
+      color: var(--tertiary);
+      margin-bottom: 1rem;
+    }
+    
+    .online-indicator {
+      width: 10px;
+      height: 10px;
+      background-color: var(--success);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--success);
+    }
+    
+    .chat-bubble {
+      padding: 0.75rem 1.25rem;
+      border-radius: 1.25rem;
+      max-width: 80%;
+      animation: bubbleAppear 0.3s ease-out;
+      word-wrap: break-word;
+      line-height: 1.5;
+    }
+    
+    .chat-bubble-user {
+      background-color: var(--primary);
+      color: white;
+      border-bottom-right-radius: 0.25rem;
+    }
+    
+    .chat-bubble-seller {
+      background-color: var(--tertiary);
+      color: var(--text-light);
+      border-bottom-left-radius: 0.25rem;
+    }
+    
+    @keyframes bubbleAppear {
+      from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.98);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+    
+    .payment-method-option {
+      display: flex;
+      align-items: center;
+      padding: 1rem;
+      border-radius: 0.5rem;
+      border: 1px solid var(--border-color);
+      margin-bottom: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .payment-method-option:hover {
+      background-color: var(--bg-light);
+      border-color: var(--primary);
+    }
+    
+    .payment-method-option.selected {
+      background-color: var(--tertiary);
+      border-color: var(--primary);
+      box-shadow: 0 0 15px rgba(0, 168, 255, 0.3);
+    }
+    
+    .payment-method-option i {
+      font-size: 1.75rem;
+      margin-right: 1.25rem;
+      width: 35px;
+      text-align: center;
+    }
+    
+    .payment-method-option .method-name {
+      font-weight: 600;
+      font-size: 1.1rem;
+      color: var(--text-light);
+    }
+    
+    .ticket-payment-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background-color: var(--bg-dark);
+      padding: 0.25rem 0.75rem;
+      border-radius: 1rem;
+      font-size: 0.75rem;
+      color: var(--text-light);
+      border: 1px solid var(--border-color);
+    }
+    
+    .ticket-payment-badge i {
+      font-size: 0.875rem;
+    }
+    
+    #completed-view {
+      text-align: center;
+    }
+    
+    .license-key-wrapper {
+      background: var(--bg-dark);
+      border: 1px solid var(--border-color);
+      padding: 1rem;
+      border-radius: 0.5rem;
+      margin-top: 2rem;
+    }
+    
+    #license-key {
+      font-family: monospace;
+      font-size: 1.25rem;
+      color: var(--primary);
+      word-break: break-all;
+    }
+    
+    @media (max-width: 768px) {
+      .ticket-app-container.mobile-chat-view .ticket-sidebar {
+        display: none;
+      }
+      
+      .ticket-app-container:not(.mobile-chat-view) .ticket-main {
+        display: none;
+      }
+      
+      .ticket-sidebar {
+        width: 100%;
+        border-right: none;
+      }
+    }
+  </style>
 </head>
 <body class="antialiased">
-  <div id="stars1" class="stars"></div>
-  <div id="stars2" class="stars"></div>
-  <div id="stars3" class="stars"></div>
-  
-  <div id="main-website">
-     <header class="py-4 px-8 flex justify-between items-center bg-black/30 backdrop-blur-md sticky top-0 z-40 border-b border-gray-800">
-        <h1 class="text-3xl font-extrabold text-white flex items-center">
-            <img src="https://i.imgur.com/4LQlJ9V.png" alt="Script Logo" class="h-10 w-10 mr-3 object-contain rounded-full shadow-lg logo-glow">
-            Eps<span class="text-primary">1</span>llon Hub
-        </h1>
-        <nav id="nav-menu" class="hidden md:flex items-center space-x-8">
-            <a href="#features" class="text-text-light hover:text-primary transition-colors text-lg font-medium relative group has-ripple">
-                Features
-                <span class="absolute bottom-0 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span>
-            </a>
-            <a href="#payment-methods" class="text-text-light hover:text-primary transition-colors text-lg font-medium relative group has-ripple">
-                Payments
-                <span class="absolute bottom-0 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span>
-            </a>
-        </nav>
-        <div class="hidden md:flex items-center space-x-4">
-            <div id="auth-links">
-                <button id="login-nav-btn" class="bg-primary/20 text-primary py-2 px-5 rounded-full hover:bg-primary/30 transition duration-300 font-semibold has-ripple">Login / Sign Up</button>
-            </div>
-            <div id="user-info" class="hidden items-center space-x-4">
-                <span id="username-display" class="text-text-light font-medium"></span>
-                <button id="logout-button" class="bg-red-500/20 text-red-400 py-2 px-4 rounded-full hover:bg-red-500/30 transition duration-300 text-sm font-semibold has-ripple">Logout</button>
-            </div>
-        </div>
-        <button id="mobile-menu-btn" class="md:hidden text-text-light text-2xl has-ripple"><i class="fas fa-bars"></i></button>
-    </header>
-    
-    <main class="relative z-10">
-      <section id="hero-section" class="text-center py-28 md:py-40 px-4 relative overflow-hidden">
-        <div class="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none">
-          <img src="https://i.imgur.com/4LQlJ9V.png" alt="Script Logo Background" class="h-64 w-64 md:h-96 md:w-96 object-contain animate-pulse">
-        </div>
-        <div class="relative z-10">
-          <h2 class="text-6xl md:text-8xl font-black text-white leading-tight mb-4 tracking-tighter" data-animate>
-            Eps<span class="text-gradient-primary drop-shadow-lg" style="--tw-drop-shadow: var(--glow-primary);">1</span>llon Hub Premium
-          </h2>
-          <p class="text-xl md:text-2xl max-w-4xl mx-auto mb-6 text-text-light opacity-90" data-animate style="transition-delay: 100ms;">
-            Unlock the ultimate advantage with unparalleled features and dedicated support.
-          </p>
-          <div data-animate style="transition-delay: 200ms;">
-            <div class="text-4xl font-extrabold text-primary mb-2">
-              <span class="text-text-light">$10</span> Lifetime
-            </div>
-            <p class="text-text-muted mb-10">One-time payment for full, permanent access.</p>
-            <button id="purchase-btn" class="relative text-white font-bold py-4 px-12 rounded-full text-xl btn-primary transition-all hover:scale-105 active:scale-95 floating has-ripple">
-              <span id="purchase-btn-content"><i class="fas fa-shopping-cart mr-3"></i> Purchase Now</span>
-            </button>
-          </div>
-        </div>
-      </section>
-      
-      <section id="payment-methods" class="py-20 md:py-28 px-4">
-        <div class="container mx-auto max-w-7xl text-center">
-          <h2 class="text-4xl md:text-5xl font-black text-white mb-4 tracking-tighter" data-animate>
-            Seamless Transactions, <span class="text-gradient-primary">Universal Acceptance</span>
-          </h2>
-          <p class="text-lg md:text-xl max-w-3xl mx-auto mb-16 text-text-muted" data-animate style="transition-delay: 100ms;">
-            We support a vast array of secure payment options. Your premium access is just a click away.
-          </p>
-          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6" data-animate style="transition-delay: 200ms;">
-            <div class="card has-ripple flex flex-col items-center justify-center p-6 text-center aspect-square rounded-2xl">
-              <i class="fab fa-paypal text-5xl mb-4 text-blue-600"></i>
-              <h3 class="text-lg font-bold text-text-light z-10">PayPal</h3>
-            </div>
-            <div class="card card-special has-ripple flex flex-col items-center justify-center p-6 text-center aspect-square rounded-2xl">
-               <i class="fab fa-bitcoin text-5xl mb-4 text-yellow-500"></i>
-              <h3 class="text-lg font-bold text-text-light z-10">Crypto</h3>
-            </div>
-            <div class="card has-ripple flex flex-col items-center justify-center p-6 text-center aspect-square rounded-2xl">
-              <i class="fas fa-credit-card text-5xl mb-4 text-indigo-400"></i>
-              <h3 class="text-lg font-bold text-text-light z-10">Credit Card</h3>
-            </div>
-            <div class="card has-ripple flex flex-col items-center justify-center p-6 text-center aspect-square rounded-2xl">
-              <i class="fas fa-university text-5xl mb-4 text-gray-400"></i>
-              <h3 class="text-lg font-bold text-text-light z-10">Bank Transfer</h3>
-            </div>
-             <div class="card has-ripple flex flex-col items-center justify-center p-6 text-center aspect-square rounded-2xl">
-              <i class="fab fa-google-pay text-5xl mb-4 text-blue-500"></i>
-              <h3 class="text-lg font-bold text-text-light z-10">Google Pay</h3>
-            </div>
-            <div class="card has-ripple flex flex-col items-center justify-center p-6 text-center aspect-square rounded-2xl">
-              <i class="fab fa-apple-pay text-5xl mb-4 text-gray-300"></i>
-              <h3 class="text-lg font-bold text-text-light z-10">Apple Pay</h3>
-            </div>
-            <div class="card has-ripple flex flex-col items-center justify-center p-6 text-center aspect-square rounded-2xl">
-              <i class="fas fa-dollar-sign text-5xl mb-4 text-green-500"></i>
-              <h3 class="text-lg font-bold text-text-light z-10">CashApp</h3>
-            </div>
-            <div class="card card-special has-ripple flex flex-col items-center justify-center p-6 text-center aspect-square rounded-2xl">
-              <i class="fas fa-paw text-5xl mb-4 text-orange-400"></i>
-              <h3 class="text-lg font-bold text-text-light z-10">Gag Pets</h3>
-            </div>
-            <div class="card card-special has-ripple flex flex-col items-center justify-center p-6 text-center aspect-square rounded-2xl">
-              <i class="fas fa-brain text-5xl mb-4 text-pink-500"></i>
-              <h3 class="text-lg font-bold text-text-light z-10">Secret Brainrots</h3>
-            </div>
-          </div>
-        </div>
-      </section>
-      
-      <section id="features" class="py-20 md:py-28 px-4">
-        <div class="container mx-auto max-w-6xl text-center">
-          <h2 class="text-4xl md:text-5xl font-black text-white mb-4 tracking-tighter" data-animate>
-            Engineered for <span class="text-gradient-primary">Dominance</span>
-          </h2>
-          <p class="text-lg md:text-xl max-w-3xl mx-auto mb-16 text-text-muted" data-animate style="transition-delay: 100ms;">
-            Eps1llon Hub isn't just a tool; it's a complete competitive advantage, built on a foundation of power, stability, and continuous innovation.
-          </p>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-8" data-animate style="transition-delay: 200ms;">
-            <div class="card has-ripple p-8 text-left rounded-2xl">
-              <i class="fas fa-bolt text-3xl mb-4 text-primary"></i>
-              <h3 class="text-2xl font-bold text-white mb-2 z-10">Unmatched Performance</h3>
-              <p class="text-text-muted z-10">Experience zero-lag execution and flawless stability, giving you the edge when it matters most.</p>
-            </div>
-            <div class="card has-ripple p-8 text-left rounded-2xl">
-              <i class="fas fa-shield-halved text-3xl mb-4 text-primary"></i>
-              <h3 class="text-2xl font-bold text-white mb-2 z-10">Constant Innovation</h3>
-              <p class="text-text-muted z-10">Receive frequent, seamless updates with new features that keep you ahead of the curve.</p>
-            </div>
-            <div class="card has-ripple p-8 text-left rounded-2xl">
-              <i class="fas fa-headset text-3xl mb-4 text-primary"></i>
-              <h3 class="text-2xl font-bold text-white mb-2 z-10">Dedicated Support</h3>
-              <p class="text-text-muted z-10">Our expert team is available around the clock to assist you with any questions or needs.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-    </main>
-  </div>
-  
-  <footer id="main-footer" class="text-center py-10 border-t border-gray-800 bg-black/30 backdrop-blur-md">
-    <p class="text-text-muted text-lg">&copy; 2025 Eps1llon Hub. All rights reserved.</p>
-  </footer>
-  
-  <div id="auth-modal" class="fixed inset-0 z-[200] modal-backdrop items-center justify-center hidden">
-    <div class="modal-content w-full max-w-md p-8 rounded-2xl">
-      <button id="close-auth-modal-btn" class="absolute top-4 right-4 text-text-muted hover:text-white text-2xl has-ripple">&times;</button>
-      <div id="signup-view">
-        <h3 class="text-3xl font-bold text-white mb-3 text-center">Create Account</h3>
-        <p class="text-center mb-8 text-text-muted">Join to begin your secure purchase.</p>
-        <form id="signup-form">
-          <div class="mb-5">
-            <label for="signup-username" class="block mb-2 text-sm font-medium text-text-light">Username</label>
-            <input type="text" id="signup-username" class="form-input w-full p-3 rounded-lg" placeholder="Choose a unique username" required>
-          </div>
-          <div class="mb-5">
-            <label for="signup-password" class="block mb-2 text-sm font-medium text-text-light">Password</label>
-            <input type="password" id="signup-password" class="form-input w-full p-3 rounded-lg" placeholder="Secure password" required>
-          </div>
-          <div class="cf-turnstile mb-4" data-sitekey="0x4AAAAAAB0PeEmSeY6uJ3nN" data-theme="dark"></div>
-          <button type="submit" class="w-full text-white font-bold py-3 px-6 rounded-lg btn-primary text-lg has-ripple">Sign Up</button>
-        </form>
-        <div class="my-6 flex items-center">
-            <div class="flex-grow border-t border-border-color"></div>
-            <span class="mx-4 text-text-muted">OR</span>
-            <div class="flex-grow border-t border-border-color"></div>
-        </div>
-        <button type="button" class="discord-login-btn w-full flex justify-center items-center text-white font-bold py-3 px-6 rounded-lg bg-[#5865F2] hover:bg-[#4752C4] transition-colors has-ripple">
-            <i class="fab fa-discord mr-3 text-xl"></i>
-            Continue with Discord
-        </button>
-        <p class="text-center mt-6 text-text-muted">Already have an account? <a href="#" id="show-login" class="text-primary hover:underline font-medium">Log In</a></p>
-      </div>
-      <div id="login-view" class="hidden">
-        <h3 class="text-3xl font-bold text-white mb-3 text-center">Welcome Back</h3>
-        <p class="text-center mb-8 text-text-muted">Log in to continue your purchase.</p>
-        <form id="login-form">
-          <div class="mb-5">
-            <label for="login-username" class="block mb-2 text-sm font-medium text-text-light">Username</label>
-            <input type="text" id="login-username" class="form-input w-full p-3 rounded-lg" placeholder="Your username" required>
-          </div>
-          <div class="mb-7">
-            <label for="login-password" class="block mb-2 text-sm font-medium text-text-light">Password</label>
-            <input type="password" id="login-password" class="form-input w-full p-3 rounded-lg" placeholder="Your password" required>
-          </div>
-          <div class="cf-turnstile mb-4" data-sitekey="0x4AAAAAAB0PeEmSeY6uJ3nN" data-theme="dark"></div>
-          <button type="submit" class="w-full text-white font-bold py-3 px-6 rounded-lg btn-primary text-lg has-ripple">Log In</button>
-        </form>
-        <div class="my-6 flex items-center">
-            <div class="flex-grow border-t border-border-color"></div>
-            <span class="mx-4 text-text-muted">OR</span>
-            <div class="flex-grow border-t border-border-color"></div>
-        </div>
-        <button type="button" class="discord-login-btn w-full flex justify-center items-center text-white font-bold py-3 px-6 rounded-lg bg-[#5865F2] hover:bg-[#4752C4] transition-colors has-ripple">
-            <i class="fab fa-discord mr-3 text-xl"></i>
-            Login with Discord
-        </button>
-        <p class="text-center mt-6 text-text-muted">Don't have an account? <a href="#" id="show-signup" class="text-primary hover:underline font-medium">Sign Up</a></p>
-      </div>
-    </div>
-  </div>
+  <div id="stars1" class="stars"></div>
+  <div id="stars2" class="stars"></div>
+  <div id="stars3" class="stars"></div>
+  
+  <div id="main-website">
+     <header class="py-4 px-8 flex justify-between items-center bg-black/30 backdrop-blur-md sticky top-0 z-40 border-b border-gray-800">
+        <h1 class="text-3xl font-extrabold text-white flex items-center">
+            <img src="https://i.imgur.com/4LQlJ9V.png" alt="Script Logo" class="h-10 w-10 mr-3 object-contain rounded-full shadow-lg logo-glow">
+            Eps<span class="text-primary">1</span>llon Hub
+        </h1>
+        <nav id="nav-menu" class="hidden md:flex items-center space-x-8">
+            <a href="#features" class="text-text-light hover:text-primary transition-colors text-lg font-medium relative group has-ripple">
+                Features
+                <span class="absolute bottom-0 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span>
+            </a>
+            <a href="#payment-methods" class="text-text-light hover:text-primary transition-colors text-lg font-medium relative group has-ripple">
+                Payments
+                <span class="absolute bottom-0 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span>
+            </a>
+        </nav>
+        <div class="hidden md:flex items-center space-x-4">
+            <div id="auth-links">
+                <button id="login-nav-btn" class="bg-primary/20 text-primary py-2 px-5 rounded-full hover:bg-primary/30 transition duration-300 font-semibold has-ripple">Login / Sign Up</button>
+            </div>
+            <div id="user-info" class="hidden items-center space-x-4">
+                <span id="username-display" class="text-text-light font-medium"></span>
+                <button id="logout-button" class="bg-red-500/20 text-red-400 py-2 px-4 rounded-full hover:bg-red-500/30 transition duration-300 text-sm font-semibold has-ripple">Logout</button>
+            </div>
+        </div>
+        <button id="mobile-menu-btn" class="md:hidden text-text-light text-2xl has-ripple"><i class="fas fa-bars"></i></button>
+    </header>
+    
+    <main class="relative z-10">
+      <section id="hero-section" class="text-center py-28 md:py-40 px-4 relative overflow-hidden">
+        <div class="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none">
+          <img src="https://i.imgur.com/4LQlJ9V.png" alt="Script Logo Background" class="h-64 w-64 md:h-96 md:w-96 object-contain animate-pulse">
+        </div>
+        <div class="relative z-10">
+          <h2 class="text-6xl md:text-8xl font-black text-white leading-tight mb-4 tracking-tighter" data-animate>
+            Eps<span class="text-gradient-primary drop-shadow-lg" style="--tw-drop-shadow: var(--glow-primary);">1</span>llon Hub Premium
+          </h2>
+          <p class="text-xl md:text-2xl max-w-4xl mx-auto mb-6 text-text-light opacity-90" data-animate style="transition-delay: 100ms;">
+            Unlock the ultimate advantage with unparalleled features and dedicated support.
+          </p>
+          <div data-animate style="transition-delay: 200ms;">
+            <div class="text-4xl font-extrabold text-primary mb-2">
+              <span class="text-text-light">$10</span> Lifetime
+            </div>
+            <p class="text-text-muted mb-10">One-time payment for full, permanent access.</p>
+            <button id="purchase-btn" class="relative text-white font-bold py-4 px-12 rounded-full text-xl btn-primary transition-all hover:scale-105 active:scale-95 floating has-ripple">
+              <span id="purchase-btn-content"><i class="fas fa-shopping-cart mr-3"></i> Purchase Now</span>
+            </button>
+          </div>
+        </div>
+      </section>
+      
+      <section id="payment-methods" class="py-20 md:py-28 px-4">
+        <div class="container mx-auto max-w-7xl text-center">
+          <h2 class="text-4xl md:text-5xl font-black text-white mb-4 tracking-tighter" data-animate>
+            Seamless Transactions, <span class="text-gradient-primary">Universal Acceptance</span>
+          </h2>
+          <p class="text-lg md:text-xl max-w-3xl mx-auto mb-16 text-text-muted" data-animate style="transition-delay: 100ms;">
+            We support a vast array of secure payment options. Your premium access is just a click away.
+          </p>
+          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6" data-animate style="transition-delay: 200ms;">
+            <div class="card has-ripple flex flex-col items-center justify-center p-6 text-center aspect-square rounded-2xl">
+              <i class="fab fa-paypal text-5xl mb-4 text-blue-600"></i>
+              <h3 class="text-lg font-bold text-text-light z-10">PayPal</h3>
+            </div>
+            <div class="card card-special has-ripple flex flex-col items-center justify-center p-6 text-center aspect-square rounded-2xl">
+               <i class="fab fa-bitcoin text-5xl mb-4 text-yellow-500"></i>
+              <h3 class="text-lg font-bold text-text-light z-10">Crypto</h3>
+            </div>
+            <div class="card has-ripple flex flex-col items-center justify-center p-6 text-center aspect-square rounded-2xl">
+              <i class="fas fa-credit-card text-5xl mb-4 text-indigo-400"></i>
+              <h3 class="text-lg font-bold text-text-light z-10">Credit Card</h3>
+            </div>
+            <div class="card has-ripple flex flex-col items-center justify-center p-6 text-center aspect-square rounded-2xl">
+              <i class="fas fa-university text-5xl mb-4 text-gray-400"></i>
+              <h3 class="text-lg font-bold text-text-light z-10">Bank Transfer</h3>
+            </div>
+             <div class="card has-ripple flex flex-col items-center justify-center p-6 text-center aspect-square rounded-2xl">
+              <i class="fab fa-google-pay text-5xl mb-4 text-blue-500"></i>
+              <h3 class="text-lg font-bold text-text-light z-10">Google Pay</h3>
+            </div>
+            <div class="card has-ripple flex flex-col items-center justify-center p-6 text-center aspect-square rounded-2xl">
+              <i class="fab fa-apple-pay text-5xl mb-4 text-gray-300"></i>
+              <h3 class="text-lg font-bold text-text-light z-10">Apple Pay</h3>
+            </div>
+            <div class="card has-ripple flex flex-col items-center justify-center p-6 text-center aspect-square rounded-2xl">
+              <i class="fas fa-dollar-sign text-5xl mb-4 text-green-500"></i>
+              <h3 class="text-lg font-bold text-text-light z-10">CashApp</h3>
+            </div>
+            <div class="card card-special has-ripple flex flex-col items-center justify-center p-6 text-center aspect-square rounded-2xl">
+              <i class="fas fa-paw text-5xl mb-4 text-orange-400"></i>
+              <h3 class="text-lg font-bold text-text-light z-10">Gag Pets</h3>
+            </div>
+            <div class="card card-special has-ripple flex flex-col items-center justify-center p-6 text-center aspect-square rounded-2xl">
+              <i class="fas fa-brain text-5xl mb-4 text-pink-500"></i>
+              <h3 class="text-lg font-bold text-text-light z-10">Secret Brainrots</h3>
+            </div>
+          </div>
+        </div>
+      </section>
+      
+      <section id="features" class="py-20 md:py-28 px-4">
+        <div class="container mx-auto max-w-6xl text-center">
+          <h2 class="text-4xl md:text-5xl font-black text-white mb-4 tracking-tighter" data-animate>
+            Engineered for <span class="text-gradient-primary">Dominance</span>
+          </h2>
+          <p class="text-lg md:text-xl max-w-3xl mx-auto mb-16 text-text-muted" data-animate style="transition-delay: 100ms;">
+            Eps1llon Hub isn't just a tool; it's a complete competitive advantage, built on a foundation of power, stability, and continuous innovation.
+          </p>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-8" data-animate style="transition-delay: 200ms;">
+            <div class="card has-ripple p-8 text-left rounded-2xl">
+              <i class="fas fa-bolt text-3xl mb-4 text-primary"></i>
+              <h3 class="text-2xl font-bold text-white mb-2 z-10">Unmatched Performance</h3>
+              <p class="text-text-muted z-10">Experience zero-lag execution and flawless stability, giving you the edge when it matters most.</p>
+            </div>
+            <div class="card has-ripple p-8 text-left rounded-2xl">
+              <i class="fas fa-shield-halved text-3xl mb-4 text-primary"></i>
+              <h3 class="text-2xl font-bold text-white mb-2 z-10">Constant Innovation</h3>
+              <p class="text-text-muted z-10">Receive frequent, seamless updates with new features that keep you ahead of the curve.</p>
+            </div>
+            <div class="card has-ripple p-8 text-left rounded-2xl">
+              <i class="fas fa-headset text-3xl mb-4 text-primary"></i>
+              <h3 class="text-2xl font-bold text-white mb-2 z-10">Dedicated Support</h3>
+              <p class="text-text-muted z-10">Our expert team is available around the clock to assist you with any questions or needs.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+  
+  <footer id="main-footer" class="text-center py-10 border-t border-gray-800 bg-black/30 backdrop-blur-md">
+    <p class="text-text-muted text-lg">&copy; 2025 Eps1llon Hub. All rights reserved.</p>
+  </footer>
+  
+  <div id="auth-modal" class="fixed inset-0 z-[200] modal-backdrop items-center justify-center hidden">
+    <div class="modal-content w-full max-w-md p-8 rounded-2xl">
+      <button id="close-auth-modal-btn" class="absolute top-4 right-4 text-text-muted hover:text-white text-2xl has-ripple">&times;</button>
+      <div id="signup-view">
+        <h3 class="text-3xl font-bold text-white mb-3 text-center">Create Account</h3>
+        <p class="text-center mb-8 text-text-muted">Join to begin your secure purchase.</p>
+        <form id="signup-form">
+          <div class="mb-5">
+            <label for="signup-username" class="block mb-2 text-sm font-medium text-text-light">Username</label>
+            <input type="text" id="signup-username" class="form-input w-full p-3 rounded-lg" placeholder="Choose a unique username" required>
+          </div>
+          <div class="mb-5">
+            <label for="signup-password" class="block mb-2 text-sm font-medium text-text-light">Password</label>
+            <input type="password" id="signup-password" class="form-input w-full p-3 rounded-lg" placeholder="Secure password" required>
+          </div>
+          <div class="cf-turnstile mb-4" data-sitekey="0x4AAAAAAB0PeEmSeY6uJ3nN" data-theme="dark"></div>
+          <button type="submit" class="w-full text-white font-bold py-3 px-6 rounded-lg btn-primary text-lg has-ripple">Sign Up</button>
+        </form>
+        <div class="my-6 flex items-center">
+            <div class="flex-grow border-t border-border-color"></div>
+            <span class="mx-4 text-text-muted">OR</span>
+            <div class="flex-grow border-t border-border-color"></div>
+        </div>
+        <button type="button" class="discord-login-btn w-full flex justify-center items-center text-white font-bold py-3 px-6 rounded-lg bg-[#5865F2] hover:bg-[#4752C4] transition-colors has-ripple">
+            <i class="fab fa-discord mr-3 text-xl"></i>
+            Continue with Discord
+        </button>
+        <p class="text-center mt-6 text-text-muted">Already have an account? <a href="#" id="show-login" class="text-primary hover:underline font-medium">Log In</a></p>
+      </div>
+      <div id="login-view" class="hidden">
+        <h3 class="text-3xl font-bold text-white mb-3 text-center">Welcome Back</h3>
+        <p class="text-center mb-8 text-text-muted">Log in to continue your purchase.</p>
+        <form id="login-form">
+          <div class="mb-5">
+            <label for="login-username" class="block mb-2 text-sm font-medium text-text-light">Username</label>
+            <input type="text" id="login-username" class="form-input w-full p-3 rounded-lg" placeholder="Your username" required>
+          </div>
+          <div class="mb-7">
+            <label for="login-password" class="block mb-2 text-sm font-medium text-text-light">Password</label>
+            <input type="password" id="login-password" class="form-input w-full p-3 rounded-lg" placeholder="Your password" required>
+          </div>
+          <div class="cf-turnstile mb-4" data-sitekey="0x4AAAAAAB0PeEmSeY6uJ3nN" data-theme="dark"></div>
+          <button type="submit" class="w-full text-white font-bold py-3 px-6 rounded-lg btn-primary text-lg has-ripple">Log In</button>
+        </form>
+        <div class="my-6 flex items-center">
+            <div class="flex-grow border-t border-border-color"></div>
+            <span class="mx-4 text-text-muted">OR</span>
+            <div class="flex-grow border-t border-border-color"></div>
+        </div>
+        <button type="button" class="discord-login-btn w-full flex justify-center items-center text-white font-bold py-3 px-6 rounded-lg bg-[#5865F2] hover:bg-[#4752C4] transition-colors has-ripple">
+            <i class="fab fa-discord mr-3 text-xl"></i>
+            Login with Discord
+        </button>
+        <p class="text-center mt-6 text-text-muted">Don't have an account? <a href="#" id="show-signup" class="text-primary hover:underline font-medium">Sign Up</a></p>
+      </div>
+    </div>
+  </div>
 
-  <div id="payment-method-modal" class="fixed inset-0 z-[200] modal-backdrop items-center justify-center hidden">
-    <div class="modal-content w-full max-w-md p-8 rounded-2xl">
-      <button id="close-payment-modal-btn" class="absolute top-4 right-4 text-text-muted hover:text-white text-2xl has-ripple">&times;</button>
-      <h3 class="text-3xl font-bold text-white mb-3 text-center">Payment Method</h3>
-      <p class="text-center mb-8 text-text-muted">How would you like to pay?</p>
-      <div class="payment-method-option has-ripple" data-method="PayPal">
-        <i class="fab fa-paypal text-blue-600"></i>
-        <div class="method-name">PayPal</div>
-      </div>
-      <div class="payment-method-option has-ripple" data-method="Crypto">
-        <i class="fab fa-bitcoin text-yellow-500"></i>
-        <div class="method-name">Crypto</div>
-      </div>
-       <div class="payment-method-option has-ripple" data-method="Credit Card">
-        <i class="fas fa-credit-card text-indigo-400"></i>
-        <div class="method-name">Credit Card</div>
-      </div>
-      <div class="payment-method-option has-ripple" data-method="Bank Transfer">
-        <i class="fas fa-university text-gray-400"></i>
-        <div class="method-name">Bank Transfer</div>
-      </div>
-      <div class="payment-method-option has-ripple" data-method="Google Pay">
-        <i class="fab fa-google-pay text-blue-500"></i>
-        <div class="method-name">Google Pay</div>
-      </div>
-      <div class="payment-method-option has-ripple" data-method="Apple Pay">
-        <i class="fab fa-apple-pay text-gray-300"></i>
-        <div class="method-name">Apple Pay</div>
-      </div>
-      <div class="payment-method-option has-ripple" data-method="CashApp">
-        <i class="fas fa-dollar-sign text-green-500"></i>
-        <div class="method-name">CashApp</div>
-      </div>
-      <div class="payment-method-option has-ripple" data-method="Gag Pets">
-        <i class="fas fa-paw text-orange-400"></i>
-        <div class="method-name">Gag Pets</div>
-      </div>
-      <div class="payment-method-option has-ripple" data-method="Secret Brainrots">
-        <i class="fas fa-brain text-pink-500"></i>
-        <div class="method-name">Secret Brainrots</div>
-      </div>
-      <div id="payment-turnstile-widget" class="cf-turnstile mt-6" data-sitekey="0x4AAAAAAB0PeEmSeY6uJ3nN" data-theme="dark"></div>
-      <button id="confirm-payment-btn" class="w-full mt-4 text-white font-bold py-3 px-6 rounded-lg btn-primary text-lg opacity-50 cursor-not-allowed has-ripple" disabled>Create Purchase Ticket</button>
-    </div>
-  </div>
-  
-  <div id="ticket-system">
-    <div id="ticket-app-container" class="ticket-app-container">
-      <aside class="ticket-sidebar">
-        <div class="sidebar-header flex justify-between items-center">
-          <div>
-            <h2 class="text-2xl font-bold text-white">Purchase Portal</h2>
-            <p class="text-sm text-text-muted">Your active & past orders.</p>
-          </div>
-          <button id="close-ticket-system-btn" title="Back to Main Page" class="text-text-muted hover:text-white transition-colors text-2xl has-ripple">
-            <i class="fas fa-times"></i>
-          </button>
-        </div>
-        <div id="ticket-list" class="sidebar-content"></div>
-        <div class="sidebar-footer p-4 border-t border-border-color mt-auto">
-          <button id="new-ticket-btn" class="w-full font-semibold py-3 px-4 rounded-lg transition-colors flex items-center justify-center has-ripple">
-            <i class="fas fa-plus mr-2"></i> New Purchase
-          </button>
-        </div>
-      </aside>
-      
-      <main class="ticket-main">
-        <div id="ticket-view-content" class="h-full flex-col hidden">
-          <header class="chat-header">
-            <button id="back-to-list-btn" class="md:hidden text-text-light text-xl mr-4 has-ripple">
-              <i class="fas fa-arrow-left"></i>
-            </button>
-            <div class="relative mr-4">
-              <div class="w-12 h-12 rounded-full bg-tertiary flex items-center justify-center text-primary text-xl">
-                <i class="fas fa-headset"></i>
-              </div>
-              <div class="online-indicator absolute bottom-0 right-0 border-2 border-bg-light"></div>
-            </div>
-            <div>
-              <h3 id="ticket-title" class="text-lg font-bold text-white"></h3>
-              <p id="ticket-status-text" class="text-sm"></p>
-            </div>
-          </header>
-          
-          <div id="chat-container" class="chat-container">
-            <div id="chat-messages" class="chat-messages"></div>
-            <div class="chat-input-area">
-              <form id="chat-form" class="flex items-center gap-4">
-                <input type="text" id="chat-input" class="form-input flex-1 p-3 rounded-full bg-tertiary" placeholder="Type your message..." autocomplete="off" required>
-                <button type="submit" class="w-12 h-12 text-white font-bold rounded-full btn-primary text-lg flex items-center justify-center flex-shrink-0 has-ripple">
-                  <i class="fas fa-paper-plane"></i>
-                </button>
-              </form>
-            </div>
-          </div>
-          
-          <div id="completed-view" class="p-8 flex-1 flex flex-col items-center justify-center hidden">
-            <div class="text-green-400 mb-4">
-              <i class="fas fa-check-circle fa-5x"></i>
-            </div>
-            <h2 class="text-3xl font-bold text-white mb-2">Purchase Complete!</h2>
-            <p class="text-text-muted mb-6">Thank you! Your lifetime license for Eps1llon Hub Premium is now active.</p>
-            <div class="w-full max-w-md">
-              <label class="block text-sm font-medium text-text-light text-left mb-2">Your License Key:</label>
-              <div class="license-key-wrapper">
-                <p id="license-key"></p>
-              </div>
-              <button id="copy-key-btn" class="w-full mt-4 bg-green-500/20 text-green-400 font-semibold py-3 px-4 rounded-lg hover:bg-green-500/30 transition-colors flex items-center justify-center has-ripple">
-                <i class="fas fa-copy mr-2"></i> Copy to Clipboard
-              </button>
-            </div>
-          </div>
-        </div>
-        
-        <div id="ticket-placeholder" class="empty-state">
-          <i class="fas fa-ticket-alt text-7xl text-tertiary mb-6"></i>
-          <h3 class="text-2xl font-bold text-white mb-2">Welcome to the Purchase Portal</h3>
-          <p class="text-text-muted max-w-sm">Select a ticket from the left or create a new one to begin.</p>
-        </div>
-      </main>
-    </div>
-  </div>
-  
-  <div id="toast-notification" class="fixed top-5 right-5 bg-tertiary text-white py-3 px-5 rounded-lg shadow-lg opacity-0 transform -translate-y-5 transition-all duration-300 z-[9999]">
-    <p id="toast-message"></p>
-  </div>
-  
-  <audio id="notification-sound" src="data:audio/mpeg;base64,SUQzBAAAAAABEVRYWFgAAAAtAAADY29tbWVudABCaW5nIENTUkFQX1NGQkxXU0ZPQUNPMwAAAAAAAExodTEAAAAAADISAWAAAZGfk34pEEYp9+BY0TE3aJgl9xW8EaB/zP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/......"></audio>
-  
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const API_BASE_URL = '/api';
-      
-      // === NEW: HANDLE DISCORD LOGIN REDIRECT ===
-      // This checks for a token in the URL hash, stores it, and cleans the URL.
-      let justLoggedInViaOAuth = false;
-      if (window.location.hash.startsWith('#token=')) {
-          const token = window.location.hash.substring(7); // #token=... -> ...
-          if (token) {
-              localStorage.setItem('token', token);
-              // Clean the URL hash without reloading the page
-              history.replaceState(null, null, window.location.pathname + window.location.search);
-              justLoggedInViaOAuth = true;
-          }
-      }
-      
-      const App = {
-        state: {
-          isLoggedIn: false,
-          user: null,
-          tickets: [],
-          currentTicketId: null,
-          selectedPaymentMethod: null
-        },
-        
-        elements: {},
-        
-        async init() {
-          this.cacheElements();
-          this.registerEventListeners();
-          // Load state will now pick up the token from localStorage if it was in the URL
-          this.loadState(); 
-          
-          // If just logged in via Discord, automatically open the purchase portal
-          if (justLoggedInViaOAuth && this.state.isLoggedIn) {
-              this.showToast(`Welcome, ${this.state.user.username}!`);
-              await this.loadTickets();
-              this.openTicketSystem();
-          }
-          
-          this.initScrollAnimations();
-          
-          setInterval(() => {
-            if (document.body.classList.contains('chat-active') && this.state.isLoggedIn) {
-              this.loadTickets();
-            }
-          }, 15000);
-        },
-        
-        cacheElements() {
-          this.elements = {
-            body: document.body,
-            purchaseBtn: document.getElementById('purchase-btn'),
-            purchaseBtnContent: document.getElementById('purchase-btn-content'),
-            authModal: document.getElementById('auth-modal'),
-            closeAuthModalBtn: document.getElementById('close-auth-modal-btn'),
-            ticketSystem: document.getElementById('ticket-system'),
-            showLoginBtn: document.getElementById('show-login'),
-            showSignupBtn: document.getElementById('show-signup'),
-            signupView: document.getElementById('signup-view'),
-            loginView: document.getElementById('login-view'),
-            signupForm: document.getElementById('signup-form'),
-            loginForm: document.getElementById('login-form'),
-            chatMessages: document.querySelector('.chat-messages'),
-            chatForm: document.querySelector('#chat-form'),
-            chatInput: document.querySelector('#chat-input'),
-            chatContainer: document.getElementById('chat-container'),
-            ticketList: document.getElementById('ticket-list'),
-            ticketViewContent: document.getElementById('ticket-view-content'),
-            ticketPlaceholder: document.getElementById('ticket-placeholder'),
-            ticketTitle: document.getElementById('ticket-title'),
-            ticketStatusText: document.getElementById('ticket-status-text'),
-            newTicketBtn: document.getElementById('new-ticket-btn'),
-            backToListBtn: document.getElementById('back-to-list-btn'),
-            notificationSound: document.getElementById('notification-sound'),
-            completedView: document.getElementById('completed-view'),
-            licenseKey: document.getElementById('license-key'),
-            copyKeyBtn: document.getElementById('copy-key-btn'),
-            closeTicketSystemBtn: document.getElementById('close-ticket-system-btn'),
-            toastNotification: document.getElementById('toast-notification'),
-            toastMessage: document.getElementById('toast-message'),
-            paymentMethodModal: document.getElementById('payment-method-modal'),
-            closePaymentModalBtn: document.getElementById('close-payment-modal-btn'),
-            paymentMethodOptions: document.querySelectorAll('.payment-method-option'),
-            confirmPaymentBtn: document.getElementById('confirm-payment-btn'),
-            ticketAppContainer: document.querySelector('.ticket-app-container'),
-            paymentCards: document.querySelectorAll('#payment-methods .card'),
-            rippleElements: document.querySelectorAll('.has-ripple'),
-            authLinks: document.getElementById('auth-links'),
-            userInfo: document.getElementById('user-info'),
-            usernameDisplay: document.getElementById('username-display'),
-            logoutButton: document.getElementById('logout-button'),
-            loginNavBtn: document.getElementById('login-nav-btn'),
-            // === NEW: Cache Discord Login Buttons ===
-            discordLoginBtns: document.querySelectorAll('.discord-login-btn'),
-          };
-        },
-        
-        loadState() {
-          const token = localStorage.getItem('token');
-          if (token) {
-            try {
-              const payload = JSON.parse(atob(token.split('.')[1]));
-              if (payload.exp * 1000 > Date.now()) {
-                this.state.isLoggedIn = true;
-                this.state.user = { id: payload.id, username: payload.username };
-              } else {
-                this.logout();
-              }
-            } catch (e) {
-              this.logout();
-            }
-          }
-          this.updateUI(); // Moved from the middle of the function to the end
-        },
-        
-        async apiCall(endpoint, options = {}) {
-          const token = localStorage.getItem('token');
-          const headers = {
-            'Content-Type': 'application/json',
-            ...options.headers
-          };
-          
-          if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-          }
-          
-          try {
-            const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-              ...options,
-              headers
-            });
-            
-            if ((response.status === 401 || response.status === 403) && endpoint !== '/login' && endpoint !== '/register') {
-              this.logout();
-              this.showToast("Your session has expired. Please log in again.");
-              return null;
-            }
-            
-            return response;
-          } catch (error) {
-            console.error(`API call to ${endpoint} failed:`, error);
-            this.showToast("A network error occurred.");
-            return null;
-          }
-        },
-        
-        async loadTickets() {
-          if (!this.state.isLoggedIn) return;
-          
-          const response = await this.apiCall('/tickets/my');
-          if (response && response.ok) {
-            const newTickets = await response.json();
-            
-            if (this.state.currentTicketId && this.state.tickets.length > 0) {
-              const oldTicket = this.state.tickets.find(t => t.id === this.state.currentTicketId);
-              const newTicket = newTickets.find(t => t.id === this.state.currentTicketId);
-              
-              if (oldTicket && newTicket && oldTicket.messages.length < newTicket.messages.length) {
-                const lastMessage = newTicket.messages[newTicket.messages.length - 1];
-                if (lastMessage.sender === 'seller') {
-                  this.elements.notificationSound.play().catch(console.error);
-                }
-              }
-            }
-            
-            this.state.tickets = newTickets;
-            this.renderSidebar();
-            
-            if (this.state.currentTicketId) {
-              const updatedTicket = this.state.tickets.find(t => t.id === this.state.currentTicketId);
-              if (updatedTicket) {
-                this.renderTicketView(updatedTicket);
-              } else {
-                this.state.currentTicketId = null;
-                this.elements.ticketViewContent.classList.add('hidden');
-                this.elements.ticketPlaceholder.classList.remove('hidden');
-              }
-            }
-          }
-        },
-        
-        registerEventListeners() {
-          this.elements.purchaseBtn.addEventListener('click', this.handlePurchaseClick.bind(this));
-          this.elements.authModal.addEventListener('click', (e) => {
-            if (e.target === this.elements.authModal) this.closeAuthModal();
-          });
-          this.elements.closeAuthModalBtn.addEventListener('click', this.closeAuthModal.bind(this));
-          this.elements.showLoginBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            this.toggleAuthView(true);
-          });
-          this.elements.showSignupBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            this.toggleAuthView(false);
-          });
-          this.elements.signupForm.addEventListener('submit', this.handleSignup.bind(this));
-          this.elements.loginForm.addEventListener('submit', this.handleLogin.bind(this));
-          this.elements.newTicketBtn.addEventListener('click', this.showPaymentMethodModal.bind(this));
-          this.elements.backToListBtn.addEventListener('click', () => this.elements.ticketAppContainer.classList.remove('mobile-chat-view'));
-          this.elements.chatForm.addEventListener('submit', this.handleChatMessage.bind(this));
-          this.elements.copyKeyBtn.addEventListener('click', this.copyLicenseKey.bind(this));
-          this.elements.closeTicketSystemBtn.addEventListener('click', this.closeTicketSystem.bind(this));
-          this.elements.paymentMethodModal.addEventListener('click', (e) => {
-            if (e.target === this.elements.paymentMethodModal) this.closePaymentMethodModal();
-          });
-          this.elements.closePaymentModalBtn.addEventListener('click', this.closePaymentMethodModal.bind(this));
-          this.elements.confirmPaymentBtn.addEventListener('click', this.handlePaymentMethodConfirm.bind(this));
-          this.elements.logoutButton.addEventListener('click', this.logout.bind(this));
-          this.elements.loginNavBtn.addEventListener('click', this.openAuthModal.bind(this));
+  <div id="payment-method-modal" class="fixed inset-0 z-[200] modal-backdrop items-center justify-center hidden">
+    <div class="modal-content w-full max-w-md p-8 rounded-2xl">
+      <button id="close-payment-modal-btn" class="absolute top-4 right-4 text-text-muted hover:text-white text-2xl has-ripple">&times;</button>
+      <h3 class="text-3xl font-bold text-white mb-3 text-center">Payment Method</h3>
+      <p class="text-center mb-8 text-text-muted">How would you like to pay?</p>
+      <div class="payment-method-option has-ripple" data-method="PayPal">
+        <i class="fab fa-paypal text-blue-600"></i>
+        <div class="method-name">PayPal</div>
+      </div>
+      <div class="payment-method-option has-ripple" data-method="Crypto">
+        <i class="fab fa-bitcoin text-yellow-500"></i>
+        <div class="method-name">Crypto</div>
+      </div>
+       <div class="payment-method-option has-ripple" data-method="Credit Card">
+        <i class="fas fa-credit-card text-indigo-400"></i>
+        <div class="method-name">Credit Card</div>
+      </div>
+      <div class="payment-method-option has-ripple" data-method="Bank Transfer">
+        <i class="fas fa-university text-gray-400"></i>
+        <div class="method-name">Bank Transfer</div>
+      </div>
+      <div class="payment-method-option has-ripple" data-method="Google Pay">
+        <i class="fab fa-google-pay text-blue-500"></i>
+        <div class="method-name">Google Pay</div>
+      </div>
+      <div class="payment-method-option has-ripple" data-method="Apple Pay">
+        <i class="fab fa-apple-pay text-gray-300"></i>
+        <div class="method-name">Apple Pay</div>
+      </div>
+      <div class="payment-method-option has-ripple" data-method="CashApp">
+        <i class="fas fa-dollar-sign text-green-500"></i>
+        <div class="method-name">CashApp</div>
+      </div>
+      <div class="payment-method-option has-ripple" data-method="Gag Pets">
+        <i class="fas fa-paw text-orange-400"></i>
+        <div class="method-name">Gag Pets</div>
+      </div>
+      <div class="payment-method-option has-ripple" data-method="Secret Brainrots">
+        <i class="fas fa-brain text-pink-500"></i>
+        <div class="method-name">Secret Brainrots</div>
+      </div>
+      <div id="payment-turnstile-widget" class="cf-turnstile mt-6" data-sitekey="0x4AAAAAAB0PeEmSeY6uJ3nN" data-theme="dark"></div>
+      <button id="confirm-payment-btn" class="w-full mt-4 text-white font-bold py-3 px-6 rounded-lg btn-primary text-lg opacity-50 cursor-not-allowed has-ripple" disabled>Create Purchase Ticket</button>
+    </div>
+  </div>
+  
+  <div id="ticket-system">
+    <div id="ticket-app-container" class="ticket-app-container">
+      <aside class="ticket-sidebar">
+        <div class="sidebar-header flex justify-between items-center">
+          <div>
+            <h2 class="text-2xl font-bold text-white">Purchase Portal</h2>
+            <p class="text-sm text-text-muted">Your active & past orders.</p>
+          </div>
+          <button id="close-ticket-system-btn" title="Back to Main Page" class="text-text-muted hover:text-white transition-colors text-2xl has-ripple">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <div id="ticket-list" class="sidebar-content"></div>
+        <div class="sidebar-footer p-4 border-t border-border-color mt-auto">
+          <button id="new-ticket-btn" class="w-full font-semibold py-3 px-4 rounded-lg transition-colors flex items-center justify-center has-ripple">
+            <i class="fas fa-plus mr-2"></i> New Purchase
+          </button>
+        </div>
+      </aside>
+      
+      <main class="ticket-main">
+        <div id="ticket-view-content" class="h-full flex-col hidden">
+          <header class="chat-header">
+            <button id="back-to-list-btn" class="md:hidden text-text-light text-xl mr-4 has-ripple">
+              <i class="fas fa-arrow-left"></i>
+            </button>
+            <div class="relative mr-4">
+              <div class="w-12 h-12 rounded-full bg-tertiary flex items-center justify-center text-primary text-xl">
+                <i class="fas fa-headset"></i>
+              </div>
+              <div class="online-indicator absolute bottom-0 right-0 border-2 border-bg-light"></div>
+            </div>
+            <div>
+              <h3 id="ticket-title" class="text-lg font-bold text-white"></h3>
+              <p id="ticket-status-text" class="text-sm"></p>
+            </div>
+          </header>
+          
+          <div id="chat-container" class="chat-container">
+            <div id="chat-messages" class="chat-messages"></div>
+            <div class="chat-input-area">
+              <form id="chat-form" class="flex items-center gap-4">
+                <input type="text" id="chat-input" class="form-input flex-1 p-3 rounded-full bg-tertiary" placeholder="Type your message..." autocomplete="off" required>
+                <button type="submit" class="w-12 h-12 text-white font-bold rounded-full btn-primary text-lg flex items-center justify-center flex-shrink-0 has-ripple">
+                  <i class="fas fa-paper-plane"></i>
+                </button>
+              </form>
+            </div>
+          </div>
+          
+          <div id="completed-view" class="p-8 flex-1 flex flex-col items-center justify-center hidden">
+            <div class="text-green-400 mb-4">
+              <i class="fas fa-check-circle fa-5x"></i>
+            </div>
+            <h2 class="text-3xl font-bold text-white mb-2">Purchase Complete!</h2>
+            <p class="text-text-muted mb-6">Thank you! Your lifetime license for Eps1llon Hub Premium is now active.</p>
+            <div class="w-full max-w-md">
+              <label class="block text-sm font-medium text-text-light text-left mb-2">Your License Key:</label>
+              <div class="license-key-wrapper">
+                <p id="license-key"></p>
+              </div>
+              <button id="copy-key-btn" class="w-full mt-4 bg-green-500/20 text-green-400 font-semibold py-3 px-4 rounded-lg hover:bg-green-500/30 transition-colors flex items-center justify-center has-ripple">
+                <i class="fas fa-copy mr-2"></i> Copy to Clipboard
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <div id="ticket-placeholder" class="empty-state">
+          <i class="fas fa-ticket-alt text-7xl text-tertiary mb-6"></i>
+          <h3 class="text-2xl font-bold text-white mb-2">Welcome to the Purchase Portal</h3>
+          <p class="text-text-muted max-w-sm">Select a ticket from the left or create a new one to begin.</p>
+        </div>
+      </main>
+    </div>
+  </div>
+  
+  <div id="toast-notification" class="fixed top-5 right-5 bg-tertiary text-white py-3 px-5 rounded-lg shadow-lg opacity-0 transform -translate-y-5 transition-all duration-300 z-[9999]">
+    <p id="toast-message"></p>
+  </div>
+  
+  <audio id="notification-sound" src="data:audio/mpeg;base64,SUQzBAAAAAABEVRYWFgAAAAtAAADY29tbWVudABCaW5nIENTUkFQX1NGQkxXU0ZPQUNPMwAAAAAAAAxMYXZmNjAuMy4xMDAAAAAAAAANIAAAAAAAAFlhbWVAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/8A0gQAAAAAAAAAAAAAAAAAAAAAADZTEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVMQU1FMy4xMDBVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV..."></audio>
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const API_BASE_URL = '/api';
+      
+      // === NEW: HANDLE DISCORD LOGIN REDIRECT ===
+      // This checks for a token in the URL hash, stores it, and cleans the URL.
+      let justLoggedInViaOAuth = false;
+      if (window.location.hash.startsWith('#token=')) {
+          const token = window.location.hash.substring(7); // #token=... -> ...
+          if (token) {
+              localStorage.setItem('token', token);
+              // Clean the URL hash without reloading the page
+              history.replaceState(null, null, window.location.pathname + window.location.search);
+              justLoggedInViaOAuth = true;
+          }
+      }
+      
+      const App = {
+        state: {
+          isLoggedIn: false,
+          user: null,
+          tickets: [],
+          currentTicketId: null,
+          selectedPaymentMethod: null
+        },
+        
+        elements: {},
+        
+        async init() {
+          this.cacheElements();
+          this.registerEventListeners();
+          // Load state will now pick up the token from localStorage if it was in the URL
+          this.loadState(); 
+          
+          // If just logged in via Discord, automatically open the purchase portal
+          if (justLoggedInViaOAuth && this.state.isLoggedIn) {
+              this.showToast(`Welcome, ${this.state.user.username}!`);
+              await this.loadTickets();
+              this.openTicketSystem();
+          }
+          
+          this.initScrollAnimations();
+          
+          setInterval(() => {
+            if (document.body.classList.contains('chat-active') && this.state.isLoggedIn) {
+              this.loadTickets();
+            }
+          }, 15000);
+        },
+        
+        cacheElements() {
+          this.elements = {
+            body: document.body,
+            purchaseBtn: document.getElementById('purchase-btn'),
+            purchaseBtnContent: document.getElementById('purchase-btn-content'),
+            authModal: document.getElementById('auth-modal'),
+            closeAuthModalBtn: document.getElementById('close-auth-modal-btn'),
+            ticketSystem: document.getElementById('ticket-system'),
+            showLoginBtn: document.getElementById('show-login'),
+            showSignupBtn: document.getElementById('show-signup'),
+            signupView: document.getElementById('signup-view'),
+            loginView: document.getElementById('login-view'),
+            signupForm: document.getElementById('signup-form'),
+            loginForm: document.getElementById('login-form'),
+            chatMessages: document.querySelector('.chat-messages'),
+            chatForm: document.querySelector('#chat-form'),
+            chatInput: document.querySelector('#chat-input'),
+            chatContainer: document.getElementById('chat-container'),
+            ticketList: document.getElementById('ticket-list'),
+            ticketViewContent: document.getElementById('ticket-view-content'),
+            ticketPlaceholder: document.getElementById('ticket-placeholder'),
+            ticketTitle: document.getElementById('ticket-title'),
+            ticketStatusText: document.getElementById('ticket-status-text'),
+            newTicketBtn: document.getElementById('new-ticket-btn'),
+            backToListBtn: document.getElementById('back-to-list-btn'),
+            notificationSound: document.getElementById('notification-sound'),
+            completedView: document.getElementById('completed-view'),
+            licenseKey: document.getElementById('license-key'),
+            copyKeyBtn: document.getElementById('copy-key-btn'),
+            closeTicketSystemBtn: document.getElementById('close-ticket-system-btn'),
+            toastNotification: document.getElementById('toast-notification'),
+            toastMessage: document.getElementById('toast-message'),
+            paymentMethodModal: document.getElementById('payment-method-modal'),
+            closePaymentModalBtn: document.getElementById('close-payment-modal-btn'),
+            paymentMethodOptions: document.querySelectorAll('.payment-method-option'),
+            confirmPaymentBtn: document.getElementById('confirm-payment-btn'),
+            ticketAppContainer: document.querySelector('.ticket-app-container'),
+            paymentCards: document.querySelectorAll('#payment-methods .card'),
+            rippleElements: document.querySelectorAll('.has-ripple'),
+            authLinks: document.getElementById('auth-links'),
+            userInfo: document.getElementById('user-info'),
+            usernameDisplay: document.getElementById('username-display'),
+            logoutButton: document.getElementById('logout-button'),
+            loginNavBtn: document.getElementById('login-nav-btn'),
+            // === NEW: Cache Discord Login Buttons ===
+            discordLoginBtns: document.querySelectorAll('.discord-login-btn'),
+          };
+        },
+        
+        loadState() {
+          const token = localStorage.getItem('token');
+          if (token) {
+            try {
+              const payload = JSON.parse(atob(token.split('.')[1]));
+              if (payload.exp * 1000 > Date.now()) {
+                this.state.isLoggedIn = true;
+                this.state.user = { id: payload.id, username: payload.username };
+              } else {
+                this.logout();
+              }
+            } catch (e) {
+              this.logout();
+            }
+          }
+          this.updateUI();
+        },
+        
+        async apiCall(endpoint, options = {}) {
+          const token = localStorage.getItem('token');
+          const headers = {
+            'Content-Type': 'application/json',
+            ...options.headers
+          };
+          
+          if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+          }
+          
+          try {
+            const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+              ...options,
+              headers
+            });
+            
+            // === MODIFIED: Handle session expiration more gracefully ===
+            if ((response.status === 401 || response.status === 403) && endpoint !== '/login' && endpoint !== '/register') {
+              const wasLoggedIn = this.state.isLoggedIn;
+              this.logout();
+              if (wasLoggedIn) {
+                this.showToast("Your session has expired. Please log in again.");
+                this.openAuthModal();
+                this.toggleAuthView(true); // Ensure login view is shown
+              }
+              return null; // Stop further processing
+            }
+            
+            return response;
+          } catch (error) {
+            console.error(`API call to ${endpoint} failed:`, error);
+            this.showToast("A network error occurred.");
+            return null;
+          }
+        },
+        
+        async loadTickets() {
+          if (!this.state.isLoggedIn) return;
+          
+          const response = await this.apiCall('/tickets/my');
+          if (response && response.ok) {
+            const newTickets = await response.json();
+            
+            if (this.state.currentTicketId && this.state.tickets.length > 0) {
+              const oldTicket = this.state.tickets.find(t => t.id === this.state.currentTicketId);
+              const newTicket = newTickets.find(t => t.id === this.state.currentTicketId);
+              
+              if (oldTicket && newTicket && oldTicket.messages.length < newTicket.messages.length) {
+                const lastMessage = newTicket.messages[newTicket.messages.length - 1];
+                if (lastMessage.sender === 'seller') {
+                  this.elements.notificationSound.play().catch(console.error);
+                }
+              }
+            }
+            
+            this.state.tickets = newTickets;
+            this.renderSidebar();
+            
+            if (this.state.currentTicketId) {
+              const updatedTicket = this.state.tickets.find(t => t.id === this.state.currentTicketId);
+              if (updatedTicket) {
+                this.renderTicketView(updatedTicket);
+              } else {
+                this.state.currentTicketId = null;
+                this.elements.ticketViewContent.classList.add('hidden');
+                this.elements.ticketPlaceholder.classList.remove('hidden');
+              }
+            }
+          }
+        },
+        
+        registerEventListeners() {
+          this.elements.purchaseBtn.addEventListener('click', this.handlePurchaseClick.bind(this));
+          this.elements.authModal.addEventListener('click', (e) => {
+            if (e.target === this.elements.authModal) this.closeAuthModal();
+          });
+          this.elements.closeAuthModalBtn.addEventListener('click', this.closeAuthModal.bind(this));
+          this.elements.showLoginBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.toggleAuthView(true);
+          });
+          this.elements.showSignupBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.toggleAuthView(false);
+          });
+          this.elements.signupForm.addEventListener('submit', this.handleSignup.bind(this));
+          this.elements.loginForm.addEventListener('submit', this.handleLogin.bind(this));
+          this.elements.newTicketBtn.addEventListener('click', this.showPaymentMethodModal.bind(this));
+          this.elements.backToListBtn.addEventListener('click', () => this.elements.ticketAppContainer.classList.remove('mobile-chat-view'));
+          this.elements.chatForm.addEventListener('submit', this.handleChatMessage.bind(this));
+          this.elements.copyKeyBtn.addEventListener('click', this.copyLicenseKey.bind(this));
+          this.elements.closeTicketSystemBtn.addEventListener('click', this.closeTicketSystem.bind(this));
+          this.elements.paymentMethodModal.addEventListener('click', (e) => {
+            if (e.target === this.elements.paymentMethodModal) this.closePaymentMethodModal();
+          });
+          this.elements.closePaymentModalBtn.addEventListener('click', this.closePaymentMethodModal.bind(this));
+          this.elements.confirmPaymentBtn.addEventListener('click', this.handlePaymentMethodConfirm.bind(this));
+          this.elements.logoutButton.addEventListener('click', this.logout.bind(this));
+          this.elements.loginNavBtn.addEventListener('click', this.openAuthModal.bind(this));
 
-          // === NEW: Add Discord Login Button Listeners ===
-          this.elements.discordLoginBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-              // Redirect to the backend Discord auth route
-              window.location.href = '/api/auth/discord';
-            });
-          });
-          
-          this.elements.paymentMethodOptions.forEach(option => {
-            option.addEventListener('click', () => {
-              this.elements.paymentMethodOptions.forEach(opt => opt.classList.remove('selected'));
-              option.classList.add('selected');
-              this.state.selectedPaymentMethod = option.dataset.method;
-              this.elements.confirmPaymentBtn.disabled = false;
-              this.elements.confirmPaymentBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-            });
-          });
-          
-          this.elements.paymentCards.forEach(card => {
-            card.addEventListener('mousemove', e => {
-              const rect = card.getBoundingClientRect();
-              const x = e.clientX - rect.left;
-              const y = e.clientY - rect.top;
-              card.style.setProperty('--mouse-x', `${x}px`);
-              card.style.setProperty('--mouse-y', `${y}px`);
-            });
-          });
-          
-          this.elements.rippleElements.forEach(el => {
-            el.addEventListener('click', this.createRipple);
-          });
-        },
-        
-        createRipple(e) {
-          const el = e.currentTarget;
-          const ripple = document.createElement("span");
-          const rect = el.getBoundingClientRect();
-          const size = Math.max(rect.width, rect.height);
-          ripple.style.width = ripple.style.height = `${size}px`;
-          ripple.style.left = `${e.clientX - rect.left - size / 2}px`;
-          ripple.style.top = `${e.clientY - rect.top - size / 2}px`;
-          ripple.classList.add("ripple");
-          el.appendChild(ripple);
-          setTimeout(() => ripple.remove(), 600);
-        },
-        
-        updateUI() {
-          const hasActiveTicket = this.getActiveTicket();
-          let btnHTML = '';
-          
-          if (this.state.isLoggedIn) {
-            this.elements.authLinks.classList.add('hidden');
-            this.elements.userInfo.classList.remove('hidden');
-            this.elements.userInfo.classList.add('flex'); // Ensure flex is added back
-            this.elements.usernameDisplay.textContent = this.state.user.username;
-            btnHTML = (hasActiveTicket || this.state.tickets.length > 0) 
-              ? `<i class="fas fa-arrow-right mr-3"></i> My Purchases` 
-              : `<i class="fas fa-shopping-cart mr-3"></i> Purchase Now`;
-          } else {
-            this.elements.authLinks.classList.remove('hidden');
-            this.elements.userInfo.classList.add('hidden');
-            this.elements.userInfo.classList.remove('flex');
-            btnHTML = `<i class="fas fa-shopping-cart mr-3"></i> Purchase Now`;
-          }
-          
-          this.elements.purchaseBtnContent.innerHTML = btnHTML;
-        },
-        
-        showToast(message) {
-          this.elements.toastMessage.textContent = message;
-          this.elements.toastNotification.classList.add('show');
-          setTimeout(() => this.elements.toastNotification.classList.remove('show'), 3000);
-        },
-        
-        initScrollAnimations() {
-          const animatedElements = document.querySelectorAll('[data-animate]');
-          const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-              if (entry.isIntersecting) {
-                entry.target.classList.add('is-visible');
-                observer.unobserve(entry.target);
-              }
-            });
-          }, { threshold: 0.1 });
-          
-          animatedElements.forEach(el => observer.observe(el));
-        },
-        
-        handlePurchaseClick() {
-          this.state.isLoggedIn ? this.openTicketSystem() : this.openAuthModal();
-        },
-        
-        openAuthModal() {
-          this.elements.authModal.classList.remove('hidden');
-          this.elements.authModal.classList.add('flex');
-          setTimeout(() => this.elements.authModal.classList.add('visible'), 10);
-        },
-        
-        closeAuthModal() {
-          this.elements.authModal.classList.remove('visible');
-          setTimeout(() => {
-            this.elements.authModal.classList.add('hidden');
-            this.elements.authModal.classList.remove('flex');
-          }, 300);
-        },
-        
-        toggleAuthView(showLogin) {
-          this.elements.signupView.classList.toggle('hidden', showLogin);
-          this.elements.loginView.classList.toggle('hidden', !showLogin);
-        },
-        
-        async handleSignup(e) {
-          e.preventDefault();
-          const form = this.elements.signupForm;
-          const username = form.querySelector('#signup-username').value;
-          const password = form.querySelector('#signup-password').value;
-          const turnstileToken = form.querySelector('[name="cf-turnstile-response"]')?.value;
+          // === NEW: Add Discord Login Button Listeners ===
+          this.elements.discordLoginBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+              // Redirect to the backend Discord auth route
+              window.location.href = '/api/auth/discord';
+            });
+          });
+          
+          this.elements.paymentMethodOptions.forEach(option => {
+            option.addEventListener('click', () => {
+              this.elements.paymentMethodOptions.forEach(opt => opt.classList.remove('selected'));
+              option.classList.add('selected');
+              this.state.selectedPaymentMethod = option.dataset.method;
+              this.elements.confirmPaymentBtn.disabled = false;
+              this.elements.confirmPaymentBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            });
+          });
+          
+          this.elements.paymentCards.forEach(card => {
+            card.addEventListener('mousemove', e => {
+              const rect = card.getBoundingClientRect();
+              const x = e.clientX - rect.left;
+              const y = e.clientY - rect.top;
+              card.style.setProperty('--mouse-x', `${x}px`);
+              card.style.setProperty('--mouse-y', `${y}px`);
+            });
+          });
+          
+          this.elements.rippleElements.forEach(el => {
+            el.addEventListener('click', this.createRipple);
+          });
+        },
+        
+        createRipple(e) {
+          const el = e.currentTarget;
+          const ripple = document.createElement("span");
+          const rect = el.getBoundingClientRect();
+          const size = Math.max(rect.width, rect.height);
+          ripple.style.width = ripple.style.height = `${size}px`;
+          ripple.style.left = `${e.clientX - rect.left - size / 2}px`;
+          ripple.style.top = `${e.clientY - rect.top - size / 2}px`;
+          ripple.classList.add("ripple");
+          el.appendChild(ripple);
+          setTimeout(() => ripple.remove(), 600);
+        },
+        
+        updateUI() {
+          const hasActiveTicket = this.getActiveTicket();
+          let btnHTML = '';
+          
+          if (this.state.isLoggedIn) {
+            this.elements.authLinks.classList.add('hidden');
+            this.elements.userInfo.classList.remove('hidden');
+            this.elements.userInfo.classList.add('flex'); // Ensure flex is added back
+            this.elements.usernameDisplay.textContent = this.state.user.username;
+            btnHTML = (hasActiveTicket || this.state.tickets.length > 0) 
+              ? `<i class="fas fa-arrow-right mr-3"></i> My Purchases` 
+              : `<i class="fas fa-shopping-cart mr-3"></i> Purchase Now`;
+          } else {
+            this.elements.authLinks.classList.remove('hidden');
+            this.elements.userInfo.classList.add('hidden');
+            this.elements.userInfo.classList.remove('flex');
+            btnHTML = `<i class="fas fa-shopping-cart mr-3"></i> Purchase Now`;
+          }
+          
+          this.elements.purchaseBtnContent.innerHTML = btnHTML;
+        },
+        
+        showToast(message) {
+          this.elements.toastMessage.textContent = message;
+          this.elements.toastNotification.classList.add('show');
+          setTimeout(() => this.elements.toastNotification.classList.remove('show'), 3000);
+        },
+        
+        initScrollAnimations() {
+          const animatedElements = document.querySelectorAll('[data-animate]');
+          const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+              if (entry.isIntersecting) {
+                entry.target.classList.add('is-visible');
+                observer.unobserve(entry.target);
+              }
+            });
+          }, { threshold: 0.1 });
+          
+          animatedElements.forEach(el => observer.observe(el));
+        },
+        
+        handlePurchaseClick() {
+          this.state.isLoggedIn ? this.openTicketSystem() : this.openAuthModal();
+        },
+        
+        openAuthModal() {
+          this.elements.authModal.classList.remove('hidden');
+          this.elements.authModal.classList.add('flex');
+          setTimeout(() => this.elements.authModal.classList.add('visible'), 10);
+        },
+        
+        closeAuthModal() {
+          this.elements.authModal.classList.remove('visible');
+          setTimeout(() => {
+            this.elements.authModal.classList.add('hidden');
+            this.elements.authModal.classList.remove('flex');
+          }, 300);
+        },
+        
+        toggleAuthView(showLogin) {
+          this.elements.signupView.classList.toggle('hidden', showLogin);
+          this.elements.loginView.classList.toggle('hidden', !showLogin);
+        },
+        
+        async handleSignup(e) {
+          e.preventDefault();
+          const form = this.elements.signupForm;
+          const username = form.querySelector('#signup-username').value;
+          const password = form.querySelector('#signup-password').value;
+          const turnstileToken = form.querySelector('[name="cf-turnstile-response"]')?.value;
 
-          if (!username || !password) return this.showToast('Please fill in all fields');
-          if (!turnstileToken) {
-            this.showToast('Please complete the security check.');
-            return;
-          }
+          if (!username || !password) return this.showToast('Please fill in all fields');
+          if (!turnstileToken) {
+            this.showToast('Please complete the security check.');
+            return;
+          }
 
-          const response = await this.apiCall('/register', {
-            method: 'POST',
-            body: JSON.stringify({ username, password, turnstileToken })
-          });
-          
-          if (response && response.ok) {
-            this.showToast('Account created! Please log in.');
-            this.toggleAuthView(true);
-          } else if (response) {
-            try {
-              const data = await response.json();
-              this.showToast(data.message || 'Signup failed.');
-            } catch (err) {
-              this.showToast('Signup failed. Please try again.');
-            }
-          }
-          turnstile.reset(form.querySelector('.cf-turnstile'));
-        },
-        
-        async handleLogin(e) {
-          e.preventDefault();
-          const form = this.elements.loginForm;
-          const username = form.querySelector('#login-username').value;
-          const password = form.querySelector('#login-password').value;
-          const turnstileToken = form.querySelector('[name="cf-turnstile-response"]')?.value;
+          const response = await this.apiCall('/register', {
+            method: 'POST',
+            body: JSON.stringify({ username, password, turnstileToken })
+          });
+          
+          if (response && response.ok) {
+            this.showToast('Account created! Please log in.');
+            this.toggleAuthView(true);
+          } else if (response) {
+            try {
+              const data = await response.json();
+              this.showToast(data.message || 'Signup failed.');
+            } catch (err) {
+              this.showToast('Signup failed. Please try again.');
+            }
+          }
+          turnstile.reset(form.querySelector('.cf-turnstile'));
+        },
+        
+        async handleLogin(e) {
+          e.preventDefault();
+          const form = this.elements.loginForm;
+          const username = form.querySelector('#login-username').value;
+          const password = form.querySelector('#login-password').value;
+          const turnstileToken = form.querySelector('[name="cf-turnstile-response"]')?.value;
 
-          if (!username || !password) return this.showToast('Please fill in all fields');
-          if (!turnstileToken) {
-            this.showToast('Please complete the security check.');
-            return;
-          }
+          if (!username || !password) return this.showToast('Please fill in all fields');
+          if (!turnstileToken) {
+            this.showToast('Please complete the security check.');
+            return;
+          }
 
-          const response = await this.apiCall('/login', {
-            method: 'POST',
-            body: JSON.stringify({ username, password, turnstileToken })
-          });
-          
-          if (response && response.ok) {
-            const data = await response.json();
-            if(data.success) {
-              localStorage.setItem('token', data.token);
-              this.state.isLoggedIn = true;
-              this.state.user = { username: data.username, id: JSON.parse(atob(data.token.split('.')[1])).id };
-              this.closeAuthModal();
-              this.updateUI();
-              await this.loadTickets(); // Now we load tickets after a successful login
-              this.openTicketSystem();
-            }
-          } else if (response) {
-            try {
-              const data = await response.json();
-              this.showToast(data.message || 'Login failed.');
-            } catch(err) {
-              this.showToast('Login failed. Please try again.');
-            }
-          }
-          turnstile.reset(form.querySelector('.cf-turnstile'));
-        },
-        
-        logout() {
-          localStorage.removeItem('token');
-          this.state.isLoggedIn = false;
-          this.state.user = null;
-          this.state.tickets = [];
-          this.state.currentTicketId = null;
-          this.closeTicketSystem();
-          this.updateUI();
-          this.showToast('You have been logged out.');
-        },
-        
-        showPaymentMethodModal() {
-          if (this.getActiveTicket()) return;
-          this.elements.paymentMethodModal.classList.remove('hidden');
-          this.elements.paymentMethodModal.classList.add('flex');
-          setTimeout(() => this.elements.paymentMethodModal.classList.add('visible'), 10);
-        },
-        
-        closePaymentMethodModal() {
-          this.elements.paymentMethodModal.classList.remove('visible');
-          setTimeout(() => {
-            this.elements.paymentMethodModal.classList.add('hidden');
-            this.elements.paymentMethodModal.classList.remove('flex');
-          }, 300);
-        },
-        
-        async handlePaymentMethodConfirm() {
-          if (!this.state.selectedPaymentMethod) return this.showToast('Please select a payment method');
-          
-          const widget = document.getElementById('payment-turnstile-widget');
-          const turnstileToken = turnstile.getResponse(widget);
+          const response = await this.apiCall('/login', {
+            method: 'POST',
+            body: JSON.stringify({ username, password, turnstileToken })
+          });
+          
+          if (response && response.ok) {
+            const data = await response.json();
+            if(data.success) {
+              localStorage.setItem('token', data.token);
+              this.state.isLoggedIn = true;
+              this.state.user = { username: data.username, id: JSON.parse(atob(data.token.split('.')[1])).id };
+              this.closeAuthModal();
+              this.updateUI();
+              await this.loadTickets(); // Now we load tickets after a successful login
+              this.openTicketSystem();
+            }
+          } else if (response) {
+            try {
+              const data = await response.json();
+              this.showToast(data.message || 'Login failed.');
+            } catch(err) {
+              this.showToast('Login failed. Please try again.');
+            }
+          }
+          turnstile.reset(form.querySelector('.cf-turnstile'));
+        },
+        
+        logout() {
+          localStorage.removeItem('token');
+          this.state.isLoggedIn = false;
+          this.state.user = null;
+          this.state.tickets = [];
+          this.state.currentTicketId = null;
+          this.closeTicketSystem();
+          this.updateUI();
+          this.showToast('You have been logged out.');
+        },
+        
+        showPaymentMethodModal() {
+          if (this.getActiveTicket()) return;
+          this.elements.paymentMethodModal.classList.remove('hidden');
+          this.elements.paymentMethodModal.classList.add('flex');
+          setTimeout(() => this.elements.paymentMethodModal.classList.add('visible'), 10);
+        },
+        
+        closePaymentMethodModal() {
+          this.elements.paymentMethodModal.classList.remove('visible');
+          setTimeout(() => {
+            this.elements.paymentMethodModal.classList.add('hidden');
+            this.elements.paymentMethodModal.classList.remove('flex');
+          }, 300);
+        },
+        
+        async handlePaymentMethodConfirm() {
+          if (!this.state.selectedPaymentMethod) return this.showToast('Please select a payment method');
+          
+          const widget = document.getElementById('payment-turnstile-widget');
+          const turnstileToken = turnstile.getResponse(widget);
 
-          if (!turnstileToken) {
-            this.showToast('Please wait for the security check to complete.');
-            return;
-          }
+          if (!turnstileToken) {
+            this.showToast('Please wait for the security check to complete.');
+            return;
+          }
 
-          this.closePaymentMethodModal();
-          
-          const response = await this.apiCall('/tickets', {
-            method: 'POST',
-            body: JSON.stringify({
-              paymentMethod: this.state.selectedPaymentMethod,
-              turnstileToken: turnstileToken
-            })
-          });
-          
-          if (response && response.ok) {
-            const newTicket = await response.json();
-            this.elements.confirmPaymentBtn.disabled = true;
-            this.elements.confirmPaymentBtn.classList.add('opacity-50', 'cursor-not-allowed');
-            this.elements.paymentMethodOptions.forEach(opt => opt.classList.remove('selected'));
-            this.state.tickets.unshift(newTicket);
-            this.updateUI();
-            this.openTicket(newTicket.id);
-          } else if (response) {
-            try {
-               const data = await response.json();
-               this.showToast(data.message || 'Failed to create ticket.');
-            } catch(e) {
-                 this.showToast('Failed to create ticket.');
-            }
-          }
-          turnstile.reset(widget);
-        },
-        
-        openTicketSystem() {
-          this.elements.body.classList.add('chat-active');
-          this.renderSidebar();
-          
-          const activeTicket = this.getActiveTicket();
-          const mostRecentTicket = [...this.state.tickets]
-            .sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at))[0];
-          
-          if (activeTicket) {
-            this.openTicket(activeTicket.id);
-          } else if (mostRecentTicket) {
-            this.openTicket(mostRecentTicket.id);
-          } else {
-            this.elements.ticketViewContent.classList.add('hidden');
-            this.elements.ticketPlaceholder.classList.remove('hidden');
-          }
-        },
-        
-        closeTicketSystem() {
-          this.elements.body.classList.remove('chat-active');
-          this.updateUI();
-        },
-        
-        getActiveTicket() {
-          return this.state.tickets.find(t => t.status === 'awaiting' || t.status === 'processing');
-        },
-        
-        openTicket(ticketId) {
-          const ticket = this.state.tickets.find(t => t.id === ticketId);
-          if (!ticket) {
-            this.elements.ticketViewContent.classList.add('hidden');
-            this.elements.ticketPlaceholder.classList.remove('hidden');
-            return;
-          }
-          
-          this.elements.ticketPlaceholder.classList.add('hidden');
-          this.elements.ticketViewContent.classList.remove('hidden');
-          this.elements.ticketViewContent.classList.add('flex');
-          this.state.currentTicketId = ticketId;
-          this.renderSidebar();
-          this.renderTicketView(ticket);
-        },
-        
-        getPaymentMethodIcon(method) {
-          const icons = {
-            'PayPal': 'fab fa-paypal text-blue-600',
-            'Crypto': 'fab fa-bitcoin text-yellow-500',
-            'Credit Card': 'fas fa-credit-card text-indigo-400',
-            'Bank Transfer': 'fas fa-university text-gray-400',
-            'Google Pay': 'fab fa-google-pay text-blue-500',
-            'Apple Pay': 'fab fa-apple-pay text-gray-300',
-            'CashApp': 'fas fa-dollar-sign text-green-500',
-            'Gag Pets': 'fas fa-paw text-orange-400',
-            'Secret Brainrots': 'fas fa-brain text-pink-500'
-          };
-          return icons[method] || 'fas fa-credit-card text-indigo-400';
-        },
-        
-        renderSidebar() {
-          const activeTicket = this.getActiveTicket();
-          const newTicketBtn = this.elements.newTicketBtn;
-          
-          newTicketBtn.className = 'w-full font-semibold py-3 px-4 rounded-lg transition-colors flex items-center justify-center has-ripple';
-          newTicketBtn.removeAttribute('data-status');
-          
-          if (activeTicket) {
-            newTicketBtn.disabled = true;
-            newTicketBtn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i> Purchase in Progress`;
-            newTicketBtn.dataset.status = 'in-progress';
-          } else {
-            newTicketBtn.disabled = false;
-            newTicketBtn.innerHTML = '<i class="fas fa-plus mr-2"></i> New Purchase';
-            newTicketBtn.dataset.status = 'new';
-            newTicketBtn.classList.add('bg-primary/20', 'text-primary', 'hover:bg-primary/30');
-          }
-          
-          this.elements.ticketList.innerHTML = '';
-          
-          if (this.state.tickets.length === 0) {
-            this.elements.ticketList.innerHTML = `
-              <div class="empty-state">
-                <i class="fas fa-inbox"></i>
-                <h4 class="text-white font-bold text-lg">No Purchases Yet</h4>
-                <p class="text-text-muted text-sm">Click "New Purchase" to begin.</p>
-              </div>
-            `;
-            return;
-          }
-          
-          const sortedTickets = [...this.state.tickets]
-            .sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at));
-          
-          sortedTickets.forEach(ticket => {
-            const ticketElement = document.createElement('div');
-            ticketElement.className = `ticket-item has-ripple ${ticket.id === this.state.currentTicketId ? 'active' : ''}`;
-            ticketElement.dataset.id = ticket.id;
-            
-            const date = new Date(ticket.updated_at).toLocaleDateString();
-            const lastMessage = ticket.messages?.length ? ticket.messages[ticket.messages.length - 1] : { sender: 'seller', message: 'Ticket created.' };
-            
-            const paymentMethodBadge = ticket.payment_method ? 
-              `<span class="ticket-payment-badge">
-                <i class="${this.getPaymentMethodIcon(ticket.payment_method)}"></i> 
-                ${ticket.payment_method}
-              </span>` : '';
-            
-            ticketElement.innerHTML = `
-              <div class="flex justify-between items-center mb-1">
-                <h4 class="font-bold text-white truncate">
-                  ${ticket.payment_method ? ticket.payment_method + ' Purchase' : 'Ticket #' + String(ticket.id).padStart(5, '0')}
-                </h4>
-                <p class="text-xs text-text-muted flex-shrink-0 ml-2">${date}</p>
-              </div>
-              ${paymentMethodBadge}
-              <p class="ticket-item-preview mt-2">
-                ${lastMessage.sender === 'user' ? 'You: ' : ''}${lastMessage.message}
-              </p>
-            `;
-            
-            ticketElement.addEventListener('click', () => {
-              this.openTicket(ticket.id);
-              this.elements.ticketAppContainer.classList.add('mobile-chat-view');
-            });
-            
-            this.elements.ticketList.appendChild(ticketElement);
-          });
-        },
-        
-        renderTicketView(ticket) {
-          const isCompleted = ticket.status === 'completed';
-          
-          this.elements.chatContainer.classList.toggle('hidden', isCompleted);
-          this.elements.completedView.classList.toggle('hidden', !isCompleted);
-          
-          if (isCompleted) {
-            this.elements.licenseKey.textContent = ticket.license_key;
-            this.elements.ticketTitle.textContent = `Order Completed`;
-            this.elements.ticketStatusText.innerHTML = `<span class="text-green-400">License Delivered</span>`;
-          } else {
-            let statusText, statusClass;
-            switch(ticket.status) {
-              case 'awaiting': statusText = 'Awaiting Payment'; statusClass = 'text-yellow-400'; break;
-              case 'processing': statusText = 'Processing Payment'; statusClass = 'text-blue-400'; break;
-              default: statusText = 'Active'; statusClass = 'text-green-400'; break;
-            }
-            
-            this.elements.ticketTitle.textContent = ticket.payment_method ? 
-              `${ticket.payment_method} Purchase` : 
-              `Ticket #${String(ticket.id).padStart(5, '0')}`;
-              
-            this.elements.ticketStatusText.innerHTML = `<span class="${statusClass}">${statusText}</span>`;
-            this.populateMessages(ticket.messages || []);
-          }
-        },
-        
-        populateMessages(messages) {
-          this.elements.chatMessages.innerHTML = '';
-          messages.forEach(message => this.appendMessage(message));
-          this.elements.chatMessages.scrollTop = this.elements.chatMessages.scrollHeight;
-        },
-        
-        appendMessage(message) {
-          const messageElement = document.createElement('div');
-          const timeString = new Date(message.created_at).toLocaleTimeString([], {
-            hour: '2-digit', 
-            minute:'2-digit'
-          });
-          
-          messageElement.className = `flex flex-col ${message.sender === 'user' ? 'items-end' : 'items-start'}`;
-          messageElement.innerHTML = `
-            <div class="chat-bubble ${message.sender === 'user' ? 'chat-bubble-user' : 'chat-bubble-seller'}">
-              ${message.message}
-            </div>
-            <div class="text-xs text-text-muted mt-1 px-2">${timeString}</div>
-          `;
-          
-          this.elements.chatMessages.appendChild(messageElement);
-          this.elements.chatMessages.scrollTop = this.elements.chatMessages.scrollHeight;
-        },
-        
-        async handleChatMessage(e) {
-          e.preventDefault();
-          const messageText = this.elements.chatInput.value.trim();
-          const ticket = this.state.tickets.find(t => t.id === this.state.currentTicketId);
-          
-          if (!messageText || !ticket || ticket.status === 'completed') return;
-          
-          const userMessage = {
-            sender: 'user',
-            message: messageText,
-            created_at: new Date().toISOString()
-          };
-          
-          ticket.messages.push(userMessage);
-          this.appendMessage(userMessage);
-          this.renderSidebar();
-          this.elements.chatInput.value = '';
-          this.elements.chatForm.querySelector('button').disabled = true;
-          
-          const response = await this.apiCall(`/tickets/${ticket.id}/messages`, {
-            method: 'POST',
-            body: JSON.stringify({ message: messageText })
-          });
-          
-          if (response && response.ok) {
-            const updatedTicket = await response.json();
-            const ticketIndex = this.state.tickets.findIndex(t => t.id === updatedTicket.id);
-            if (ticketIndex !== -1) this.state.tickets[ticketIndex] = updatedTicket;
-            this.renderSidebar();
-            this.renderTicketView(updatedTicket);
-          } else {
-            this.showToast('Failed to send message.');
-            ticket.messages.pop();
-            this.renderTicketView(ticket);
-          }
-          
-          this.elements.chatForm.querySelector('button').disabled = false;
-        },
-        
-        copyLicenseKey() {
-          const key = this.elements.licenseKey.textContent;
-          navigator.clipboard.writeText(key).then(() => {
-            this.elements.copyKeyBtn.innerHTML = '<i class="fas fa-check mr-2"></i> Copied!';
-            setTimeout(() => {
-              this.elements.copyKeyBtn.innerHTML = '<i class="fas fa-copy mr-2"></i> Copy to Clipboard';
-            }, 2000);
-          });
-        }
-      };
-      
-      App.init();
-    });
-  </script>
+          this.closePaymentMethodModal();
+          
+          const response = await this.apiCall('/tickets', {
+            method: 'POST',
+            body: JSON.stringify({
+              paymentMethod: this.state.selectedPaymentMethod,
+              turnstileToken: turnstileToken
+            })
+          });
+          
+          if (response && response.ok) {
+            const newTicket = await response.json();
+            this.elements.confirmPaymentBtn.disabled = true;
+            this.elements.confirmPaymentBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            this.elements.paymentMethodOptions.forEach(opt => opt.classList.remove('selected'));
+            this.state.tickets.unshift(newTicket);
+            this.updateUI();
+            this.openTicket(newTicket.id);
+          } else if (response) {
+            try {
+               const data = await response.json();
+               this.showToast(data.message || 'Failed to create ticket.');
+            } catch(e) {
+                 this.showToast('Failed to create ticket.');
+            }
+          }
+          turnstile.reset(widget);
+        },
+        
+        openTicketSystem() {
+          this.elements.body.classList.add('chat-active');
+          this.renderSidebar();
+          
+          const activeTicket = this.getActiveTicket();
+          const mostRecentTicket = [...this.state.tickets]
+            .sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at))[0];
+          
+          if (activeTicket) {
+            this.openTicket(activeTicket.id);
+          } else if (mostRecentTicket) {
+            this.openTicket(mostRecentTicket.id);
+          } else {
+            this.elements.ticketViewContent.classList.add('hidden');
+            this.elements.ticketPlaceholder.classList.remove('hidden');
+          }
+        },
+        
+        closeTicketSystem() {
+          this.elements.body.classList.remove('chat-active');
+          this.updateUI();
+        },
+        
+        getActiveTicket() {
+          return this.state.tickets.find(t => t.status === 'awaiting' || t.status === 'processing');
+        },
+        
+        openTicket(ticketId) {
+          const ticket = this.state.tickets.find(t => t.id === ticketId);
+          if (!ticket) {
+            this.elements.ticketViewContent.classList.add('hidden');
+            this.elements.ticketPlaceholder.classList.remove('hidden');
+            return;
+          }
+          
+          this.elements.ticketPlaceholder.classList.add('hidden');
+          this.elements.ticketViewContent.classList.remove('hidden');
+          this.elements.ticketViewContent.classList.add('flex');
+          this.state.currentTicketId = ticketId;
+          this.renderSidebar();
+          this.renderTicketView(ticket);
+        },
+        
+        getPaymentMethodIcon(method) {
+          const icons = {
+            'PayPal': 'fab fa-paypal text-blue-600',
+            'Crypto': 'fab fa-bitcoin text-yellow-500',
+            'Credit Card': 'fas fa-credit-card text-indigo-400',
+            'Bank Transfer': 'fas fa-university text-gray-400',
+            'Google Pay': 'fab fa-google-pay text-blue-500',
+            'Apple Pay': 'fab fa-apple-pay text-gray-300',
+            'CashApp': 'fas fa-dollar-sign text-green-500',
+            'Gag Pets': 'fas fa-paw text-orange-400',
+            'Secret Brainrots': 'fas fa-brain text-pink-500'
+          };
+          return icons[method] || 'fas fa-credit-card text-indigo-400';
+        },
+        
+        renderSidebar() {
+          const activeTicket = this.getActiveTicket();
+          const newTicketBtn = this.elements.newTicketBtn;
+          
+          newTicketBtn.className = 'w-full font-semibold py-3 px-4 rounded-lg transition-colors flex items-center justify-center has-ripple';
+          newTicketBtn.removeAttribute('data-status');
+          
+          if (activeTicket) {
+            newTicketBtn.disabled = true;
+            newTicketBtn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i> Purchase in Progress`;
+            newTicketBtn.dataset.status = 'in-progress';
+          } else {
+            newTicketBtn.disabled = false;
+            newTicketBtn.innerHTML = '<i class="fas fa-plus mr-2"></i> New Purchase';
+            newTicketBtn.dataset.status = 'new';
+            newTicketBtn.classList.add('bg-primary/20', 'text-primary', 'hover:bg-primary/30');
+          }
+          
+          this.elements.ticketList.innerHTML = '';
+          
+          if (this.state.tickets.length === 0) {
+            this.elements.ticketList.innerHTML = `
+              <div class="empty-state">
+                <i class="fas fa-inbox"></i>
+                <h4 class="text-white font-bold text-lg">No Purchases Yet</h4>
+                <p class="text-text-muted text-sm">Click "New Purchase" to begin.</p>
+              </div>
+            `;
+            return;
+          }
+          
+          const sortedTickets = [...this.state.tickets]
+            .sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at));
+          
+          sortedTickets.forEach(ticket => {
+            const ticketElement = document.createElement('div');
+            ticketElement.className = `ticket-item has-ripple ${ticket.id === this.state.currentTicketId ? 'active' : ''}`;
+            ticketElement.dataset.id = ticket.id;
+            
+            const date = new Date(ticket.updated_at).toLocaleDateString();
+            const lastMessage = ticket.messages?.length ? ticket.messages[ticket.messages.length - 1] : { sender: 'seller', message: 'Ticket created.' };
+            
+            const paymentMethodBadge = ticket.payment_method ? 
+              `<span class="ticket-payment-badge">
+                <i class="${this.getPaymentMethodIcon(ticket.payment_method)}"></i> 
+                ${ticket.payment_method}
+              </span>` : '';
+            
+            ticketElement.innerHTML = `
+              <div class="flex justify-between items-center mb-1">
+                <h4 class="font-bold text-white truncate">
+                  ${ticket.payment_method ? ticket.payment_method + ' Purchase' : 'Ticket #' + String(ticket.id).padStart(5, '0')}
+                </h4>
+                <p class="text-xs text-text-muted flex-shrink-0 ml-2">${date}</p>
+              </div>
+              ${paymentMethodBadge}
+              <p class="ticket-item-preview mt-2">
+                ${lastMessage.sender === 'user' ? 'You: ' : ''}${lastMessage.message}
+              </p>
+            `;
+            
+            ticketElement.addEventListener('click', () => {
+              this.openTicket(ticket.id);
+              this.elements.ticketAppContainer.classList.add('mobile-chat-view');
+            });
+            
+            this.elements.ticketList.appendChild(ticketElement);
+          });
+        },
+        
+        renderTicketView(ticket) {
+          const isCompleted = ticket.status === 'completed';
+          
+          this.elements.chatContainer.classList.toggle('hidden', isCompleted);
+          this.elements.completedView.classList.toggle('hidden', !isCompleted);
+          
+          if (isCompleted) {
+            this.elements.licenseKey.textContent = ticket.license_key;
+            this.elements.ticketTitle.textContent = `Order Completed`;
+            this.elements.ticketStatusText.innerHTML = `<span class="text-green-400">License Delivered</span>`;
+          } else {
+            let statusText, statusClass;
+            switch(ticket.status) {
+              case 'awaiting': statusText = 'Awaiting Payment'; statusClass = 'text-yellow-400'; break;
+              case 'processing': statusText = 'Processing Payment'; statusClass = 'text-blue-400'; break;
+              default: statusText = 'Active'; statusClass = 'text-green-400'; break;
+            }
+            
+            this.elements.ticketTitle.textContent = ticket.payment_method ? 
+              `${ticket.payment_method} Purchase` : 
+              `Ticket #${String(ticket.id).padStart(5, '0')}`;
+              
+            this.elements.ticketStatusText.innerHTML = `<span class="${statusClass}">${statusText}</span>`;
+            this.populateMessages(ticket.messages || []);
+          }
+        },
+        
+        populateMessages(messages) {
+          this.elements.chatMessages.innerHTML = '';
+          messages.forEach(message => this.appendMessage(message));
+          this.elements.chatMessages.scrollTop = this.elements.chatMessages.scrollHeight;
+        },
+        
+        appendMessage(message) {
+          const messageElement = document.createElement('div');
+          const timeString = new Date(message.created_at).toLocaleTimeString([], {
+            hour: '2-digit', 
+            minute:'2-digit'
+          });
+          
+          messageElement.className = `flex flex-col ${message.sender === 'user' ? 'items-end' : 'items-start'}`;
+          messageElement.innerHTML = `
+            <div class="chat-bubble ${message.sender === 'user' ? 'chat-bubble-user' : 'chat-bubble-seller'}">
+              ${message.message}
+            </div>
+            <div class="text-xs text-text-muted mt-1 px-2">${timeString}</div>
+          `;
+          
+          this.elements.chatMessages.appendChild(messageElement);
+          this.elements.chatMessages.scrollTop = this.elements.chatMessages.scrollHeight;
+        },
+        
+        async handleChatMessage(e) {
+          e.preventDefault();
+          const messageText = this.elements.chatInput.value.trim();
+          const ticket = this.state.tickets.find(t => t.id === this.state.currentTicketId);
+          
+          if (!messageText || !ticket || ticket.status === 'completed') return;
+          
+          const userMessage = {
+            sender: 'user',
+            message: messageText,
+            created_at: new Date().toISOString()
+          };
+          
+          ticket.messages.push(userMessage);
+          this.appendMessage(userMessage);
+          this.renderSidebar();
+          this.elements.chatInput.value = '';
+          this.elements.chatForm.querySelector('button').disabled = true;
+          
+          const response = await this.apiCall(`/tickets/${ticket.id}/messages`, {
+            method: 'POST',
+            body: JSON.stringify({ message: messageText })
+          });
+          
+          if (response && response.ok) {
+            const updatedTicket = await response.json();
+            const ticketIndex = this.state.tickets.findIndex(t => t.id === updatedTicket.id);
+            if (ticketIndex !== -1) this.state.tickets[ticketIndex] = updatedTicket;
+            this.renderSidebar();
+            this.renderTicketView(updatedTicket);
+          } else {
+            this.showToast('Failed to send message.');
+            ticket.messages.pop();
+            this.renderTicketView(ticket);
+          }
+          
+          this.elements.chatForm.querySelector('button').disabled = false;
+        },
+        
+        copyLicenseKey() {
+          const key = this.elements.licenseKey.textContent;
+          navigator.clipboard.writeText(key).then(() => {
+            this.elements.copyKeyBtn.innerHTML = '<i class="fas fa-check mr-2"></i> Copied!';
+            setTimeout(() => {
+              this.elements.copyKeyBtn.innerHTML = '<i class="fas fa-copy mr-2"></i> Copy to Clipboard';
+            }, 2000);
+          });
+        }
+      };
+      
+      App.init();
+    });
+  </script>
 </body>
 </html>
