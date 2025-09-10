@@ -76,12 +76,14 @@
         /* Chat List */
         .chat-list-category { padding: 1.25rem 1.5rem 0.5rem; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; }
         .chat-list-category .count { background: var(--surface-primary); color: var(--text-primary); padding: 2px 8px; border-radius: 50px; font-size: 0.7rem; margin-left: 0.5rem; }
-        .chat-item { display: flex; gap: 1rem; padding: 1rem 1.5rem; cursor: pointer; border-bottom: 1px solid var(--border-primary); transition: background-color 0.2s ease; }
+        .chat-item { display: flex; gap: 1rem; padding: 1rem 1.5rem; cursor: pointer; border-bottom: 1px solid var(--border-primary); transition: background-color 0.2s ease; position: relative; }
         .chat-item:hover { background: var(--background-secondary); }
         .chat-item.active { background: var(--accent-primary); color: white; }
         .chat-item.active .chat-item__time, .chat-item.active .chat-item__details p { color: rgba(255,255,255,0.8); }
         .chat-item.new-activity { animation: pulse-highlight 2s ease-in-out; }
+        .chat-item.needs-reply::before { content: ''; position: absolute; left: 8px; top: 50%; transform: translateY(-50%); width: 8px; height: 8px; border-radius: 50%; background-color: var(--accent-yellow); }
         .chat-item__icon { width: 44px; height: 44px; flex-shrink: 0; display: grid; place-items: center; background: var(--surface-primary); border-radius: 50%; font-size: 1.2rem; }
+        .chat-item__icon svg { width: 24px; height: 24px; }
         .chat-item__details { flex-grow: 1; min-width: 0; }
         .chat-item__header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
         .chat-item__user { font-weight: 600; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
@@ -180,7 +182,7 @@
                         <p class="chat-view__details"></p>
                     </div>
                     <div style="display: flex; gap: 0.5rem;">
-                        <button id="complete-ticket-btn" class="btn btn-success" title="Mark as Completed"><i class="fas fa-check-circle"></i></button>
+                        <button id="complete-ticket-btn" class="btn btn-success" title="Mark as Completed"><i class="fas fa-check-circle"></i> Complete</button>
                         <button id="delete-ticket-btn" class="btn btn-danger" title="Delete Ticket"><i class="fas fa-trash-alt"></i></button>
                     </div>
                 </div>
@@ -234,11 +236,17 @@
         // --- UTILITY FUNCTIONS ---
         const escapeHTML = str => str ? str.toString().replace(/[&<>"']/g, tag => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[tag])) : '';
         
-        const getPaymentMethodIcon = (method) => ({
-            'PayPal': 'fab fa-paypal', 'Crypto': 'fab fa-bitcoin', 'Credit Card': 'fas fa-credit-card',
-            'Bank Transfer': 'fas fa-university', 'Google Pay': 'fab fa-google-pay', 'Apple Pay': 'fab fa-apple-pay',
-            'CashApp': 'fas fa-dollar-sign', 'Gag Pets': 'fas fa-paw', 'Secret Brainrots': 'fas fa-brain'
-        }[method] || 'fas fa-receipt');
+        const getPaymentMethodSVG = (method) => {
+            const icons = {
+                'PayPal': `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3.324 20.334h3.943c.18 0 .34-.146.368-.327l.74-4.56.02-.132c.164-1.013.91-1.74 1.83-1.74h2.23c2.93 0 4.38-1.57 4.79-4.32.32-2.1-.9-3.27-2.73-3.27-1.55 0-2.61.9-2.95 2.1-.11.41-.5.67-.93.67H7.31c-.39 0-.71-.29-.75-.68-.11-.93.2-2.88 2.08-4.1 1.77-1.14 4.05-1.32 6.06-1.32 3.68 0 6.64 2.17 7.22 5.86.58 3.7-1.58 6.13-4.94 6.13h-2.12c-.74 0-1.35.54-1.46 1.28l-.33 2.05-.72 4.47c-.02.16-.16.28-.32.28H8.89c-.43 0-.8-.34-.82-.77l-.6-3.71c-.02-.16-.16-.28-.32-.28H3.69c-.43 0-.8.34-.82.77l-.54 3.32c-.02.18.12.34.29.34z" fill="#009cde"></path><path d="M6.28 2.62h6.53c2.47 0 4.14 1.05 4.54 3.51.34 2.05-1.12 3.35-3.2 3.35h-2.2c-.92 0-1.67.73-1.83 1.74l-.74 4.56-.36 2.22c-.03.18-.19.33-.37.33H4.7c-.18 0-.34-.15-.32-.33l1.22-7.53c.15-1.02.9-1.75 1.83-1.75h2.15c1.47 0 2.45-.7 2.68-2.1.22-1.3-.48-2.05-1.7-2.05H6.6c-.39 0-.71-.28-.75-.67-.04-.32.18-.8.63-1.19z" fill="#003087"></path></svg>`,
+                'Crypto': `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16.2 7.51c.42-2.4-1.28-4.4-3.6-4.4H9.2c-.4 0-.7.2-.9.6l-1 2.5c-.1.2-.1.5 0 .7l1 2.5c.1.3.4.5.7.5h5.8c.4 0 .7-.2.9-.5l.3-.8c.1-.3 0-.6-.2-.8-.2-.2-.5-.2-.7 0l-.6.5c-.1.1-.3 0-.4-.1l-.1-.2c0-.1.1-.3.2-.3l2-1.6zM11.9 11c-.5 0-.9-.4-.9-.9V9c0-.5.4-.9.9-.9s.9.4.9.9v1.1c0 .5-.4.9-.9.9zm2.4 2.3c-.4 0-.7-.3-.8-.7l-.8-3.3c0-.1 0-.2.1-.2s.2 0 .2.1l.8 3.3c.1.3.4.6.8.6h2.8c.5 0 .9-.4.9-.9v-1.1c0-2.3-1.8-4.2-4.2-4.2H9.2c-2.3 0-4.2 1.9-4.2 4.2v4.2c0 2.3 1.9 4.2 4.2 4.2h5.5c2.3 0 4.2-1.9 4.2-4.2v-1.1c0-.5-.4-.9-.9-.9h-2.9z" fill="#F7931A"></path></svg>`,
+                'Credit Card': `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4H4V6h16v2z" fill="#9061F9"></path></svg>`,
+                'Google Pay': `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M19.38 8.12c0 4.1-3.35 7.42-7.46 7.42a7.3 7.3 0 01-4.2-1.23v1.88a2 2 0 002 2h5.18a2 2 0 002-2v-2.31c1.93-1.13 3.28-3.14 3.28-5.46a6.08 6.08 0 00-3.8-5.65z" fill="#EA4335"></path><path d="M11.92 1.33c-4.11 0-7.47 3.32-7.47 7.42 0 2.9 1.73 5.43 4.2 6.6v-1.9a4.8 4.8 0 010-9.42 4.7 4.7 0 013.33 1.4L9.9 7.51h6.42V1.13l-1.9 1.88A7.26 7.26 0 0011.92 1.33z" fill="#4285F4"></path><path d="M7.72 15.54a4.8 4.8 0 000-9.42 4.7 4.7 0 00-3.32 1.4L6.48 9.6H0v6.4h6.42l-1.92-1.92a4.7 4.7 0 003.22 1.46z" fill="#34A853"></path><path d="M18.34 11.83v-2.3a2 2 0 00-2-2h-5.18a2 2 0 00-2 2v2.31a6.08 6.08 0 003.8 5.65c4.1 0 7.46-3.32 7.46-7.42a7.3 7.3 0 00-1.8-4.63z" fill="#FBBC04"></path></svg>`,
+                'Apple Pay': `<svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M19.1 11.41c0-1.2.6-2.3 1.5-3-.9-.9-2.2-1.5-3.5-1.5-1.4 0-2.8.9-3.5 2.1-.8 1.2-1.4 3.2-1.1 5 .9.3 1.9.1 2.8-.5-.1-1.9.8-3.5 2.2-3.5.3 0 .6.1.9.2zm-4.7 9.8c1.1 0 2.1-.7 2.8-2l-1-3.2c-.6.9-1.5 1.6-2.6 1.6-1.1 0-2-.7-2.8-2l1 3.2c.7 1.2 1.6 2.4 2.6 2.4zM13.2 2.2a4.4 4.4 0 00-3.3 1.7A4.2 4.2 0 008.2 2c-1.8 0-3.5 1.1-4.5 2.8-2 3.5-.5 8.7 2.3 11.5 1.4 1.4 3 2.2 4.7 2.2 1.6 0 3-.7 4.5-2.2l.1-.1c.3-.3.4-.6.4-1s-.1-.7-.4-1a.9.9 0 00-1.3 0c-1.2 1.2-2.3 1.7-3.4 1.7-1.2 0-2.4-.7-3.5-1.8-2.6-2.7-4-7.5-2.2-10.7.8-1.5 2.1-2.2 3.5-2.2a4.4 4.4 0 013.3 1.7c.3.5.9.6 1.4.3s.6-.9.3-1.4z"></path></svg>`,
+            };
+            const defaultIcon = `<svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M20 6h-4V4c0-1.11-.89-2-2-2h-4c-1.11 0-2 .89-2 2v2H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-6 0h-4V4h4v2z"></path></svg>`;
+            return icons[method] || defaultIcon;
+        };
 
         const formatRelativeTime = (dateString) => {
             const date = new Date(dateString);
@@ -304,7 +312,7 @@
             if (!token) return showLoginScreen();
             try {
                 const payload = JSON.parse(atob(token.split('.')[1]));
-                state.user = { id: payload.id, username: payload.username };
+                state.user = { id: payload.id, username: payload.username, role: payload.role };
             } catch (e) {
                 return showLoginScreen();
             }
@@ -317,32 +325,41 @@
         const showLoginScreen = () => {
             localStorage.removeItem('token');
             if (state.pollingInterval) clearInterval(state.pollingInterval);
-            state.user = null;
-            state.tickets = [];
-            state.currentTicketId = null;
+            state.user = null; state.tickets = []; state.currentTicketId = null;
             selectors.appContainer.style.display = 'none';
             selectors.loginContainer.style.display = 'flex';
         };
 
         const renderChatList = () => {
             const sortFn = (a, b) => new Date(b.updated_at) - new Date(a.updated_at);
-            const awaiting = state.tickets.filter(t => !t.claimed_by && t.status !== 'completed').sort(sortFn);
-            const active = state.tickets.filter(t => t.claimed_by === state.user.id && t.status !== 'completed').sort(sortFn);
-            const completed = state.tickets.filter(t => t.status === 'completed').sort(sortFn);
+            
+            const awaiting = state.tickets.filter(t => t.status === 'awaiting').sort(sortFn);
+            const needsReply = state.tickets.filter(t => t.claimed_by === state.user.id && t.status === 'processing' && t.last_message_sender === 'user').sort(sortFn);
+            const myActive = state.tickets.filter(t => t.claimed_by === state.user.id && t.status === 'processing' && t.last_message_sender !== 'user').sort(sortFn);
+            const completed = state.tickets.filter(t => t.claimed_by === state.user.id && t.status === 'completed').sort(sortFn);
 
-            const createCategoryHTML = (tickets, title, id, showClaimButton) => {
+            const createCategoryHTML = (tickets, title, id, options = {}) => {
+                if (tickets.length === 0 && !options.alwaysShow) return '';
+
                 let itemsHTML = tickets.map(chat => {
                     const lastMessage = chat.messages?.[chat.messages.length - 1]?.message || 'New ticket created.';
+                    const itemClasses = [
+                        'chat-item',
+                        state.currentTicketId === chat.id ? 'active' : '',
+                        chat.isNewActivity ? 'new-activity' : '',
+                        options.needsReplyMarker ? 'needs-reply' : ''
+                    ].filter(Boolean).join(' ');
+
                     return `
-                        <div class="chat-item ${state.currentTicketId === chat.id ? 'active' : ''} ${chat.isNewActivity ? 'new-activity' : ''}" data-chat-id="${chat.id}">
-                            <div class="chat-item__icon"><i class="${getPaymentMethodIcon(chat.payment_method)} fa-fw"></i></div>
+                        <div class="${itemClasses}" data-chat-id="${chat.id}">
+                            <div class="chat-item__icon">${getPaymentMethodSVG(chat.payment_method)}</div>
                             <div class="chat-item__details">
                                 <div class="chat-item__header">
                                     <span class="chat-item__user">${escapeHTML(chat.buyer_name)}</span>
                                     <span class="chat-item__time">${formatRelativeTime(chat.updated_at)}</span>
                                 </div>
                                 <p>${escapeHTML(lastMessage)}</p>
-                                ${showClaimButton ? `<button class="btn btn-primary chat-item__claim-btn" data-claim-id="${chat.id}"><i class="fas fa-check"></i> Claim Ticket</button>` : ''}
+                                ${options.showClaimButton ? `<button class="btn btn-primary chat-item__claim-btn" data-claim-id="${chat.id}"><i class="fas fa-check"></i> Claim Ticket</button>` : ''}
                             </div>
                         </div>
                     `;
@@ -350,18 +367,19 @@
                 return `
                     <div id="${id}">
                         <h2 class="chat-list-category">${title} <span class="count">${tickets.length}</span></h2>
-                        ${itemsHTML}
+                        ${itemsHTML || `<p style="padding: 0 1.5rem 1rem; font-size: 0.85rem; color: var(--text-secondary);">No tickets here.</p>`}
                     </div>
                 `;
             };
 
             selectors.chatListColumn.innerHTML = 
-                createCategoryHTML(awaiting, 'Needs Action', 'chat-list-awaiting', true) +
-                createCategoryHTML(active, 'My Active Chats', 'chat-list-active', false) +
-                createCategoryHTML(completed, 'Completed', 'chat-list-completed', false);
+                createCategoryHTML(awaiting, 'Needs Action', 'chat-list-awaiting', { showClaimButton: true }) +
+                createCategoryHTML(needsReply, 'Requires Your Response', 'chat-list-needs-reply', { needsReplyMarker: true, alwaysShow: true }) +
+                createCategoryHTML(myActive, 'My Active Chats', 'chat-list-active') +
+                createCategoryHTML(completed, 'Completed', 'chat-list-completed');
             
             selectors.statAwaiting.textContent = awaiting.length;
-            selectors.statActive.textContent = active.length;
+            selectors.statActive.textContent = needsReply.length + myActive.length;
         };
         
         const renderChatView = () => {
@@ -383,7 +401,7 @@
             
             const isMyTicket = chat.claimed_by === state.user.id;
             selectors.completeBtn.style.display = isMyTicket && chat.status !== 'completed' ? 'inline-flex' : 'none';
-            selectors.deleteBtn.style.display = isMyTicket && chat.status === 'completed' ? 'inline-flex' : 'none';
+            selectors.deleteBtn.style.display = isMyTicket ? 'inline-flex' : 'none';
 
             const isChatLocked = chat.status === 'completed' || !isMyTicket;
             selectors.chatReplyInput.disabled = isChatLocked;
@@ -409,7 +427,12 @@
             try {
                 const res = await authFetch(`${API_BASE_URL}/tickets/all`);
                 if (!res.ok) throw new Error("Couldn't load chats.");
-                const newTickets = await res.json();
+                let allTickets = await res.json();
+
+                // Filter tickets: show only unclaimed or those claimed by the current user.
+                const newTickets = allTickets.filter(ticket => 
+                    !ticket.claimed_by || ticket.claimed_by === state.user.id
+                );
                 
                 const oldTicketsMap = new Map(state.tickets.map(t => [t.id, t]));
                 let playSound = false;
@@ -422,7 +445,7 @@
                         newTicket.isNewActivity = true;
                         playSound = true;
                     } else if ((newTicket.messages?.length || 0) > (oldTicket.messages?.length || 0)) { // New message
-                        if (newTicket.last_message_sender === 'user') {
+                        if (newTicket.last_message_sender === 'user' && newTicket.claimed_by === state.user.id) {
                             newTicket.isNewActivity = true;
                             playSound = true;
                         }
@@ -452,6 +475,7 @@
                 const claimButton = e.target.closest('.chat-item__claim-btn');
 
                 if (claimButton) {
+                    e.stopPropagation(); // Prevent chat item click
                     const chatId = claimButton.dataset.claimId;
                     claimButton.disabled = true;
                     claimButton.innerHTML = 'Claiming...';
@@ -462,7 +486,6 @@
                         renderChatView();
                     } catch (error) {
                         console.error('Failed to claim ticket:', error);
-                        // Button will be re-enabled on next poll/render
                     }
                 } else if (chatItem) {
                     state.currentTicketId = parseInt(chatItem.dataset.chatId);
@@ -518,7 +541,7 @@
             });
 
             selectors.deleteBtn.addEventListener('click', async () => {
-                if (confirm("Are you sure you want to permanently delete this ticket?")) {
+                if (confirm("Are you sure you want to permanently delete this ticket? This action cannot be undone.")) {
                     await authFetch(`${API_BASE_URL}/tickets/${state.currentTicketId}`, { method: 'DELETE' });
                     resetChatView();
                     await updateData();
