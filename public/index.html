@@ -576,7 +576,7 @@
     <main class="relative z-10">
       <section id="hero-section" class="text-center py-28 md:py-40 px-4 relative overflow-hidden">
         <div class="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none">
-          <img src="https://i.imgur.com/4LQlJ9V.png" alt="Script Logo Background" class="h-64 w-64 md:h-96 md:w-96 object-contain animate-pulse">
+          <img src="https://i.imgur.com/4LQlJ9V.png" alt="Script Logo Background" class="h-64 w-64 md:h-96 md-w-96 object-contain animate-pulse">
         </div>
         <div class="relative z-10">
           <h2 class="text-6xl md:text-8xl font-black text-white leading-tight mb-4 tracking-tighter" data-animate>
@@ -706,7 +706,7 @@
             <label for="signup-password" class="block mb-2 text-sm font-medium text-text-light">Password</label>
             <input type="password" id="signup-password" class="form-input w-full p-3 rounded-lg" placeholder="Secure password" required>
           </div>
-          <div class="cf-turnstile mb-4" data-sitekey="0x4AAAAAAAB0PeEmSeY6uJ3nN" data-theme="dark"></div>
+          <div id="signup-turnstile-widget" class="cf-turnstile mb-4"></div>
           <button type="submit" class="w-full text-white font-bold py-3 px-6 rounded-lg btn-primary text-lg has-ripple">Sign Up with Email</button>
         </form>
         <p class="text-center mt-6 text-text-muted">Already have an account? <a href="#" id="show-login" class="text-primary hover:underline font-medium">Log In</a></p>
@@ -734,7 +734,7 @@
             <label for="login-password" class="block mb-2 text-sm font-medium text-text-light">Password</label>
             <input type="password" id="login-password" class="form-input w-full p-3 rounded-lg" placeholder="Your password" required>
           </div>
-          <div class="cf-turnstile mb-4" data-sitekey="0x4AAAAAAAB0PeEmSeY6uJ3nN" data-theme="dark"></div>
+          <div id="login-turnstile-widget" class="cf-turnstile mb-4"></div>
           <button type="submit" class="w-full text-white font-bold py-3 px-6 rounded-lg btn-primary text-lg has-ripple">Log In with Email</button>
         </form>
         <p class="text-center mt-6 text-text-muted">Don't have an account? <a href="#" id="show-signup" class="text-primary hover:underline font-medium">Sign Up</a></p>
@@ -783,7 +783,7 @@
         <i class="fas fa-brain text-pink-500"></i>
         <div class="method-name">Secret Brainrots</div>
       </div>
-      <div id="payment-turnstile-widget" class="cf-turnstile mt-6" data-sitekey="0x4AAAAAAAB0PeEmSeY6uJ3nN" data-theme="dark"></div>
+      <div id="payment-turnstile-widget" class="cf-turnstile mt-6"></div>
       <button id="confirm-payment-btn" class="w-full mt-4 text-white font-bold py-3 px-6 rounded-lg btn-primary text-lg opacity-50 cursor-not-allowed has-ripple" disabled>Create Purchase Ticket</button>
     </div>
   </div>
@@ -885,10 +885,15 @@
         },
         
         elements: {},
+
+        // --- CAPTCHA FIX: Store widget IDs ---
+        signupWidgetId: null,
+        loginWidgetId: null,
+        paymentWidgetId: null,
         
         init() {
           this.cacheElements();
-          // NEW: Handle Discord login callback before loading state
+          // Handle Discord login callback before loading state
           this.handleDiscordCallback();
           this.loadState(); 
           this.registerEventListeners();
@@ -896,7 +901,7 @@
           this.initScrollAnimations();
         },
 
-        // NEW: Handles the redirect from Discord OAuth
+        // Handles the redirect from Discord OAuth
         handleDiscordCallback() {
             if (window.location.hash.startsWith('#token=')) {
                 const token = window.location.hash.substring(7); // Remove #token=
@@ -951,7 +956,6 @@
             usernameDisplay: document.getElementById('username-display'),
             logoutButton: document.getElementById('logout-button'),
             loginNavBtn: document.getElementById('login-nav-btn'),
-            // NEW: Discord login buttons
             discordLoginSignup: document.getElementById('discord-login-btn-signup'),
             discordLoginLogin: document.getElementById('discord-login-btn-login'),
           };
@@ -1072,7 +1076,7 @@
             this.elements.logoutButton.addEventListener('click', this.logout.bind(this));
             this.elements.loginNavBtn.addEventListener('click', this.openAuthModal.bind(this));
 
-            // NEW: Event listener for Discord login
+            // Event listener for Discord login
             const handleDiscordRedirect = () => { window.location.href = '/api/auth/discord'; };
             this.elements.discordLoginSignup.addEventListener('click', handleDiscordRedirect);
             this.elements.discordLoginLogin.addEventListener('click', handleDiscordRedirect);
@@ -1163,6 +1167,17 @@
           this.elements.authModal.classList.remove('hidden');
           this.elements.authModal.classList.add('flex');
           setTimeout(() => this.elements.authModal.classList.add('visible'), 10);
+          
+          // --- CAPTCHA FIX: Explicitly render signup captcha on modal open ---
+          // Use a timeout to ensure the element is visible in the DOM before rendering
+          setTimeout(() => {
+            if (window.turnstile && !this.signupWidgetId) {
+                this.signupWidgetId = turnstile.render('#signup-turnstile-widget', {
+                    sitekey: '0x4AAAAAAAB0PeEmSeY6uJ3nN',
+                    theme: 'dark',
+                });
+            }
+          }, 100);
         },
         
         closeAuthModal() {
@@ -1176,6 +1191,18 @@
         toggleAuthView(showLogin) {
           this.elements.signupView.classList.toggle('hidden', showLogin);
           this.elements.loginView.classList.toggle('hidden', !showLogin);
+          
+          // --- CAPTCHA FIX: Explicitly render login captcha when its view is shown ---
+          if (showLogin) {
+            setTimeout(() => {
+                if (window.turnstile && !this.loginWidgetId) {
+                    this.loginWidgetId = turnstile.render('#login-turnstile-widget', {
+                        sitekey: '0x4AAAAAAAB0PeEmSeY6uJ3nN',
+                        theme: 'dark',
+                    });
+                }
+            }, 50);
+          }
         },
         
         async _performLogin(username, password, turnstileToken) {
@@ -1212,7 +1239,8 @@
             const form = this.elements.signupForm;
             const username = form.querySelector('#signup-username').value;
             const password = form.querySelector('#signup-password').value;
-            const turnstileToken = form.querySelector('[name="cf-turnstile-response"]')?.value;
+            // --- CAPTCHA FIX: Get response from the specific widget ID ---
+            const turnstileToken = turnstile.getResponse(this.signupWidgetId);
 
             if (!username || !password) return this.showToast('Please fill in all fields');
             if (!turnstileToken) {
@@ -1244,7 +1272,8 @@
                     this.showToast('Signup failed. Please try again.');
                 }
             }
-            turnstile.reset(form.querySelector('.cf-turnstile'));
+            // --- CAPTCHA FIX: Reset the specific widget ID ---
+            turnstile.reset(this.signupWidgetId);
         },
         
         async handleLogin(e) {
@@ -1252,7 +1281,8 @@
             const form = this.elements.loginForm;
             const username = form.querySelector('#login-username').value;
             const password = form.querySelector('#login-password').value;
-            const turnstileToken = form.querySelector('[name="cf-turnstile-response"]')?.value;
+            // --- CAPTCHA FIX: Get response from the specific widget ID ---
+            const turnstileToken = turnstile.getResponse(this.loginWidgetId);
 
             if (!username || !password) return this.showToast('Please fill in all fields');
             if (!turnstileToken) {
@@ -1261,7 +1291,8 @@
             }
 
             await this._performLogin(username, password, turnstileToken);
-            turnstile.reset(form.querySelector('.cf-turnstile'));
+            // --- CAPTCHA FIX: Reset the specific widget ID ---
+            turnstile.reset(this.loginWidgetId);
         },
         
         logout() {
@@ -1280,6 +1311,16 @@
           this.elements.paymentMethodModal.classList.remove('hidden');
           this.elements.paymentMethodModal.classList.add('flex');
           setTimeout(() => this.elements.paymentMethodModal.classList.add('visible'), 10);
+
+          // --- CAPTCHA FIX: Explicitly render payment captcha on modal open ---
+          setTimeout(() => {
+            if (window.turnstile && !this.paymentWidgetId) {
+                this.paymentWidgetId = turnstile.render('#payment-turnstile-widget', {
+                    sitekey: '0x4AAAAAAAB0PeEmSeY6uJ3nN',
+                    theme: 'dark',
+                });
+            }
+          }, 100);
         },
         
         closePaymentMethodModal() {
@@ -1293,25 +1334,21 @@
         async handlePaymentMethodConfirm() {
           if (!this.state.selectedPaymentMethod) return this.showToast('Please select a payment method');
           
-          const widget = document.getElementById('payment-turnstile-widget');
-          const turnstileToken = turnstile.getResponse(widget);
+          // --- CAPTCHA FIX: Get response, make check mandatory, and send token ---
+          const turnstileToken = turnstile.getResponse(this.paymentWidgetId);
 
           if (!turnstileToken) {
-            // NOTE: The backend doesn't seem to use turnstile for this route.
-            // If you add it, this check is necessary. For now, we can proceed.
-            // this.showToast('Please wait for the security check to complete.');
-            // return;
+            this.showToast('Please complete the security check.');
+            return;
           }
 
           this.closePaymentMethodModal();
           
-          // NOTE: Your backend doesn't expect a turnstile token on this route.
-          // Sending it won't cause an error, but it's not used.
           const response = await this.apiCall('/tickets', {
             method: 'POST',
             body: JSON.stringify({
               paymentMethod: this.state.selectedPaymentMethod,
-              // turnstileToken: turnstileToken // This field is not in your backend route for creating tickets
+              turnstileToken: turnstileToken // Pass the token to the backend
             })
           });
           
@@ -1331,7 +1368,8 @@
                  this.showToast('Failed to create ticket.');
             }
           }
-          turnstile.reset(widget);
+          // --- CAPTCHA FIX: Reset the specific widget ID ---
+          turnstile.reset(this.paymentWidgetId);
         },
         
         openTicketSystem() {
