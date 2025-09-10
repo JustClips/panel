@@ -14,7 +14,7 @@
             --bg-dark: #0D1117;
             --bg-light: #161B22;
             --primary: #2F81F7;
-            --primary-light: #3b8cfa;
+            --secondary: #ffc107;
             --primary-glow-text: 0 0 10px rgba(47, 129, 247, 0.7);
             --primary-glow-box: 0 0 25px rgba(47, 129, 247, 0.3);
             --text-light: #C9D1D9;
@@ -22,7 +22,6 @@
             --border-color: rgba(255, 255, 255, 0.1);
             --success: #238636;
             --danger: #DA3633;
-            --danger-hover: #b92c2a;
             --panel-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
             --warning: #ffc107;
             --glass-bg: rgba(22, 27, 34, 0.7);
@@ -42,8 +41,6 @@
             height: 100vh;
             overflow: hidden;
         }
-
-        /* --- Login Screen --- */
         #login-container { display: flex; align-items: center; justify-content: center; height: 100vh; width: 100%; }
         .login-box {
             background: var(--glass-bg); backdrop-filter: blur(12px); border: 1px solid var(--border-color);
@@ -55,167 +52,129 @@
             justify-content: center; gap: 12px; font-size: 1.75rem; font-weight: 600;
         }
         .login-box p { margin-bottom: 2rem; color: var(--text-muted); }
+        .input-group { margin-bottom: 1.5rem; text-align: left; }
         #login-error { color: var(--danger); margin-top: 1rem; display: none; font-weight: 500; }
         .login-box.shake { animation: shake 0.5s ease; }
         @keyframes shake { 10%, 90% { transform: translateX(-1px); } 20%, 80% { transform: translateX(2px); } 30%, 50%, 70% { transform: translateX(-4px); } 40%, 60% { transform: translateX(4px); } }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-
-        /* --- Main App Layout --- */
         #app-container { display: none; width: 100%; height: 100vh; }
         .sidebar {
             width: 260px; background: var(--bg-light); border-right: 1px solid var(--border-color);
             display: flex; flex-direction: column; height: 100%; flex-shrink: 0;
-            transition: width 0.3s ease, transform 0.3s ease; position: fixed; top: 0; left: 0; z-index: 100;
+            transition: width 0.3s ease;
         }
-        .sidebar.collapsed { width: 70px; }
-        .sidebar.collapsed .logo h1, .sidebar.collapsed .nav-links span, .sidebar.collapsed .user-profile-info { display: none; }
-        .sidebar.collapsed .logo { padding: 1.5rem 0; justify-content: center; }
-        .sidebar.collapsed .nav-links a, .sidebar.collapsed .user-profile { justify-content: center; }
-        .sidebar.collapsed .nav-links a i { margin-right: 0; }
-        .sidebar.collapsed .nav-category span { display: none; }
-        .sidebar.collapsed .nav-category { text-align: center; }
-        .sidebar.collapsed .nav-category::after { content: '•••'; }
-
-        .logo { padding: 1.5rem 2rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 1rem; transition: 0.3s ease; }
+        .logo { padding: 1.5rem 2rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 1rem; }
         .logo i { font-size: 2rem; color: var(--primary); text-shadow: var(--primary-glow-text); }
-        .logo h1 { color: #fff; font-size: 1.5rem; font-weight: 600; white-space: nowrap; }
-        
+        .logo h1 { color: #fff; font-size: 1.5rem; font-weight: 600; }
         .nav-links { list-style: none; padding: 0 1rem; flex-grow: 1; overflow-y: auto; }
-        .nav-category { padding: 1.5rem 1rem 0.5rem; font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
-        .nav-links a { display: flex; align-items: center; padding: 1rem; color: var(--text-muted); text-decoration: none; border-radius: 8px; transition: all 0.2s ease-in-out; font-weight: 500; margin-bottom: 0.25rem; white-space: nowrap; position: relative; }
+        .nav-category {
+            padding: 1.5rem 1rem 0.5rem; font-size: 0.75rem; font-weight: 600; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 1px;
+        }
+        .nav-links a {
+            display: flex; align-items: center; padding: 1rem; color: var(--text-muted); text-decoration: none;
+            border-radius: 8px; transition: all 0.2s ease-in-out; font-weight: 500; margin-bottom: 0.25rem;
+        }
         .nav-links a:hover { background: rgba(255, 255, 255, 0.05); color: var(--text-light); }
         .nav-links a.active { background-color: var(--primary); color: #fff; box-shadow: var(--primary-glow-box); font-weight: 600; }
-        .nav-links a.active::before { content: ''; position: absolute; left: -1rem; top: 0; height: 100%; width: 4px; background: var(--primary-light); border-radius: 0 4px 4px 0; }
-        .sidebar.collapsed .nav-links a.active::before { left: 0; }
         .nav-links a i { margin-right: 1rem; width: 20px; text-align: center; font-size: 1.1rem; }
-        
-        .sidebar-footer { margin-top: auto; padding: 1rem; border-top: 1px solid var(--border-color); }
-        .user-profile { display: flex; align-items: center; gap: 12px; padding: 0.5rem; border-radius: 8px; }
-        .user-profile-avatar { width: 36px; height: 36px; background: var(--primary); border-radius: 50%; display: grid; place-items: center; font-weight: 600; flex-shrink: 0; }
-        .user-profile-info { flex-grow: 1; min-width: 0; }
-        #username-display { font-weight: 600; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        #user-role-display { font-size: 0.75rem; color: var(--text-muted); text-transform: capitalize; }
-        #logout-btn { background: none; border: none; color: var(--text-muted); font-size: 1.25rem; cursor: pointer; padding: 8px; border-radius: 6px; transition: 0.2s ease; }
-        #logout-btn:hover { background: rgba(255, 255, 255, 0.1); color: var(--danger); }
-        #sidebar-toggle { position: absolute; top: 24px; right: -15px; width: 30px; height: 30px; border-radius: 50%; background: var(--bg-light); border: 1px solid var(--border-color); color: var(--text-muted); cursor: pointer; display: grid; place-items: center; z-index: 101; transition: 0.3s ease, transform 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55); }
-        #sidebar-toggle:hover { color: var(--text-light); background: var(--primary); border-color: var(--primary); }
-        #app-container.sidebar-collapsed #sidebar-toggle { transform: rotate(180deg); }
+        .logout-link { margin-top: auto; padding: 1rem; }
         
         .main-content {
-            flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden;
-            padding: 2rem 3rem; gap: 2rem; margin-left: 260px; transition: margin-left 0.3s ease;
+            flex: 1; display: flex; flex-direction: column; max-height: 100vh;
+            overflow: hidden; padding: 2rem 3rem; gap: 2rem;
         }
-        #app-container.sidebar-collapsed .main-content { margin-left: 70px; }
         header { flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; }
         header h1 { font-size: 2.25rem; color: #fff; font-weight: 700; }
-        .content-panel { flex-grow: 1; overflow: hidden; display: none; }
+        .content-panel { flex-grow: 1; overflow: hidden; display: none; animation: fadeIn 0.5s ease-out; }
         .content-panel.active { display: flex; flex-direction: column; }
 
-        /* --- Panels & Cards --- */
-        .panel-wrapper { background: var(--glass-bg); backdrop-filter: blur(12px); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: var(--panel-shadow); display: flex; flex-direction: column; height: 100%; position: relative; }
+        .panel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; }
+        .panel-wrapper {
+            background: var(--glass-bg); backdrop-filter: blur(12px); border: 1px solid var(--border-color);
+            border-radius: 12px; box-shadow: var(--panel-shadow); display: flex; flex-direction: column;
+            height: 100%; position: relative;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         .panel-header { padding: 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
         .panel-header h2 { font-size: 1.25rem; color: var(--text-light); display: flex; align-items: center; gap: 10px; font-weight: 600; }
         .panel-body { padding: 1.5rem; flex-grow: 1; overflow-y: auto; }
-        .stat-card { text-align: center; padding: 2rem; position: relative; overflow: hidden; }
-        .stat-card::after { content: ''; position: absolute; top: -50px; right: -50px; width: 150px; height: 150px; background: var(--primary); opacity: 0.05; border-radius: 50%; }
+        .stat-card { text-align: center; padding: 1rem; }
         .stat-card .stat-number { font-size: 3rem; font-weight: 700; color: var(--primary); text-shadow: var(--primary-glow-text); line-height: 1.2; }
         .stat-card .stat-label { font-size: 1rem; color: var(--text-muted); margin-top: 0.5rem; }
-
-        /* --- Generic Controls --- */
-        .form-control { width: 100%; padding: 12px 15px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 1rem; background: var(--bg-dark); color: var(--text-light); transition: all 0.3s; }
+        .form-control {
+            width: 100%; padding: 12px 15px; border: 1px solid var(--border-color); border-radius: 8px;
+            font-size: 1rem; background: var(--bg-dark); color: var(--text-light); transition: all 0.3s;
+        }
         .form-control:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(47, 129, 247, 0.3); outline: none; }
-        .btn { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s ease; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.9rem; }
+        .btn {
+            padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;
+            transition: all 0.2s ease; display: inline-flex; align-items: center; justify-content: center;
+            gap: 8px; font-size: 0.9rem;
+        }
         .btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(0,0,0,0.25); }
         .btn:disabled { cursor: not-allowed; opacity: 0.6; }
+        .btn-lg { padding: 1rem 2rem; font-size: 1.1rem; }
         .btn-sm { padding: 8px 14px; font-size: 0.8rem; }
         .btn-primary { background-color: var(--primary); color: #fff; box-shadow: var(--primary-glow-box); }
-        .btn-danger { background-color: var(--danger); color: white; }
-        .btn-danger:hover:not(:disabled) { background: var(--danger-hover); }
-        .btn-success { background-color: var(--success); color: white; }
-        .btn-secondary { background-color: #30363d; color: white; border: 1px solid var(--border-color); }
-
-        /* --- Chats Tab --- */
+        .btn-primary:hover:not(:disabled) { background-color: #3f8ff7; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-secondary { background: #30363d; color: white; border: 1px solid var(--border-color); }
+        
         #chats-grid { display: grid; grid-template-columns: 350px 1fr; gap: 1.5rem; height: 100%; }
-        #chat-list-panel { display: flex; flex-direction: column; }
-        #chat-list-container { flex-grow: 1; overflow-y: auto; }
-        .chat-list-category { display: block; }
-        #chat-list-container:not(.show-other-active) [data-category="otherActive"] { display: none; }
-
-        .chat-list-header { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; padding: 1rem 1.5rem 0.5rem; letter-spacing: 1px; flex-shrink: 0; }
-        .chat-item { padding: 1rem 1.5rem; cursor: pointer; transition: background-color 0.2s ease; display: flex; gap: 1rem; align-items: center; margin: 0 1rem 0.5rem; border-radius: 10px; position: relative; border: 1px solid transparent; }
+        #chat-list-container { display: flex; flex-direction: column; overflow-y: auto; }
+        .chat-list-header {
+            font-size: 0.8rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase;
+            padding: 1rem 1.5rem 0.5rem; letter-spacing: 1px; flex-shrink: 0;
+        }
+        .chat-item {
+            padding: 1rem 1.5rem; border: 1px solid transparent; cursor: pointer;
+            transition: all 0.2s ease; background: transparent; display: flex; gap: 1rem;
+            align-items: center; margin: 0 1rem 0.5rem; border-radius: 10px; position: relative;
+        }
         .chat-item:hover { background: rgba(47, 129, 247, 0.1); }
         .chat-item.active { background: var(--primary); box-shadow: var(--primary-glow-box); }
-        .chat-item.active .chat-user, .chat-item.active .chat-payment, .chat-item.active .chat-claimed-by { color: white; }
-        .chat-item-icon { font-size: 1.75rem; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border-radius: 8px; background-color: var(--bg-dark); }
-        .unread-badge { position: absolute; top: 10px; right: 10px; width: 22px; height: 22px; background-color: var(--warning); color: #111; border-radius: 50%; border: 2px solid var(--bg-light); font-size: 0.75rem; font-weight: 700; display: grid; place-items: center; }
+        .chat-item.active .chat-user, .chat-item.active .chat-payment, .chat-item.active .chat-date { color: white; }
+        .chat-item-icon {
+            font-size: 1.75rem; width: 44px; height: 44px; display: flex; align-items: center;
+            justify-content: center; flex-shrink: 0; border-radius: 8px; background-color: var(--bg-dark);
+        }
+        .unread-badge {
+            position: absolute; top: 10px; right: 10px; width: 22px; height: 22px;
+            background-color: var(--warning); color: #111;
+            border-radius: 50%; border: 2px solid var(--bg-light);
+            font-size: 0.75rem; font-weight: 700;
+            display: grid; place-items: center;
+        }
         .chat-item-details { flex-grow: 1; overflow: hidden; }
         .chat-user { font-weight: 600; color: var(--text-light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
         .chat-payment { font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .chat-claimed-by { font-size: 0.8rem; color: var(--text-muted); font-style: italic; margin-top: 4px; }
-        #chat-filter { padding: 1rem 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 10px; font-size: 0.9rem; }
-        .switch { position: relative; display: inline-block; width: 34px; height: 20px; }
-        .switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #30363d; transition: .4s; border-radius: 20px; }
-        .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
-        input:checked + .slider { background-color: var(--primary); }
-        input:checked + .slider:before { transform: translateX(14px); }
-
+        .chat-info { display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem; }
+        .chat-date { font-size: 0.8rem; color: var(--text-muted); }
+        .status-badge { padding: 4px 10px; border-radius: 50px; font-size: 0.75rem; font-weight: 600; text-transform: capitalize; }
+        
         #chat-view { display: flex; flex-direction: column; height: 100%; }
         #chat-view.hidden { display: none; }
         #chat-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; }
         #chat-placeholder i { font-size: 4rem; margin-bottom: 1.5rem; color: var(--text-muted); opacity: 0.3; }
         #chat-placeholder p { font-size: 1.1rem; color: var(--text-muted); }
-        #chat-header-info { display: flex; align-items: center; gap: 12px; }
-        #chat-header-avatar { width: 40px; height: 40px; background: var(--bg-dark); border-radius: 50%; display: grid; place-items: center; font-weight: 600; font-size: 1.2rem; }
-        #mobile-back-btn { display: none; margin-right: 1rem; }
+        #chat-header-info { display: flex; flex-direction: column; gap: 4px; }
         
         #chat-messages { flex-grow: 1; overflow-y: auto; padding: 1.5rem; display: flex; flex-direction: column-reverse; }
-        .message-list-wrapper { display: flex; flex-direction: column; gap: 0.5rem; }
-        .message-bubble { padding: 0.8rem 1.25rem; border-radius: 18px; max-width: 80%; word-wrap: break-word; line-height: 1.5; animation: fadeIn 0.3s ease; display: flex; flex-direction: column; }
+        .message-list-wrapper { display: flex; flex-direction: column; gap: 1.25rem; }
+        .message-bubble { padding: 0.8rem 1.25rem; border-radius: 18px; max-width: 80%; word-wrap: break-word; line-height: 1.5; animation: fadeIn 0.3s ease; }
         .message-bubble.seller { background: var(--primary); color: #fff; border-bottom-right-radius: 4px; align-self: flex-end; }
         .message-bubble.user { background: var(--bg-light); border: 1px solid var(--border-color); border-bottom-left-radius: 4px; align-self: flex-start; }
-        .message-header { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; margin-bottom: 0.3rem; }
-        .message-sender { font-weight: 600; font-size: 0.8rem; opacity: 0.9; }
-        .message-timestamp { font-size: 0.7rem; opacity: 0.6; white-space: nowrap; }
-        .message-bubble.seller .message-timestamp { color: rgba(255,255,255,0.7); }
-        .message-bubble.user .message-timestamp { color: var(--text-muted); }
+        .message-sender { font-weight: 600; font-size: 0.8rem; margin-bottom: 0.3rem; opacity: 0.9; }
         
         #chat-reply-form { display: flex; gap: 1rem; flex-shrink: 0; padding: 1rem 1.5rem; border-top: 1px solid var(--border-color); background: var(--glass-bg); }
         #chat-reply-input { flex-grow: 1; resize: none; min-height: 50px; padding-top: 14px; }
-        #action-bar { display: flex; flex-shrink: 0; padding: 1rem 1.5rem; border-top: 1px solid var(--border-color); background: var(--glass-bg); align-items: center; justify-content: center; text-align: center; }
-        #action-bar-text { color: var(--text-muted); font-weight: 500; }
-
-        /* --- Notifications --- */
-        #notification-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; }
-        .notification { background: var(--bg-light); padding: 15px 25px; border-radius: 8px; margin-bottom: 10px; box-shadow: var(--panel-shadow); transition: all 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55); transform: translateX(120%); border-left: 4px solid var(--primary); }
-        .notification.show { transform: translateX(0); }
-
-        /* --- Responsive Design --- */
-        @media (max-width: 992px) {
-            .sidebar { transform: translateX(-100%); }
-            .sidebar.open { transform: translateX(0); }
-            #sidebar-toggle { display: none; }
-            .main-content { margin-left: 0; padding: 1.5rem; }
-            header h1 { font-size: 1.75rem; }
-            
-            /* ** FIX: Use display block/none for mobile view switching */
-            #chats-grid {
-                display: block;
-            }
-            #chat-view-panel {
-                display: none;
-                height: 100%;
-                width: 100%;
-            }
-            #chats-tab.mobile-chat-active #chat-list-panel {
-                display: none;
-            }
-            #chats-tab.mobile-chat-active #chat-view-panel {
-                display: flex; /* Use flex as it's a flex container */
-            }
-            #mobile-back-btn {
-                display: inline-flex;
-            }
+        
+        #claim-action-bar {
+            display: none; /* hidden by default */
+            flex-shrink: 0; padding: 1rem 1.5rem; border-top: 1px solid var(--border-color);
+            background: var(--glass-bg);
+            align-items: center; justify-content: center;
         }
     </style>
 </head>
@@ -237,24 +196,14 @@
 
     <div id="app-container">
         <aside class="sidebar">
-            <button id="sidebar-toggle"><i class="fas fa-chevron-left"></i></button>
             <div class="logo"><i class="fa-solid fa-atom"></i><h1>Eps1llon</h1></div>
             <nav class="nav-links">
                 <div class="nav-category"><span>General</span></div>
                 <a href="#" class="active" data-tab="dashboard"><i class="fas fa-chart-pie"></i> <span>Dashboard</span></a>
                 <div class="nav-category"><span>Sales</span></div>
                 <a href="#" data-tab="chats"><i class="fas fa-comments"></i> <span>Buyer Chats</span></a>
+                <div class="logout-link"><a href="#" id="logout-btn"><i class="fas fa-sign-out-alt"></i> <span>Logout</span></a></div>
             </nav>
-            <div class="sidebar-footer">
-                <div class="user-profile">
-                    <div class="user-profile-avatar" id="avatar-initial"></div>
-                    <div class="user-profile-info">
-                        <div id="username-display"></div>
-                        <div id="user-role-display"></div>
-                    </div>
-                    <button id="logout-btn" title="Logout"><i class="fas fa-sign-out-alt"></i></button>
-                </div>
-            </div>
         </aside>
 
         <main class="main-content">
@@ -269,40 +218,28 @@
             
             <section class="content-panel" id="chats-tab">
                 <div id="chats-grid">
-                    <div class="panel-wrapper" id="chat-list-panel" style="padding: 0;">
-                        <div id="chat-filter">
-                            <label class="switch"><input type="checkbox" id="show-all-toggle"><span class="slider"></span></label>
-                            <label for="show-all-toggle">Show all active tickets</label>
-                        </div>
-                        <div id="chat-list-container"></div>
-                    </div>
-                    <div class="panel-wrapper" id="chat-view-panel">
+                    <div class="panel-wrapper" style="padding: 0;"><div id="chat-list-container"></div></div>
+                    <div class="panel-wrapper">
                          <div id="chat-view" class="hidden">
-                             <div class="panel-header">
-                                 <div id="chat-header-info">
-                                     <button id="mobile-back-btn" class="btn btn-secondary btn-sm"><i class="fas fa-arrow-left"></i></button>
-                                     <div id="chat-header-avatar"></div>
-                                     <div>
-                                        <h2 id="chat-header-title"></h2>
-                                        <small id="chat-header-details"></small>
-                                     </div>
-                                 </div>
-                                 <div style="display: flex; gap: 0.5rem;">
-                                     <button id="join-chat-btn" class="btn btn-secondary btn-sm"><i class="fas fa-handshake-angle"></i> Join Chat</button>
-                                     <button id="complete-ticket-btn" class="btn btn-primary btn-sm"><i class="fas fa-check-circle"></i> Complete</button>
-                                     <button id="delete-ticket-btn" class="btn btn-danger btn-sm"><i class="fas fa-trash-alt"></i> Delete</button>
-                                 </div>
-                             </div>
-                             <div id="chat-messages"></div>
-                             <form id="chat-reply-form">
-                                <textarea id="chat-reply-input" class="form-control" placeholder="Type your reply..."></textarea>
-                                <button type="submit" class="btn btn-primary" style="height: 50px;"><i class="fas fa-paper-plane"></i></button>
-                             </form>
-                             <div id="action-bar" style="display:none;">
-                                 <button id="claim-ticket-btn" class="btn btn-success"><i class="fas fa-check"></i> Claim Ticket</button>
-                                 <span id="action-bar-text"></span>
-                             </div>
-                         </div>
+                            <div class="panel-header">
+                                <div id="chat-header-info">
+                                  <h2 id="chat-header-title"></h2>
+                                  <small id="chat-header-details"></small>
+                                </div>
+                                <div style="display: flex; gap: 0.5rem;">
+                                    <button id="complete-ticket-btn" class="btn btn-primary btn-sm"><i class="fas fa-check-circle"></i> Complete</button>
+                                    <button id="delete-ticket-btn" class="btn btn-danger btn-sm"><i class="fas fa-trash-alt"></i> Delete</button>
+                                </div>
+                            </div>
+                            <div id="chat-messages" class="message-list-wrapper"></div>
+                            <form id="chat-reply-form">
+                               <textarea id="chat-reply-input" class="form-control" placeholder="Type your reply... (Shift + Enter for new line)"></textarea>
+                               <button type="submit" class="btn btn-primary" style="height: 50px;"><i class="fas fa-paper-plane"></i></button>
+                            </form>
+                            <div id="claim-action-bar">
+                                <button id="claim-ticket-btn" class="btn btn-success btn-lg"><i class="fas fa-check"></i> Claim Ticket to Reply</button>
+                            </div>
+                        </div>
                          <div id="chat-placeholder"><i class="fas fa-envelope-open-text"></i><p>Select a chat from the left to view messages.</p></div>
                     </div>
                 </div>
@@ -310,66 +247,50 @@
         </main>
     </div>
 
-    <div id="notification-container"></div>
+    <div id="notification-container" style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;"></div>
     
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // --- State and Constants ---
             const API_BASE_URL = '/api';
             const POLLING_RATE = 5000;
-            const state = { 
-                user: null, 
-                tickets: new Map(), 
-                currentTicketId: null, 
-                pollingInterval: null, 
-                soundEnabled: false
+
+            const state = { user: null, tickets: new Map(), currentTicketId: null, pollingInterval: null, soundEnabled: false };
+
+            const selectors = {
+                loginContainer: document.getElementById('login-container'), appContainer: document.getElementById('app-container'),
+                loginForm: document.getElementById('login-form'), loginBox: document.querySelector('.login-box'),
+                loginError: document.getElementById('login-error'), logoutBtn: document.getElementById('logout-btn'),
+                chatListContainer: document.getElementById('chat-list-container'),
+                chatView: document.getElementById('chat-view'), chatPlaceholder: document.getElementById('chat-placeholder'),
+                chatHeaderTitle: document.getElementById('chat-header-title'), chatHeaderDetails: document.getElementById('chat-header-details'),
+                chatMessages: document.getElementById('chat-messages'), chatReplyForm: document.getElementById('chat-reply-form'),
+                chatReplyInput: document.getElementById('chat-reply-input'),
+                claimActionBar: document.getElementById('claim-action-bar'), claimBtn: document.getElementById('claim-ticket-btn'),
+                completeBtn: document.getElementById('complete-ticket-btn'), deleteBtn: document.getElementById('delete-ticket-btn'),
+                notificationSound: document.getElementById('notification-sound'), notificationContainer: document.getElementById('notification-container'),
+                statAwaiting: document.getElementById('stat-awaiting'), statActive: document.getElementById('stat-active'),
+                statCompleted: document.getElementById('stat-completed'),
+                navLinks: document.querySelectorAll('.nav-links a'), contentPanels: document.querySelectorAll('.content-panel'),
+                headerTitle: document.getElementById('header-title'),
             };
 
-            // --- DOM Element Selectors ---
-            const selectors = Object.fromEntries(
-                [...document.querySelectorAll('[id]')].map(el => [
-                    el.id.replace(/-(\w)/g, (_, c) => c.toUpperCase()),
-                    el
-                ])
-            );
-            Object.assign(selectors, {
-                sidebar: document.querySelector('.sidebar'),
-                navLinks: document.querySelectorAll('.nav-links a'),
-                contentPanels: document.querySelectorAll('.content-panel')
-            });
-
-            // --- Utility Functions ---
             const escapeHTML = str => str ? str.toString().replace(/[&<>"']/g, tag => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[tag])) : '';
-            const getPaymentMethodIconClass = method => ({'PayPal': 'fab fa-paypal', 'Crypto': 'fab fa-bitcoin', 'Credit Card': 'fas fa-credit-card'}[method] || 'fas fa-receipt');
             
-            const formatTimestamp = (dateString) => {
-                if (!dateString) return '';
-                const date = new Date(dateString);
-                if (isNaN(date.getTime())) return ""; // Return empty string for invalid dates
-                
-                const now = new Date();
-                const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                const startOfYesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+            const getPaymentMethodIconClass = (method) => ({
+                'PayPal': 'fab fa-paypal', 'Crypto': 'fab fa-bitcoin', 'Credit Card': 'fas fa-credit-card',
+                'Bank Transfer': 'fas fa-university', 'Google Pay': 'fab fa-google-pay', 'Apple Pay': 'fab fa-apple-pay',
+                'CashApp': 'fas fa-dollar-sign', 'Gag Pets': 'fas fa-paw', 'Secret Brainrots': 'fas fa-brain'
+            }[method] || 'fas fa-receipt');
 
-                if (date >= startOfToday) {
-                    return new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: 'numeric', hour12: true }).format(date);
-                } else if (date >= startOfYesterday) {
-                    return 'Yesterday';
-                } else {
-                    return new Intl.DateTimeFormat('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' }).format(date);
-                }
-            };
-
-            // --- Core Application Logic ---
-            // ... (showNotification, authFetch, showApp, showLoginScreen are unchanged)
             const showNotification = (message, type = 'success') => {
                 const el = document.createElement('div');
-                el.className = `notification ${type}`;
+                el.className = `notification ${type}`; // Use pre-defined CSS classes if available
+                el.style.cssText = `background: var(--bg-light); border-left: 4px solid var(--${type}); padding: 15px 25px; border-radius: 8px; margin-bottom: 10px; box-shadow: var(--panel-shadow); transition: all 0.4s ease; transform: translateX(120%);`;
                 el.textContent = message;
                 selectors.notificationContainer.appendChild(el);
-                setTimeout(() => el.classList.add('show'), 10);
+                setTimeout(() => { el.style.transform = 'translateX(0)'; }, 10);
                 setTimeout(() => {
-                    el.classList.remove('show');
+                    el.style.transform = 'translateX(120%)';
                     el.addEventListener('transitionend', () => el.remove());
                 }, 4000);
             };
@@ -388,6 +309,28 @@
                 return response;
             };
 
+            const handleLogin = async (e) => {
+                e.preventDefault();
+                selectors.loginError.style.display = 'none';
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+                const turnstileToken = selectors.loginForm.querySelector('[name="cf-turnstile-response"]')?.value;
+                try {
+                    const response = await fetch(`${API_BASE_URL}/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password, turnstileToken }) });
+                    const data = await response.json();
+                    if (!response.ok || !['seller', 'admin'].includes(data.role)) throw new Error(data.message || 'Invalid credentials or permissions.');
+                    localStorage.setItem('token', data.token);
+                    showApp();
+                } catch (error) {
+                    selectors.loginError.textContent = error.message;
+                    selectors.loginError.style.display = 'block';
+                    selectors.loginBox.classList.add('shake');
+                    setTimeout(() => selectors.loginBox.classList.remove('shake'), 500);
+                } finally {
+                    if (window.turnstile) window.turnstile.reset();
+                }
+            };
+            
             const showApp = () => {
                 const token = localStorage.getItem('token');
                 if (!token) return showLoginScreen();
@@ -395,236 +338,206 @@
                     const payload = JSON.parse(atob(token.split('.')[1]));
                     state.user = { id: payload.id, username: payload.username, role: payload.role };
                 } catch (e) { return showLoginScreen(); }
-                
                 selectors.loginContainer.style.display = 'none';
                 selectors.appContainer.style.display = 'flex';
-                selectors.usernameDisplay.textContent = state.user.username;
-                selectors.userRoleDisplay.textContent = state.user.role;
-                selectors.avatarInitial.textContent = state.user.username.charAt(0).toUpperCase();
-
                 document.body.addEventListener('click', () => { state.soundEnabled = true }, { once: true });
-                // Mock initial data load
-                // In a real app, this would be fetched from the server
-                const mockTickets = [
-                    { id: 1, buyer_name: 'John Doe', payment_method: 'PayPal', status: 'awaiting', updated_at: new Date().toISOString(), messages: [{sender: 'user', message: 'Hello, is this available?', timestamp: new Date(Date.now() - 500000).toISOString()}] },
-                    { id: 2, buyer_name: 'Jane Smith', payment_method: 'Crypto', status: 'processing', claimed_by: 99, claimed_by_name: 'OtherSeller', updated_at: new Date(Date.now() - 3600000).toISOString(), messages: [{sender: 'user', message: 'Hi!', timestamp: '2025-09-09T10:00:00Z'}]}
-                ];
-                mockTickets.forEach(t => state.tickets.set(t.id, t));
-                updateChatListDOM();
-                
-                // state.pollingInterval = setInterval(updateData, POLLING_RATE);
+                updateData();
+                state.pollingInterval = setInterval(updateData, POLLING_RATE);
             };
 
             const showLoginScreen = () => {
                 localStorage.removeItem('token');
                 if (state.pollingInterval) clearInterval(state.pollingInterval);
-                Object.assign(state, { user: null, tickets: new Map(), currentTicketId: null });
+                state.user = null; state.tickets.clear(); state.currentTicketId = null;
                 selectors.appContainer.style.display = 'none';
                 selectors.loginContainer.style.display = 'flex';
             };
-
-
-            const updateData = async () => { /* ... unchanged ... */ };
-            
-            // --- DOM Rendering ---
-            const createChatItemHTML = chat => `
-                <div class="chat-item-icon"><i class="${getPaymentMethodIconClass(chat.payment_method)}"></i></div>
-                <div class="chat-item-details">
-                    <div class="chat-user">${escapeHTML(chat.buyer_name)}</div>
-                    <div class="chat-payment">${escapeHTML(chat.payment_method)}</div>
-                    ${chat.claimed_by_name ? `<div class="chat-claimed-by">Claimed by: ${escapeHTML(chat.claimed_by_name)}</div>` : ''}
-                </div>
-                ${chat.unreadCount > 0 ? `<div class="unread-badge">${chat.unreadCount}</div>` : ''}
-            `;
 
             const updateChatListDOM = () => {
                 const tickets = Array.from(state.tickets.values());
                 const sortFn = (a, b) => new Date(b.updated_at) - new Date(a.updated_at);
                 const categories = {
-                    needsReply: tickets.filter(t => t.claimed_by === state.user?.id && t.status === 'processing' && t.unreadCount > 0).sort(sortFn),
+                    needsReply: tickets.filter(t => t.needsReply).sort(sortFn),
                     awaiting: tickets.filter(t => t.status === 'awaiting').sort(sortFn),
-                    myActive: tickets.filter(t => t.claimed_by === state.user?.id && t.status === 'processing' && !t.unreadCount).sort(sortFn),
-                    otherActive: tickets.filter(t => t.claimed_by && t.claimed_by !== state.user?.id && t.status === 'processing').sort(sortFn),
-                    completed: tickets.filter(t => t.status === 'completed').sort(sortFn),
+                    myActive: tickets.filter(t => t.claimed_by === state.user.id && t.status === 'processing' && !t.needsReply).sort(sortFn),
+                    completed: tickets.filter(t => t.claimed_by === state.user.id && t.status === 'completed').sort(sortFn),
                 };
 
                 selectors.chatListContainer.innerHTML = '';
+                
                 const renderCategory = (key, title) => {
                     const list = categories[key];
                     const container = document.createElement('div');
-                    container.className = 'chat-list-category';
-                    container.dataset.category = key;
                     container.innerHTML = `<h2 class="chat-list-header">${title} (${list.length})</h2>`;
                     if (list.length > 0) {
                         list.forEach(chat => {
                             const itemEl = document.createElement('div');
                             itemEl.className = `chat-item ${state.currentTicketId === chat.id ? 'active' : ''}`;
                             itemEl.dataset.chatId = chat.id;
-                            itemEl.innerHTML = createChatItemHTML(chat);
+                            itemEl.innerHTML = `
+                                <div class="chat-item-icon"><i class="${getPaymentMethodIconClass(chat.payment_method)}"></i></div>
+                                <div class="chat-item-details">
+                                    <div class="chat-user">${escapeHTML(chat.buyer_name)}</div>
+                                    <div class="chat-payment">${escapeHTML(chat.payment_method)}</div>
+                                </div>
+                                ${chat.unreadCount > 0 ? `<div class="unread-badge">${chat.unreadCount}</div>` : ''}
+                            `;
                             container.appendChild(itemEl);
                         });
-                    } else if (key === 'awaiting') {
+                    } else {
                         container.innerHTML += `<p style="padding: 0 1.5rem 1rem; font-size: 0.85rem; color: var(--text-muted);">All caught up!</p>`;
                     }
-                    if (container.children.length > 1 || key === 'awaiting') selectors.chatListContainer.appendChild(container);
+                    selectors.chatListContainer.appendChild(container);
                 };
                 
-                Object.entries({
-                    needsReply: 'Needs Your Attention',
-                    awaiting: 'Unclaimed Tickets',
-                    myActive: 'My Active Chats',
-                    otherActive: 'Other Active Chats',
-                    completed: 'Completed'
-                }).forEach(([key, title]) => renderCategory(key, title));
+                renderCategory('needsReply', 'Requires Your Response');
+                renderCategory('awaiting', 'Awaiting Claim');
+                renderCategory('myActive', 'My Active Chats');
+                renderCategory('completed', 'Completed');
 
                 selectors.statAwaiting.textContent = categories.awaiting.length;
                 selectors.statActive.textContent = categories.needsReply.length + categories.myActive.length;
                 selectors.statCompleted.textContent = categories.completed.length;
             };
+            
+            const updateData = async () => {
+                try {
+                    const res = await authFetch(`${API_BASE_URL}/tickets/all`);
+                    if (!res.ok) throw new Error("Couldn't load chats.");
+                    let allTickets = await res.json();
+                    
+                    const newTickets = allTickets.filter(ticket => !ticket.claimed_by || ticket.claimed_by === state.user.id);
+                    
+                    let playSound = false;
+                    const newTicketsMap = new Map();
+                    
+                    newTickets.forEach(newTicket => {
+                        const messages = newTicket.messages || [];
+                        const lastSellerMsgIndex = messages.map(m => m.sender).lastIndexOf('seller');
+                        newTicket.unreadCount = messages.slice(lastSellerMsgIndex + 1).filter(m => m.sender === 'user').length;
+                        newTicket.needsReply = newTicket.claimed_by === state.user.id && newTicket.status === 'processing' && newTicket.unreadCount > 0;
+                        
+                        const oldTicket = state.tickets.get(newTicket.id);
+                        if (!oldTicket && newTicket.status === 'awaiting') {
+                            playSound = true;
+                        } else if (oldTicket && newTicket.unreadCount > (oldTicket.unreadCount || 0)) {
+                            playSound = true;
+                        }
+                        newTicketsMap.set(newTicket.id, newTicket);
+                    });
 
-            const renderChatView = (chat) => {
+                    if (playSound && state.soundEnabled) selectors.notificationSound.play().catch(e => console.warn("Audio play prevented:", e));
+                    
+                    state.tickets = newTicketsMap;
+                    updateChatListDOM();
+                    if (state.currentTicketId) renderChatView();
+
+                } catch (error) {
+                    if (error.message !== 'Session expired.') console.error("Failed to update data:", error.message);
+                }
+            };
+            
+            const renderChatView = () => {
+                const chat = state.tickets.get(state.currentTicketId);
                 if (!chat) return resetChatView();
 
-                // Update Header
+                selectors.chatPlaceholder.classList.add('hidden');
+                selectors.chatView.classList.remove('hidden');
+
                 selectors.chatHeaderTitle.textContent = `Chat with ${escapeHTML(chat.buyer_name)}`;
-                selectors.chatHeaderAvatar.textContent = escapeHTML(chat.buyer_name).charAt(0).toUpperCase();
                 selectors.chatHeaderDetails.textContent = `Status: ${chat.status} | Claimed by: ${chat.claimed_by_name || 'None'}`;
                 
-                // Update Messages
+                const isMyTicket = chat.claimed_by === state.user.id;
+                selectors.completeBtn.style.display = isMyTicket && chat.status !== 'completed' ? 'inline-flex' : 'none';
+                selectors.deleteBtn.style.display = isMyTicket ? 'inline-flex' : 'none';
+                
+                const isClaimed = !!chat.claimed_by;
+                selectors.chatReplyForm.style.display = isClaimed ? 'flex' : 'none';
+                selectors.claimActionBar.style.display = isClaimed ? 'none' : 'flex';
+
                 const messagesHTML = (chat.messages || []).map(msg => {
-                    const senderName = msg.sender === 'user' ? escapeHTML(chat.buyer_name) : (msg.sender_name || 'Seller');
+                    const senderName = msg.sender === 'user' ? escapeHTML(chat.buyer_name) : 'You';
                     return `<div class="message-bubble ${msg.sender}">
-                                <div class="message-header">
-                                    <span class="message-sender">${senderName}</span>
-                                    <span class="message-timestamp">${formatTimestamp(msg.timestamp)}</span>
-                                </div>
-                                <p>${escapeHTML(msg.message).replace(/\n/g, '<br>')}</p>
-                            </div>`;
+                        <div class="message-sender">${senderName}</div>
+                        <p>${escapeHTML(msg.message).replace(/\n/g, '<br>')}</p>
+                    </div>`;
                 }).join('');
                 selectors.chatMessages.innerHTML = `<div class="message-list-wrapper">${messagesHTML}</div>`;
-
-                // Update Actions
-                const isMyTicket = chat.claimed_by === state.user.id;
-                const isClaimed = !!chat.claimed_by;
-                const isCompleted = chat.status === 'completed';
-                
-                selectors.completeBtn.style.display = isMyTicket && !isCompleted ? 'inline-flex' : 'none';
-                selectors.deleteBtn.style.display = (isMyTicket || state.user.role === 'admin') ? 'inline-flex' : 'none';
-                selectors.joinChatBtn.style.display = !isMyTicket && isClaimed && !isCompleted ? 'inline-flex' : 'none';
-                
-                selectors.chatReplyForm.style.display = 'none';
-                selectors.actionBar.style.display = 'flex';
-                selectors.claimBtn.style.display = 'none';
-                selectors.actionBarText.style.display = 'none';
-
-                if (!isClaimed) {
-                    selectors.claimBtn.style.display = 'inline-flex';
-                } else if (isMyTicket && !isCompleted) {
-                    selectors.chatReplyForm.style.display = 'flex';
-                    selectors.actionBar.style.display = 'none';
-                } else {
-                    selectors.actionBarText.style.display = 'block';
-                    selectors.actionBarText.textContent = isCompleted ? 'This ticket is completed.' : `This ticket is being handled by ${escapeHTML(chat.claimed_by_name)}.`;
-                }
-                
-                selectors.chatPlaceholder.style.display = 'none';
-                selectors.chatView.classList.remove('hidden');
             };
 
             const resetChatView = () => {
                 state.currentTicketId = null;
                 selectors.chatView.classList.add('hidden');
-                selectors.chatPlaceholder.style.display = 'flex';
+                selectors.chatPlaceholder.classList.remove('hidden');
                 document.querySelectorAll('.chat-item.active').forEach(el => el.classList.remove('active'));
-                selectors.chatsTab.classList.remove('mobile-chat-active');
             };
-
-            const switchTab = tabName => {
+            
+            const switchTab = (tabName) => {
                 selectors.navLinks.forEach(link => link.classList.toggle('active', link.dataset.tab === tabName));
                 selectors.contentPanels.forEach(panel => panel.classList.toggle('active', panel.id === `${tabName}-tab`));
                 selectors.headerTitle.textContent = document.querySelector(`.nav-links a[data-tab="${tabName}"] span`).textContent;
             };
 
-            const handleClaimOrJoin = async (e) => {
-                if (!state.currentTicketId) return;
-                const btn = e.currentTarget;
-                btn.disabled = true;
-                btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`;
-                
-                try {
-                    // await authFetch(...); // In a real app, you'd call the server
-                    
-                    // --- Optimistic UI Update for instant feedback ---
-                    console.log(`Claiming ticket ${state.currentTicketId}`);
-                    const ticket = state.tickets.get(state.currentTicketId);
-                    if(ticket) {
-                        ticket.claimed_by = state.user.id;
-                        ticket.claimed_by_name = state.user.username;
-                        ticket.status = 'processing'; // Ensure status is correct
-                        renderChatView(ticket);
-                        updateChatListDOM();
-                    }
-                } catch (error) {
-                    console.error('Failed to claim ticket:', error);
-                    showNotification('Failed to join chat.', 'danger');
-                    btn.disabled = false;
-                    btn.innerHTML = `<i class="fas fa-handshake-angle"></i> Join Chat`;
-                }
-            };
-
-            // --- Event Listeners Setup ---
             const setupEventListeners = () => {
-                selectors.loginForm.addEventListener('submit', (e) => { e.preventDefault(); showApp(); });
+                selectors.loginForm.addEventListener('submit', handleLogin);
                 selectors.logoutBtn.addEventListener('click', (e) => { e.preventDefault(); showLoginScreen(); });
-                selectors.sidebarToggle.addEventListener('click', () => selectors.sidebar.classList.toggle('collapsed'));
+                
                 selectors.navLinks.forEach(link => {
-                    link.addEventListener('click', e => { e.preventDefault(); if(link.dataset.tab) switchTab(link.dataset.tab); });
+                    link.addEventListener('click', e => {
+                        e.preventDefault();
+                        const tab = link.dataset.tab;
+                        if (tab) switchTab(tab);
+                    });
                 });
-                selectors.showAllToggle.addEventListener('change', e => {
-                    selectors.chatListContainer.classList.toggle('show-other-active', e.target.checked);
-                });
-                selectors.mobileBackBtn.addEventListener('click', () => selectors.chatsTab.classList.remove('mobile-chat-active'));
-
-                selectors.chatListContainer.addEventListener('click', e => {
+                
+                selectors.chatListContainer.addEventListener('click', (e) => {
                     const chatItem = e.target.closest('.chat-item');
                     if (chatItem) {
                         state.currentTicketId = parseInt(chatItem.dataset.chatId);
-                        document.querySelector('.chat-item.active')?.classList.remove('active');
-                        chatItem.classList.add('active');
-                        renderChatView(state.tickets.get(state.currentTicketId));
-                        if (window.innerWidth <= 992) selectors.chatsTab.classList.add('mobile-chat-active');
+                        updateChatListDOM(); // Re-render to show active state
+                        renderChatView();
                     }
                 });
 
-                selectors.claimBtn.addEventListener('click', handleClaimOrJoin);
-                selectors.joinChatBtn.addEventListener('click', handleClaimOrJoin);
-
-                selectors.chatReplyInput.addEventListener('keydown', e => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        selectors.chatReplyForm.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
-                    }
+                selectors.claimBtn.addEventListener('click', async () => {
+                    if (!state.currentTicketId) return;
+                    try {
+                        await authFetch(`${API_BASE_URL}/tickets/${state.currentTicketId}/claim`, { method: 'POST' });
+                        await updateData();
+                    } catch (error) { console.error('Failed to claim ticket:', error); }
                 });
-                
-                selectors.chatReplyForm.addEventListener('submit', e => {
+
+                selectors.chatReplyForm.addEventListener('submit', async (e) => {
                     e.preventDefault();
                     const message = selectors.chatReplyInput.value.trim();
                     if (!message || !state.currentTicketId) return;
-                    
-                    const ticket = state.tickets.get(state.currentTicketId);
-                    ticket.messages.push({
-                        sender: 'seller',
-                        sender_name: state.user.username,
-                        message: message,
-                        timestamp: new Date().toISOString()
-                    });
-                    ticket.updated_at = new Date().toISOString();
-                    selectors.chatReplyInput.value = '';
-                    renderChatView(ticket);
+                    const btn = e.target.querySelector('button');
+                    btn.disabled = true;
+                    try {
+                        await authFetch(`${API_BASE_URL}/tickets/${state.currentTicketId}/messages`, { method: 'POST', body: JSON.stringify({ message }) });
+                        selectors.chatReplyInput.value = '';
+                        await updateData();
+                    } catch (error) { console.error("Failed to send message", error); } 
+                    finally { btn.disabled = false; }
+                });
+                
+                selectors.completeBtn.addEventListener('click', async () => {
+                    const key = prompt("Please enter the license key to complete this ticket:");
+                    if (key && key.trim()) {
+                        await authFetch(`${API_BASE_URL}/tickets/${state.currentTicketId}/complete`, { method: 'POST', body: JSON.stringify({ licenseKey: key.trim() }) });
+                        await updateData();
+                    }
+                });
+
+                selectors.deleteBtn.addEventListener('click', async () => {
+                    if (confirm("Are you sure you want to permanently delete this ticket?")) {
+                        await authFetch(`${API_BASE_URL}/tickets/${state.currentTicketId}`, { method: 'DELETE' });
+                        resetChatView();
+                        await updateData();
+                    }
                 });
             };
 
-            // --- Initial Load ---
             if (localStorage.getItem('token')) { showApp(); } 
             else { selectors.loginContainer.style.display = 'flex'; }
             setupEventListeners();
