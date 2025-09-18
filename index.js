@@ -47,8 +47,8 @@ const corsOptions = {
             callback(null, true);
         } else {
             console.error(`CORS Blocked Origin: ${origin}`);
-            callback(new Error('Not a
-ld by CORS'));
+            // THIS LINE IS NOW FIXED
+            callback(new Error('Not allowed by CORS'));
         }
     },
     credentials: true,
@@ -75,39 +75,23 @@ async function initializeDatabase() {
         connection = await dbPool.getConnection();
         console.log("Successfully connected to MySQL database.");
 
-        // Step 1: Ensure base tables exist
         await connection.query(`CREATE TABLE IF NOT EXISTS adminusers (id INT AUTO_INCREMENT PRIMARY KEY, username VARCHAR(255) UNIQUE NOT NULL, password_hash VARCHAR(255), role ENUM('admin','seller','buyer') NOT NULL DEFAULT 'buyer', discord_id VARCHAR(255) UNIQUE NULL, discord_avatar VARCHAR(255) NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
         await connection.query(`CREATE TABLE IF NOT EXISTS tickets (id INT AUTO_INCREMENT PRIMARY KEY, user_id INT NOT NULL, status ENUM('awaiting', 'processing', 'completed') DEFAULT 'awaiting', license_key VARCHAR(255), payment_method VARCHAR(50), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, FOREIGN KEY (user_id) REFERENCES adminusers(id) ON DELETE CASCADE);`);
         await connection.query(`CREATE TABLE IF NOT EXISTS ticket_messages (id INT AUTO_INCREMENT PRIMARY KEY, ticket_id INT NOT NULL, sender ENUM('user', 'seller') NOT NULL, message TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE);`);
 
-        // Step 2: Check for and add missing discord columns to 'adminusers'
-        const [discordColumns] = await connection.query(
-            `SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'adminusers' AND COLUMN_NAME = 'discord_id'`,
-            [process.env.MYSQLDATABASE]
-        );
+        const [discordColumns] = await connection.query(`SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'adminusers' AND COLUMN_NAME = 'discord_id'`, [process.env.MYSQLDATABASE]);
         if (discordColumns.length === 0) {
             console.log("SCHEMA-FIX: Adding 'discord_id' and 'discord_avatar' columns to 'adminusers' table...");
             await connection.query(`ALTER TABLE adminusers ADD COLUMN discord_id VARCHAR(255) UNIQUE NULL, ADD COLUMN discord_avatar VARCHAR(255) NULL`);
             console.log("SCHEMA-FIX: Columns added successfully.");
         }
-
-        // Step 3: Check for and fix incorrect password_hash rule in 'adminusers'
-        const [passwordColumnInfo] = await connection.query(
-            `SELECT IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'adminusers' AND COLUMN_NAME = 'password_hash'`,
-            [process.env.MYSQLDATABASE]
-        );
+        const [passwordColumnInfo] = await connection.query(`SELECT IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'adminusers' AND COLUMN_NAME = 'password_hash'`, [process.env.MYSQLDATABASE]);
         if (passwordColumnInfo.length > 0 && passwordColumnInfo[0].IS_NULLABLE === 'NO') {
             console.log("SCHEMA-FIX: 'password_hash' column has incorrect NOT NULL rule. Fixing...");
             await connection.query(`ALTER TABLE adminusers MODIFY COLUMN password_hash VARCHAR(255) NULL`);
             console.log("SCHEMA-FIX: 'password_hash' column rule fixed successfully.");
         }
-
-        // --- NEW FIX START ---
-        // Step 4: Check for and add missing 'claimed_by' column to 'tickets'
-        const [claimedByColumn] = await connection.query(
-            `SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'tickets' AND COLUMN_NAME = 'claimed_by'`,
-            [process.env.MYSQLDATABASE]
-        );
+        const [claimedByColumn] = await connection.query(`SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'tickets' AND COLUMN_NAME = 'claimed_by'`, [process.env.MYSQLDATABASE]);
         if (claimedByColumn.length === 0) {
             console.log("SCHEMA-FIX: Adding 'claimed_by' column and foreign key to 'tickets' table...");
             await connection.query(
@@ -117,7 +101,6 @@ async function initializeDatabase() {
             );
             console.log("SCHEMA-FIX: 'tickets' table updated successfully.");
         }
-        // --- NEW FIX END ---
 
         console.log("Database schema verified and up-to-date.");
     } catch (error) {
@@ -423,7 +406,6 @@ apiRouter.post('/tickets/:id/messages', verifyToken, requireAnyRole, async (req,
         } else {
             await dbPool.query("UPDATE tickets SET updated_at = CURRENT_TIMESTAMP WHERE id = ?", [id]);
         }
-        // Return the updated ticket after sending a message
         const [updatedTickets] = await dbPool.query(`SELECT t.*, buyer.username as buyer_name, seller.username as claimed_by_name FROM tickets t JOIN adminusers buyer ON t.user_id = buyer.id LEFT JOIN adminusers seller ON t.claimed_by = seller.id WHERE t.id = ?`, [id]);
         const [messages] = await dbPool.query("SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC", [id]);
         updatedTickets[0].messages = messages;
