@@ -47,7 +47,8 @@ const corsOptions = {
             callback(null, true);
         } else {
             console.error(`CORS Blocked Origin: ${origin}`);
-            callback(new Error('Not allowed by CORS'));
+            callback(new Error('Not a
+ld by CORS'));
         }
     },
     credentials: true,
@@ -111,8 +112,8 @@ async function initializeDatabase() {
             console.log("SCHEMA-FIX: Adding 'claimed_by' column and foreign key to 'tickets' table...");
             await connection.query(
                 `ALTER TABLE tickets 
-                 ADD COLUMN claimed_by INT NULL DEFAULT NULL, 
-                 ADD CONSTRAINT fk_claimed_by FOREIGN KEY (claimed_by) REFERENCES adminusers(id) ON DELETE SET NULL`
+                    ADD COLUMN claimed_by INT NULL DEFAULT NULL, 
+                    ADD CONSTRAINT fk_claimed_by FOREIGN KEY (claimed_by) REFERENCES adminusers(id) ON DELETE SET NULL`
             );
             console.log("SCHEMA-FIX: 'tickets' table updated successfully.");
         }
@@ -129,7 +130,6 @@ async function initializeDatabase() {
 
 
 // --- MIDDLEWARE ---
-// ... (Your middleware is fine) ...
 const verifyToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
@@ -179,7 +179,6 @@ const requireAnyRole = requireRole(['admin', 'seller', 'buyer']);
 const apiRouter = express.Router();
 
 // --- AUTH/USER ROUTES ---
-// ... (Your auth routes are fine) ...
 apiRouter.post('/login', verifyTurnstile, async (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) return res.status(400).json({ message: 'Invalid request.' });
@@ -267,8 +266,77 @@ apiRouter.get('/auth/discord/callback', async (req, res) => {
     }
 });
 
+// =================================================================
+// --- NEW SERVER VERIFICATION ROUTES START HERE ---
+// =================================================================
+
+// This route starts the verification process. Your website button should link here.
+apiRouter.get('/discord/verify-auth', (req, res) => {
+    const params = new URLSearchParams({
+        client_id: process.env.DISCORD_CLIENT_ID,
+        redirect_uri: 'https://eps1llon.win/api/discord/verify-callback',
+        response_type: 'code',
+        scope: 'identify guilds.join' // Scopes needed to verify and add users
+    });
+    res.redirect(`https://discord.com/api/oauth2/authorize?${params.toString()}`);
+});
+
+// This route handles the logic after the user authorizes on Discord.
+apiRouter.get('/discord/verify-callback', async (req, res) => {
+    const code = req.query.code;
+    if (!code) {
+        return res.status(400).send('Authorization failed: No authorization code was provided by Discord.');
+    }
+
+    try {
+        // Step 1: Exchange the authorization code for an access token
+        const tokenResponse = await axios.post('https://discord.com/api/oauth2/token', new URLSearchParams({
+            client_id: process.env.DISCORD_CLIENT_ID,
+            client_secret: process.env.DISCORD_CLIENT_SECRET,
+            grant_type: 'authorization_code',
+            code: code,
+            redirect_uri: 'https://eps1llon.win/api/discord/verify-callback'
+        }), {
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+        });
+
+        const { access_token } = tokenResponse.data;
+
+        // Step 2: Get the user's Discord profile information
+        const userResponse = await axios.get('https://discord.com/api/users/@me', {
+            headers: { 'Authorization': `Bearer ${access_token}` }
+        });
+        const discordUser = userResponse.data;
+
+        // Step 3: Add the user to your Discord server using their access token
+        await axios.put(
+            `https://discord.com/api/v10/guilds/${process.env.DISCORD_GUILD_ID}/members/${discordUser.id}`,
+            { access_token: access_token },
+            { headers: { 'Authorization': `Bot ${process.env.DISCORD_BOT_TOKEN}` } }
+        );
+
+        // Step 4: Add the "Verified" role to the user
+        await axios.put(
+            `https://discord.com/api/v10/guilds/${process.env.DISCORD_GUILD_ID}/members/${discordUser.id}/roles/${process.env.DISCORD_VERIFIED_ROLE_ID}`,
+            {}, // The body is empty for this request
+            { headers: { 'Authorization': `Bot ${process.env.DISCORD_BOT_TOKEN}` } }
+        );
+        
+        // Step 5: Send a success message or redirect to a success page
+        res.send(`<h1>✅ Verification Complete!</h1><p>Welcome, ${discordUser.username}! You now have access to the server. You can close this window.</p>`);
+
+    } catch (error) {
+        console.error("Verification Callback Error:", error.response ? error.response.data : error.message);
+        res.status(500).send('An error occurred during verification. This could be due to missing permissions for the bot.');
+    }
+});
+
+// =================================================================
+// --- NEW SERVER VERIFICATION ROUTES END HERE ---
+// =================================================================
+
+
 // --- TICKET ROUTES ---
-// ... (Your ticket routes are fine) ...
 apiRouter.get('/tickets/all', verifyToken, requireSeller, async (req, res) => {
     try {
         const query = `
