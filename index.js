@@ -17,7 +17,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // --- SERVE FRONTEND STATIC FILES ---
-app.use(express.static(path.join(__dirname, 'public'), { extensions: ['html'] }));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // --- TRUST PROXY FOR RAILWAY ---
 app.set('trust proxy', 1);
@@ -47,7 +47,6 @@ const corsOptions = {
             callback(null, true);
         } else {
             console.error(`CORS Blocked Origin: ${origin}`);
-            // THIS LINE IS NOW FIXED
             callback(new Error('Not allowed by CORS'));
         }
     },
@@ -75,32 +74,49 @@ async function initializeDatabase() {
         connection = await dbPool.getConnection();
         console.log("Successfully connected to MySQL database.");
 
+        // Step 1: Ensure base tables exist
         await connection.query(`CREATE TABLE IF NOT EXISTS adminusers (id INT AUTO_INCREMENT PRIMARY KEY, username VARCHAR(255) UNIQUE NOT NULL, password_hash VARCHAR(255), role ENUM('admin','seller','buyer') NOT NULL DEFAULT 'buyer', discord_id VARCHAR(255) UNIQUE NULL, discord_avatar VARCHAR(255) NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);`);
         await connection.query(`CREATE TABLE IF NOT EXISTS tickets (id INT AUTO_INCREMENT PRIMARY KEY, user_id INT NOT NULL, status ENUM('awaiting', 'processing', 'completed') DEFAULT 'awaiting', license_key VARCHAR(255), payment_method VARCHAR(50), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, FOREIGN KEY (user_id) REFERENCES adminusers(id) ON DELETE CASCADE);`);
         await connection.query(`CREATE TABLE IF NOT EXISTS ticket_messages (id INT AUTO_INCREMENT PRIMARY KEY, ticket_id INT NOT NULL, sender ENUM('user', 'seller') NOT NULL, message TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE);`);
 
-        const [discordColumns] = await connection.query(`SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'adminusers' AND COLUMN_NAME = 'discord_id'`, [process.env.MYSQLDATABASE]);
+        // Step 2: Check for and add missing discord columns to 'adminusers'
+        const [discordColumns] = await connection.query(
+            `SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'adminusers' AND COLUMN_NAME = 'discord_id'`,
+            [process.env.MYSQLDATABASE]
+        );
         if (discordColumns.length === 0) {
             console.log("SCHEMA-FIX: Adding 'discord_id' and 'discord_avatar' columns to 'adminusers' table...");
             await connection.query(`ALTER TABLE adminusers ADD COLUMN discord_id VARCHAR(255) UNIQUE NULL, ADD COLUMN discord_avatar VARCHAR(255) NULL`);
             console.log("SCHEMA-FIX: Columns added successfully.");
         }
-        const [passwordColumnInfo] = await connection.query(`SELECT IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'adminusers' AND COLUMN_NAME = 'password_hash'`, [process.env.MYSQLDATABASE]);
+
+        // Step 3: Check for and fix incorrect password_hash rule in 'adminusers'
+        const [passwordColumnInfo] = await connection.query(
+            `SELECT IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'adminusers' AND COLUMN_NAME = 'password_hash'`,
+            [process.env.MYSQLDATABASE]
+        );
         if (passwordColumnInfo.length > 0 && passwordColumnInfo[0].IS_NULLABLE === 'NO') {
             console.log("SCHEMA-FIX: 'password_hash' column has incorrect NOT NULL rule. Fixing...");
             await connection.query(`ALTER TABLE adminusers MODIFY COLUMN password_hash VARCHAR(255) NULL`);
             console.log("SCHEMA-FIX: 'password_hash' column rule fixed successfully.");
         }
-        const [claimedByColumn] = await connection.query(`SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'tickets' AND COLUMN_NAME = 'claimed_by'`, [process.env.MYSQLDATABASE]);
+
+        // --- NEW FIX START ---
+        // Step 4: Check for and add missing 'claimed_by' column to 'tickets'
+        const [claimedByColumn] = await connection.query(
+            `SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'tickets' AND COLUMN_NAME = 'claimed_by'`,
+            [process.env.MYSQLDATABASE]
+        );
         if (claimedByColumn.length === 0) {
             console.log("SCHEMA-FIX: Adding 'claimed_by' column and foreign key to 'tickets' table...");
             await connection.query(
                 `ALTER TABLE tickets 
-                    ADD COLUMN claimed_by INT NULL DEFAULT NULL, 
-                    ADD CONSTRAINT fk_claimed_by FOREIGN KEY (claimed_by) REFERENCES adminusers(id) ON DELETE SET NULL`
+                 ADD COLUMN claimed_by INT NULL DEFAULT NULL, 
+                 ADD CONSTRAINT fk_claimed_by FOREIGN KEY (claimed_by) REFERENCES adminusers(id) ON DELETE SET NULL`
             );
             console.log("SCHEMA-FIX: 'tickets' table updated successfully.");
         }
+        // --- NEW FIX END ---
 
         console.log("Database schema verified and up-to-date.");
     } catch (error) {
@@ -113,6 +129,7 @@ async function initializeDatabase() {
 
 
 // --- MIDDLEWARE ---
+// ... (Your middleware is fine) ...
 const verifyToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
@@ -162,6 +179,7 @@ const requireAnyRole = requireRole(['admin', 'seller', 'buyer']);
 const apiRouter = express.Router();
 
 // --- AUTH/USER ROUTES ---
+// ... (Your auth routes are fine) ...
 apiRouter.post('/login', verifyTurnstile, async (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) return res.status(400).json({ message: 'Invalid request.' });
@@ -249,77 +267,8 @@ apiRouter.get('/auth/discord/callback', async (req, res) => {
     }
 });
 
-// =================================================================
-// --- NEW SERVER VERIFICATION ROUTES START HERE ---
-// =================================================================
-
-// This route starts the verification process. Your website button should link here.
-apiRouter.get('/discord/verify-auth', (req, res) => {
-    const params = new URLSearchParams({
-        client_id: process.env.DISCORD_CLIENT_ID,
-        redirect_uri: 'https://eps1llon.win/api/discord/verify-callback',
-        response_type: 'code',
-        scope: 'identify guilds.join' // Scopes needed to verify and add users
-    });
-    res.redirect(`https://discord.com/api/oauth2/authorize?${params.toString()}`);
-});
-
-// This route handles the logic after the user authorizes on Discord.
-apiRouter.get('/discord/verify-callback', async (req, res) => {
-    const code = req.query.code;
-    if (!code) {
-        return res.status(400).send('Authorization failed: No authorization code was provided by Discord.');
-    }
-
-    try {
-        // Step 1: Exchange the authorization code for an access token
-        const tokenResponse = await axios.post('https://discord.com/api/oauth2/token', new URLSearchParams({
-            client_id: process.env.DISCORD_CLIENT_ID,
-            client_secret: process.env.DISCORD_CLIENT_SECRET,
-            grant_type: 'authorization_code',
-            code: code,
-            redirect_uri: 'https://eps1llon.win/api/discord/verify-callback'
-        }), {
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-        });
-
-        const { access_token } = tokenResponse.data;
-
-        // Step 2: Get the user's Discord profile information
-        const userResponse = await axios.get('https://discord.com/api/users/@me', {
-            headers: { 'Authorization': `Bearer ${access_token}` }
-        });
-        const discordUser = userResponse.data;
-
-        // Step 3: Add the user to your Discord server using their access token
-        await axios.put(
-            `https://discord.com/api/v10/guilds/${process.env.DISCORD_GUILD_ID}/members/${discordUser.id}`,
-            { access_token: access_token },
-            { headers: { 'Authorization': `Bot ${process.env.DISCORD_BOT_TOKEN}` } }
-        );
-
-        // Step 4: Add the "Verified" role to the user
-        await axios.put(
-            `https://discord.com/api/v10/guilds/${process.env.DISCORD_GUILD_ID}/members/${discordUser.id}/roles/${process.env.DISCORD_VERIFIED_ROLE_ID}`,
-            {}, // The body is empty for this request
-            { headers: { 'Authorization': `Bot ${process.env.DISCORD_BOT_TOKEN}` } }
-        );
-        
-        // Step 5: Send a success message or redirect to a success page
-        res.send(`<h1>✅ Verification Complete!</h1><p>Welcome, ${discordUser.username}! You now have access to the server. You can close this window.</p>`);
-
-    } catch (error) {
-        console.error("Verification Callback Error:", error.response ? error.response.data : error.message);
-        res.status(500).send('An error occurred during verification. This could be due to missing permissions for the bot.');
-    }
-});
-
-// =================================================================
-// --- NEW SERVER VERIFICATION ROUTES END HERE ---
-// =================================================================
-
-
 // --- TICKET ROUTES ---
+// ... (Your ticket routes are fine) ...
 apiRouter.get('/tickets/all', verifyToken, requireSeller, async (req, res) => {
     try {
         const query = `
@@ -406,6 +355,7 @@ apiRouter.post('/tickets/:id/messages', verifyToken, requireAnyRole, async (req,
         } else {
             await dbPool.query("UPDATE tickets SET updated_at = CURRENT_TIMESTAMP WHERE id = ?", [id]);
         }
+        // Return the updated ticket after sending a message
         const [updatedTickets] = await dbPool.query(`SELECT t.*, buyer.username as buyer_name, seller.username as claimed_by_name FROM tickets t JOIN adminusers buyer ON t.user_id = buyer.id LEFT JOIN adminusers seller ON t.claimed_by = seller.id WHERE t.id = ?`, [id]);
         const [messages] = await dbPool.query("SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC", [id]);
         updatedTickets[0].messages = messages;
@@ -450,7 +400,6 @@ app.use('/api', apiRouter);
 app.get('/seller', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'seller.html'));
 });
-
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
