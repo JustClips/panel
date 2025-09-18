@@ -17,7 +17,6 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // --- SERVE FRONTEND STATIC FILES ---
-// THIS IS THE UPDATED LINE THAT FIXES THE .HTML URL PROBLEM
 app.use(express.static(path.join(__dirname, 'public'), { extensions: ['html'] }));
 
 // --- TRUST PROXY FOR RAILWAY ---
@@ -448,10 +447,9 @@ apiRouter.get('/health', (req, res) => res.status(200).json({ status: 'ok' }));
 app.use('/api', apiRouter);
 
 // --- FRONTEND ROUTE HANDLER ---
-// THIS ROUTE WAS REMOVED BECAUSE THE express.static CHANGE MAKES IT REDUNDANT
-// app.get('/seller', (req, res) => {
-//     res.sendFile(path.join(__dirname, 'public', 'seller.html'));
-// });
+app.get('/seller', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'seller.html'));
+});
 
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
