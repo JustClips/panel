@@ -1,20 +1,74 @@
 <!DOCTYPE html>
-<html lang="en" class="bg-gray-900 text-white">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Verification</title>
+    <title>Server Verification</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for the animated background */
+        body {
+            background-color: #111827; /* A deep, dark blue-gray */
+            overflow: hidden; /* Prevents scrollbars from the dots */
+        }
+
+        .dot {
+            position: absolute;
+            background-color: white;
+            border-radius: 50%;
+            opacity: 0.7;
+            animation: fall linear infinite;
+        }
+
+        /* The animation that makes the dots fall */
+        @keyframes fall {
+            to {
+                transform: translateY(100vh);
+                opacity: 0;
+            }
+        }
+    </style>
 </head>
-<body class="flex items-center justify-center min-h-screen">
-    <div class="text-center p-8 bg-gray-800 rounded-lg shadow-lg">
-        <h1 class="text-4xl font-bold mb-4">Server Verification</h1>
-        <p class="text-lg text-gray-300 mb-6">Click the button below to verify your Discord account and gain access to the server.</p>
+<body class="relative flex items-center justify-center min-h-screen">
+    <div id="dots-container" class="absolute top-0 left-0 w-full h-full z-0"></div>
+
+    <div class="relative z-10 text-center p-10 bg-gray-800/80 backdrop-blur-sm border border-gray-700 rounded-xl shadow-2xl max-w-lg mx-auto">
+        <h1 class="text-5xl font-bold text-white mb-4">
+            Server Verification
+        </h1>
+        <p class="text-lg text-gray-300 mb-8">
+            Click the button below to verify your Discord account and unlock access to all channels.
+        </p>
         
         <a href="/api/discord/verify-auth" 
-           class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg text-xl transition-transform transform hover:scale-105">
+           class="inline-block bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 px-8 rounded-lg text-xl transition-all duration-300 transform hover:scale-105 shadow-lg">
             Verify with Discord
         </a>
     </div>
+
+    <script>
+        // JavaScript to generate the falling dots
+        const container = document.getElementById('dots-container');
+        const numDots = 100; // You can adjust the number of dots
+
+        for (let i = 0; i < numDots; i++) {
+            const dot = document.createElement('div');
+            dot.classList.add('dot');
+
+            // Randomize properties for each dot
+            const size = Math.random() * 3 + 1; // size between 1px and 4px
+            const x = Math.random() * 100; // horizontal position
+            const duration = Math.random() * 10 + 5; // fall duration between 5 and 15 seconds
+            const delay = Math.random() * 5; // start delay
+
+            dot.style.width = `${size}px`;
+            dot.style.height = `${size}px`;
+            dot.style.left = `${x}vw`;
+            dot.style.animationDuration = `${duration}s`;
+            dot.style.animationDelay = `${delay}s`;
+
+            container.appendChild(dot);
+        }
+    </script>
 </body>
 </html>
